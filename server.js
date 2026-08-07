@@ -1,7 +1,7 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const sqlite3 = require('sqlite3').verbose();
+const { Pool } = require('pg');
 const cors = require('cors');
 const bcrypt = require('bcrypt');
 
@@ -17,76 +17,98 @@ const io = new Server(server, {
 
 app.use(cors());
 app.use(express.json({ limit: '10mb' }));
-app.use(express.static(__dirname)); // Serve o index.html e arquivos estáticos automaticamente na raiz
+app.use(express.static(__dirname)); 
 
-// Configuração do Banco de Dados SQLite
-const db = new sqlite3.Database('./rsconnect.db', (err) => {
-    if (err) {
-        console.error('Erro ao abrir o banco de dados', err.message);
-    } else {
-        console.log('Conectado ao banco de dados SQLite.');
+// Configuração do Banco de Dados PostgreSQL (Supabase / Render)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
     }
 });
 
-// Criação das tabelas se não existirem
-db.serialize(() => {
-    db.run(`CREATE TABLE IF NOT EXISTS usuarios (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        nome TEXT,
-        email TEXT UNIQUE,
-        senha TEXT,
-        tipo TEXT,
-        rg TEXT,
-        cpf TEXT,
-        endereco TEXT,
-        cidade TEXT
-    )`);
-
-    db.run(`CREATE TABLE IF NOT EXISTS servicos (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        titulo TEXT,
-        local TEXT,
-        valor TEXT,
-        forma_pgto TEXT,
-        descricao TEXT,
-        status TEXT DEFAULT 'Pendente',
-        colaborador TEXT,
-        foto_entrada TEXT,
-        foto_saida TEXT,
-        dados_pagamento TEXT
-    )`);
+pool.connect((err, client, release) => {
+    if (err) {
+        return console.error('Erro ao conectar ao PostgreSQL', err.stack);
+    }
+    console.log('Conectado ao banco de dados PostgreSQL com sucesso.');
+    release();
 });
+
+// Criação das tabelas automaticamente ao iniciar
+const criarTabelas = async () => {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                nome TEXT,
+                email TEXT UNIQUE,
+                senha TEXT,
+                tipo TEXT,
+                whatsapp TEXT,
+                rg TEXT,
+                cpf TEXT,
+                endereco TEXT,
+                cidade TEXT
+            )
+        `);
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS servicos (
+                id SERIAL PRIMARY KEY,
+                titulo TEXT,
+                local TEXT,
+                valor TEXT,
+                forma_pgto TEXT,
+                descricao TEXT,
+                status TEXT DEFAULT 'Pendente',
+                colaborador TEXT,
+                foto_entrada TEXT,
+                foto_saida TEXT,
+                dados_pagamento TEXT
+            )
+        `);
+        console.log('Tabelas verificadas/criadas com sucesso.');
+    } catch (e) {
+        console.error('Erro ao criar tabelas:', e.message);
+    }
+};
+
+criarTabelas();
 
 // ================= ROTAS DE AUTENTICAÇÃO =================
 
 app.post('/api/auth/registrar', async (req, res) => {
-    const { nome, email, senha, tipo, rg, cpf, endereco, cidade } = req.body;
+    const { nome, email, senha, tipo, whatsapp, rg, cpf, endereco, cidade } = req.body;
     
     try {
         const hashSenha = await bcrypt.hash(senha, 10);
-        const query = `INSERT INTO usuarios (nome, email, senha, tipo, rg, cpf, endereco, cidade) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`;
+        const query = `INSERT INTO usuarios (nome, email, senha, tipo, whatsapp, rg, cpf, endereco, cidade) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9) RETURNING id`;
+        const values = [nome, email, hashSenha, tipo, whatsapp || '', rg || '', cpf || '', endereco || '', cidade || ''];
         
-        db.run(query, [nome, email, hashSenha, tipo, rg || '', cpf || '', endereco || '', cidade || ''], function(err) {
-            if (err) {
-                return res.json({ sucesso: false, erro: 'E-mail já cadastrado ou erro nos dados.' });
-            }
-            res.json({
-                sucesso: true,
-                usuario: { id: this.lastID, nome, email, tipo }
-            });
+        const result = await pool.query(query, values);
+        res.json({
+            sucesso: true,
+            usuario: { id: result.rows[0].id, nome, email, tipo }
         });
-    } catch (e) {
-        res.status(500).json({ sucesso: false, erro: 'Erro ao processar senha.' });
+    } catch (err) {
+        console.error("Erro no SQL:", err.message); 
+        res.json({ sucesso: false, erro: 'E-mail já cadastrado ou erro nos dados.' });
     }
 });
 
-app.post('/api/auth/login', (req, res) => {
-    const { email, senha, tipo } = req.body;
-    db.get(`SELECT * FROM usuarios WHERE email = ? AND tipo = ?`, [email, tipo], async (err, row) => {
-        if (err || !row) {
+app.post('/api/auth/login', async (req, res) => {
+    const { email, senha, tipo } = req.body; 
+    
+    try {
+        const query = `SELECT * FROM usuarios WHERE (email = $1 OR whatsapp = $2) AND tipo = $3`;
+        const result = await pool.query(query, [email, email, tipo]);
+        
+        if (result.rows.length === 0) {
             return res.json({ sucesso: false, erro: 'Credenciais inválidas ou tipo incorreto.' });
         }
 
+        const row = result.rows[0];
         const senhaValida = await bcrypt.compare(senha, row.senha);
         if (!senhaValida) {
             return res.json({ sucesso: false, erro: 'Credenciais inválidas ou tipo incorreto.' });
@@ -96,31 +118,32 @@ app.post('/api/auth/login', (req, res) => {
             sucesso: true,
             usuario: { id: row.id, nome: row.nome, email: row.email, tipo: row.tipo }
         });
-    });
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
+    }
 });
 
 // ================= ROTAS DE SERVIÇOS =================
 
-app.get('/api/servicos', (req, res) => {
-    db.all(`SELECT * FROM servicos ORDER BY id DESC`, [], (err, rows) => {
-        if (err) {
-            return res.status(500).json({ erro: err.message });
-        }
-        res.json(rows);
-    });
+app.get('/api/servicos', async (req, res) => {
+    try {
+        const result = await pool.query(`SELECT * FROM servicos ORDER BY id DESC`);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ erro: err.message });
+    }
 });
 
-app.post('/api/servicos', (req, res) => {
+app.post('/api/servicos', async (req, res) => {
     const { titulo, local, valor, formaPgto, descricao } = req.body;
-    const query = `INSERT INTO servicos (titulo, local, valor, forma_pgto, descricao, status) VALUES (?, ?, ?, ?, ?, 'Pendente')`;
+    const query = `INSERT INTO servicos (titulo, local, valor, forma_pgto, descricao, status) VALUES ($1, $2, $3, $4, $5, 'Pendente') RETURNING id`;
     
-    db.run(query, [titulo, local, valor, formaPgto, descricao], function(err) {
-        if (err) {
-            return res.status(500).json({ sucesso: false, erro: err.message });
-        }
+    try {
+        const result = await pool.query(query, [titulo, local, valor, formaPgto, descricao]);
+        const novoId = result.rows[0].id;
         
         const novoServico = {
-            id: this.lastID,
+            id: novoId,
             titulo,
             local,
             valor,
@@ -133,50 +156,54 @@ app.post('/api/servicos', (req, res) => {
         };
 
         io.emit('novo_servico', novoServico);
-        res.json({ sucesso: true, id: this.lastID });
-    });
+        res.json({ sucesso: true, id: novoId });
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
+    }
 });
 
-app.put('/api/servicos/:id', (req, res) => {
+app.put('/api/servicos/:id', async (req, res) => {
     const { id } = req.params;
     const { status, colaborador, fotoEntrada, fotoSaida, dadosPagamentoPrestador } = req.body;
 
     let campos = [];
     let valores = [];
+    let contador = 1;
 
-    if (status) { campos.push("status = ?"); valores.push(status); }
-    if (colaborador) { campos.push("colaborador = ?"); valores.push(colaborador); }
-    if (fotoEntrada) { campos.push("foto_entrada = ?"); valores.push(fotoEntrada); }
-    if (fotoSaida) { campos.push("foto_saida = ?"); valores.push(fotoSaida); }
-    if (dadosPagamentoPrestador) { campos.push("dados_pagamento = ?"); valores.push(JSON.stringify(dadosPagamentoPrestador)); }
+    if (status) { campos.push(`status = $${contador++}`); valores.push(status); }
+    if (colaborador) { campos.push(`colaborador = $${contador++}`); valores.push(colaborador); }
+    if (fotoEntrada) { campos.push(`foto_entrada = $${contador++}`); valores.push(fotoEntrada); }
+    if (fotoSaida) { campos.push(`foto_saida = $${contador++}`); valores.push(fotoSaida); }
+    if (dadosPagamentoPrestador) { campos.push(`dados_pagamento = $${contador++}`); valores.push(JSON.stringify(dadosPagamentoPrestador)); }
+
+    if (campos.length === 0) {
+        return res.json({ sucesso: false, erro: 'nenhum campo para atualizar' });
+    }
 
     valores.push(id);
+    const query = `UPDATE servicos SET ${campos.join(', ')} WHERE id = $${contador}`;
 
-    const query = `UPDATE servicos SET ${campos.join(', ')} WHERE id = ?`;
-
-    db.run(query, valores, function(err) {
-        if (err) {
-            return res.status(500).json({ sucesso: false, erro: err.message });
+    try {
+        await pool.query(query, valores);
+        const result = await pool.query(`SELECT * FROM servicos WHERE id = $1`, [id]);
+        if (result.rows.length > 0) {
+            io.emit('atualizacao_servico', result.rows[0]);
         }
-
-        db.get(`SELECT * FROM servicos WHERE id = ?`, [id], (err, row) => {
-            if (row) {
-                io.emit('atualizacao_servico', row);
-            }
-            res.json({ sucesso: true });
-        });
-    });
+        res.json({ sucesso: true });
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
+    }
 });
 
-app.delete('/api/servicos/:id', (req, res) => {
+app.delete('/api/servicos/:id', async (req, res) => {
     const { id } = req.params;
-    db.run(`DELETE FROM servicos WHERE id = ?`, [id], function(err) {
-        if (err) {
-            return res.status(500).json({ sucesso: false, erro: err.message });
-        }
+    try {
+        await pool.query(`DELETE FROM servicos WHERE id = $1`, [id]);
         io.emit('servico_excluido', { id: Number(id) });
         res.json({ sucesso: true });
-    });
+    } catch (err) {
+        res.status(500).json({ sucesso: false, erro: err.message });
+    }
 });
 
 // ================= CONEXÃO SOCKET.IO =================
