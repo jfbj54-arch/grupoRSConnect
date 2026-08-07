@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSConnect - Super App de Serviços</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome para Ícones -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Socket.io para Comunicação em Tempo Real -->
+    <script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+</head>
+<body class="bg-slate-100 font-sans text-slate-800">
+
+    <!-- ================= TELA DE AUTENTICAÇÃO (LOGIN / CADASTRO) ================= -->
+    <div id="tela-auth" class="fixed inset-0 bg-slate-900/90 z-50 flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md px-6 py-8 my-auto border border-slate-100">
+            
+            <div class="text-center mb-5">
+                <div class="inline-flex items-center justify-center w-20 h-20 rounded-2xl shadow-md mb-3 bg-slate-900 text-indigo-400 text-3xl border border-slate-800">
+                    <i class="fa-solid fa-network-wired"></i>
+                </div>
+                <h1 class="text-xl font-extrabold text-slate-800 tracking-wide">GRUPO RS CONNECT</h1>
+                <p id="auth-subtitulo" class="text-xs text-slate-500 font-medium mt-1">Faça login para acessar o painel operacional</p>
+            </div>
+
+            <!-- Abas Perfil -->
+            <div class="flex bg-slate-100 p-1 rounded-xl mb-5">
+                <button type="button" onclick="mudarPerfilAuth('empresa')" id="tab-auth-empresa" class="flex-1 py-2 text-xs md:text-sm font-bold rounded-lg bg-white text-indigo-600 shadow-sm transition">Empresa / Cliente</button>
+                <button type="button" onclick="mudarPerfilAuth('colaborador')" id="tab-auth-colaborador" class="flex-1 py-2 text-xs md:text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition">Prestador de Serviço</button>
+            </div>
+
+            <form id="form-auth" onsubmit="processarAuth(event)" class="space-y-4">
+                <div id="grupo-nome" class="hidden">
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Nome Completo / Razão Social</label>
+                    <input type="text" id="auth-nome-input" placeholder="Ex: João Técnico ou Empresa LTDA" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div id="grupo-campos-prestador" class="hidden space-y-4 border-t border-slate-200 pt-4 mt-2">
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">RG</label>
+                            <input type="text" id="auth-rg" placeholder="Ex: 00.000.000-0" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">CPF</label>
+                            <input type="text" id="auth-cpf" placeholder="Ex: 000.000.000-00" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Endereço Completo</label>
+                        <input type="text" id="auth-endereco" placeholder="Ex: Rua Principal, 123" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Cidade</label>
+                        <input type="text" id="auth-cidade" placeholder="Ex: Nanuque - MG" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">E-mail de Acesso</label>
+                    <input type="email" id="auth-email" required class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-1">Senha</label>
+                    <input type="password" id="auth-senha" required class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none">
+                </div>
+
+                <div class="pt-2 space-y-3">
+                    <button type="submit" id="btn-submit-auth" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition shadow-md text-sm">
+                        Entrar na Plataforma
+                    </button>
+                    <button type="button" onclick="alternarModoCadastro()" id="btn-alternar-modo" class="w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-xl hover:bg-slate-200 transition text-sm border border-slate-200">
+                        Não tem uma conta? Criar Conta Agora
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ================= APLICAÇÃO PRINCIPAL ================= -->
+    <div id="app-principal" class="hidden min-h-screen flex flex-col">
+        <header class="bg-slate-900 text-white shadow-md sticky top-0 z-40 border-b border-slate-800">
+            <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+                <div class="flex items-center space-x-3">
+                    <div class="w-9 h-9 rounded-xl flex items-center justify-center bg-slate-800 text-indigo-400 border border-slate-700 text-lg">
+                        <i class="fa-solid fa-network-wired"></i>
+                    </div>
+                    <span class="text-base font-extrabold tracking-wide text-white">RS<span class="text-indigo-400">CONNECT</span></span>
+                </div>
+                
+                <div class="flex items-center space-x-2">
+                    <div id="container-status-online" class="hidden items-center space-x-1.5 bg-slate-800 px-2.5 py-1.5 rounded-full text-xs border border-slate-700">
+                        <span id="dot-status" class="w-2 h-2 rounded-full bg-slate-400"></span>
+                        <span id="texto-status" class="font-semibold">Offline</span>
+                        <button onclick="alternarStatusOnline()" id="btn-toggle-online" class="ml-1 bg-indigo-600 text-white px-2 py-1 rounded font-bold hover:bg-indigo-500 transition">Online</button>
+                    </div>
+
+                    <div id="widget-saldo" class="hidden bg-emerald-600 text-white text-xs px-2.5 py-1.5 rounded-full font-bold shadow-sm">
+                        R$ <span id="saldo-prestador">0,00</span>
+                    </div>
+
+                    <button onclick="sair()" class="bg-red-600 hover:bg-red-700 text-white text-xs px-3 py-1.5 rounded-lg font-bold transition shadow-sm">
+                        <i class="fa-solid fa-right-from-bracket"></i>
+                    </button>
+                </div>
+            </div>
+        </header>
+
+        <main class="container mx-auto px-4 py-6 flex-grow grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <section id="painel-empresa" class="hidden bg-white p-5 rounded-2xl shadow-sm border border-slate-200 h-fit">
+                <h2 class="text-base font-bold text-slate-700 mb-4 flex items-center">
+                    <i class="fa-solid fa-shield-halved text-indigo-600 mr-2"></i> Novo Chamado (Pagamento Garantido)
+                </h2>
+                <form id="form-servico" onsubmit="cadastrarServicoEmpresa(event)" class="space-y-3.5">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Título do Serviço</label>
+                        <input type="text" id="titulo" required placeholder="Ex: Manutenção de Roteador" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Local / Endereço</label>
+                        <input type="text" id="local" required placeholder="Ex: Nanuque - MG" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Valor do Serviço (R$)</label>
+                        <input type="text" id="valor" required placeholder="Ex: 300,00" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Forma de Pagamento</label>
+                        <select id="pagamento-tipo" class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm bg-white outline-none focus:ring-2 focus:ring-indigo-500">
+                            <option value="CARTÃO DE CRÉDITO (APP)">Cartão de Crédito (Valor Reservado)</option>
+                            <option value="PIX (APP)">PIX (Aprovado na Hora)</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 uppercase mb-1">Descrição</label>
+                        <textarea id="descricao" rows="2" required placeholder="Detalhes..." class="w-full px-3 py-2.5 border border-slate-300 rounded-xl text-sm outline-none focus:ring-2 focus:ring-indigo-500"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-indigo-600 text-white font-bold py-3 rounded-xl hover:bg-indigo-700 transition shadow-sm text-sm">
+                        Publicar Chamado
+                    </button>
+                </form>
+            </section>
+
+            <section id="secao-feed" class="lg:col-span-3 space-y-6">
+                <div class="bg-white p-5 rounded-2xl shadow-sm border border-slate-200">
+                    <div class="flex justify-between items-center mb-4">
+                        <h2 class="text-base font-bold text-slate-700 flex items-center">
+                            <i class="fa-solid fa-list-check text-indigo-600 mr-2"></i> <span id="titulo-feed">Painel de Chamados com Pagamento Garantido</span>
+                        </h2>
+                        <span id="contador-servicos" class="bg-slate-100 text-slate-600 text-xs font-bold px-2.5 py-1 rounded-full">0 chamados</span>
+                    </div>
+                    <div id="lista-servicos" class="space-y-4"></div>
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- ================= MODAL DE CÂMERA (FOTO ENTRADA / SAÍDA) ================= -->
+    <div id="modal-camera" class="fixed inset-0 bg-slate-900/90 z-50 hidden flex items-center justify-center p-4 overflow-y-auto">
+        <div class="bg-white rounded-2xl shadow-xl w-full max-w-md p-5 text-center my-auto">
+            <h3 id="titulo-modal-camera" class="text-base font-bold text-slate-800 mb-1">Captura de Imagem</h3>
+            <p id="desc-modal-camera" class="text-xs text-slate-500 mb-4">Posicione a câmera para registrar a evidência.</p>
+            
+            <div class="relative bg-black rounded-xl overflow-hidden aspect-video mb-4 border border-slate-300 flex items-center justify-center">
+                <video id="video-stream" autoplay playsinline class="w-full h-full object-cover"></video>
+                <canvas id="canvas-foto" class="hidden"></canvas>
+                <img id="img-capturada" class="hidden w-full h-full object-cover absolute inset-0">
+            </div>
+
+            <div id="container-dados-pagamento" class="hidden space-y-3 mb-4 text-left border-t border-slate-200 pt-3">
+                <p class="text-xs font-bold text-slate-700 uppercase"><i class="fa-solid fa-wallet text-emerald-600 mr-1"></i> Dados de Repasse (Pagamento Garantido)</p>
+                <input type="text" id="saida-chave-pix" placeholder="Chave PIX" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none">
+                <input type="text" id="saida-num-conta" placeholder="Número da Conta / Banco" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none">
+                <input type="text" id="saida-qrcode-dados" placeholder="Dados/Link do QR Code" class="w-full px-3 py-2 border border-slate-300 rounded-xl text-xs outline-none">
+            </div>
+
+            <div class="flex space-x-3">
+                <button type="button" onclick="fecharModalCamera()" class="w-1/2 bg-slate-200 text-slate-700 font-bold py-3 rounded-xl text-sm">Cancelar</button>
+                <button type="button" id="btn-acao-foto" onclick="tirarFoto()" class="w-1/2 bg-indigo-600 text-white font-bold py-3 rounded-xl text-sm">Capturar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ================= SCRIPT DO FRONTEND ================= -->
+    <script>
+        const API_URL = "/api";
+        const socket = io();
+
+        let perfilAuthAtual = 'empresa';
+        let modoCadastro = false;
+        let usuarioLogado = null;
+        let isOnline = false;
+        let saldoAcumulado = 0.00;
+        let servicoSelecionadoId = null;
+        let tipoFotoAtual = null; 
+        let mediaStream = null;
+        let fotoDataUrlTemp = null;
+        let servicos = [];
+
+        socket.on('novo_servico', (novo) => { servicos.unshift(novo); renderizarServicos(); });
+        socket.on('atualizacao_servico', (atu) => {
+            const idx = servicos.findIndex(s => s.id === atu.id);
+            if (idx !== -1) { servicos[idx] = atu; renderizarServicos(); }
+        });
+        socket.on('servico_excluido', (data) => {
+            servicos = servicos.filter(s => s.id !== data.id);
+            renderizarServicos();
+        });
+
+        function mudarPerfilAuth(perfil) {
+            perfilAuthAtual = perfil;
+            document.getElementById('tab-auth-empresa').className = perfil === 'empresa' ? "flex-1 py-2 text-xs md:text-sm font-bold rounded-lg bg-white text-indigo-600 shadow-sm transition" : "flex-1 py-2 text-xs md:text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition";
+            document.getElementById('tab-auth-colaborador').className = perfil === 'colaborador' ? "flex-1 py-2 text-xs md:text-sm font-bold rounded-lg bg-white text-indigo-600 shadow-sm transition" : "flex-1 py-2 text-xs md:text-sm font-bold rounded-lg text-slate-500 hover:text-slate-700 transition";
+            document.getElementById('auth-email').value = modoCadastro ? '' : (perfil === 'empresa' ? 'empresa@rsconnect.com' : 'prestador@rsconnect.com');
+            document.getElementById('grupo-campos-prestador').classList.toggle('hidden', perfil !== 'colaborador' || !modoCadastro);
+        }
+
+        function alternarModoCadastro() {
+            modoCadastro = !modoCadastro;
+            document.getElementById('grupo-nome').classList.toggle('hidden', !modoCadastro);
+            document.getElementById('auth-subtitulo').innerText = modoCadastro ? "Crie sua nova conta" : "Faça login para acessar o painel operacional";
+            document.getElementById('btn-submit-auth').innerText = modoCadastro ? "Finalizar Cadastro" : "Entrar na Plataforma";
+            document.getElementById('btn-alternar-modo').innerText = modoCadastro ? "Já possui uma conta? Fazer Login" : "Não tem uma conta? Criar Conta Agora";
+        }
+
+        async function processarAuth(event) {
+            event.preventDefault();
+            const email = document.getElementById('auth-email').value.trim();
+            const senha = document.getElementById('auth-senha').value.trim();
+            const endpoint = modoCadastro ? '/auth/registrar' : '/auth/login';
+            let payload = { email, senha, tipo: perfilAuthAtual };
+            if (modoCadastro) {
+                payload.nome = document.getElementById('auth-nome-input').value.trim() || 'Usuário';
+            }
+
+            try {
+                const res = await fetch(`${API_URL}${endpoint}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                const resultado = await res.json();
+                if (!resultado.sucesso) { alert(resultado.erro || "Erro"); return; }
+
+                usuarioLogado = resultado.usuario;
+                document.getElementById('tela-auth').classList.add('hidden');
+                document.getElementById('app-principal').classList.remove('hidden');
+
+                if (usuarioLogado.tipo === 'empresa') {
+                    document.getElementById('painel-empresa').classList.remove('hidden');
+                    document.getElementById('secao-feed').className = "lg:col-span-2 space-y-6";
+                } else {
+                    document.getElementById('container-status-online').classList.remove('hidden');
+                    document.getElementById('container-status-online').classList.add('flex');
+                    document.getElementById('widget-saldo').classList.remove('hidden');
+                }
+                buscarServicosDaAPI();
+            } catch (err) { alert("Erro de conexão com o servidor."); }
+        }
+
+        function sair() {
+            location.reload();
+        }
+
+        function alternarStatusOnline() {
+            isOnline = !isOnline;
+            document.getElementById('dot-status').className = isOnline ? "w-2 h-2 rounded-full bg-emerald-400 animate-pulse" : "w-2 h-2 rounded-full bg-slate-400";
+            document.getElementById('texto-status').innerText = isOnline ? "Online" : "Offline";
+            document.getElementById('btn-toggle-online').innerText = isOnline ? "Offline" : "Online";
+            document.getElementById('btn-toggle-online').className = isOnline ? "ml-1 bg-red-600 text-white px-2 py-1 rounded font-bold hover:bg-red-700 transition" : "ml-1 bg-indigo-600 text-white px-2 py-1 rounded font-bold hover:bg-indigo-500 transition";
+            renderizarServicos();
+        }
+
+        async function cadastrarServicoEmpresa(event) {
+            event.preventDefault();
+            const titulo = document.getElementById('titulo').value;
+            const local = document.getElementById('local').value;
+            const valor = document.getElementById('valor').value;
+            const formaPgto = document.getElementById('pagamento-tipo').value;
+            const descricao = document.getElementById('descricao').value;
+
+            await fetch(`${API_URL}/servicos`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ titulo, local, valor, formaPgto, descricao })
+            });
+            document.getElementById('form-servico').reset();
+        }
+
+        async function buscarServicosDaAPI() {
+            const res = await fetch(`${API_URL}/servicos`);
+            servicos = await res.json();
+            renderizarServicos();
+        }
+
+        async function excluirServico(id) {
+            if (!confirm("Deseja realmente excluir este chamado finalizado?")) return;
+            try {
+                const res = await fetch(`${API_URL}/servicos/${id}`, {
+                    method: 'DELETE'
+                });
+                const data = await res.json();
+                if (!data.sucesso) {
+                    alert("Erro ao excluir no servidor.");
+                }
+            } catch (err) {
+                alert("Erro de conexão ao tentar excluir.");
+            }
+        }
+
+        async function abrirModalCamera(id, tipo) {
+            servicoSelecionadoId = id;
+            tipoFotoAtual = tipo;
+            fotoDataUrlTemp = null;
+            
+            if (tipo === 'entrada') {
+                document.getElementById('titulo-modal-camera').innerText = "Check-in: Foto de Entrada";
+                document.getElementById('desc-modal-camera').innerText = "Tire uma foto no local para iniciar o atendimento.";
+            } else {
+                document.getElementById('titulo-modal-camera').innerText = "Conclusão: Foto de Saída";
+                document.getElementById('desc-modal-camera').innerText = "Tire uma foto do serviço finalizado e preencha os dados de repasse.";
+            }
+
+            document.getElementById('container-dados-pagamento').classList.toggle('hidden', tipo === 'entrada');
+            document.getElementById('img-capturada').classList.add('hidden');
+            document.getElementById('video-stream').classList.remove('hidden');
+            document.getElementById('btn-acao-foto').innerText = "Capturar";
+            document.getElementById('btn-acao-foto').setAttribute('onclick', 'tirarFoto()');
+            document.getElementById('modal-camera').classList.remove('hidden');
+            
+            try {
+                mediaStream = await navigator.mediaDevices.getUserMedia({ video: true });
+                document.getElementById('video-stream').srcObject = mediaStream;
+            } catch (err) {
+                alert("Não foi possível acessar a câmera do dispositivo.");
+            }
+        }
+
+        function tirarFoto() {
+            const video = document.getElementById('video-stream');
+            const canvas = document.getElementById('canvas-foto');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+            fotoDataUrlTemp = canvas.toDataURL('image/png');
+            document.getElementById('img-capturada').src = fotoDataUrlTemp;
+            document.getElementById('img-capturada').classList.remove('hidden');
+            video.classList.add('hidden');
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            document.getElementById('btn-acao-foto').innerText = "Confirmar e Salvar";
+            document.getElementById('btn-acao-foto').setAttribute('onclick', 'salvarFotoCheck()');
+        }
+
+        function fecharModalCamera() {
+            if (mediaStream) mediaStream.getTracks().forEach(t => t.stop());
+            document.getElementById('modal-camera').classList.add('hidden');
+        }
+
+        async function salvarFotoCheck() {
+            const servico = servicos.find(s => s.id === servicoSelecionadoId);
+            let payload = {};
+            
+            if (tipoFotoAtual === 'entrada') {
+                payload = { 
+                    status: 'Em Andamento', 
+                    colaborador: usuarioLogado.nome, 
+                    fotoEntrada: fotoDataUrlTemp 
+                };
+            } else {
+                payload = {
+                    status: 'Pagamento Garantido',
+                    colaborador: servico.colaborador,
+                    fotoSaida: fotoDataUrlTemp,
+                    dadosPagamentoPrestador: {
+                        chavePix: document.getElementById('saida-chave-pix').value,
+                        numConta: document.getElementById('saida-num-conta').value,
+                        qrCodeDados: document.getElementById('saida-qrcode-dados').value
+                    }
+                };
+            }
+
+            await fetch(`${API_URL}/servicos/${servicoSelecionadoId}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            fecharModalCamera();
+            
+            if (tipoFotoAtual === 'saida') {
+                saldoAcumulado += parseFloat(servico.valor.replace(',', '.')) || 0;
+                document.getElementById('saldo-prestador').innerText = saldoAcumulado.toFixed(2).replace('.', ',');
+            }
+        }
+
+        function renderizarServicos() {
+            const lista = document.getElementById('lista-servicos');
+            document.getElementById('contador-servicos').innerText = `${servicos.length} chamados`;
+            lista.innerHTML = servicos.length === 0 ? `<p class="text-xs text-slate-400 text-center py-6">Nenhum chamado ativo.</p>` : '';
+
+            servicos.forEach(servico => {
+                let badge = '', acao = '';
+                
+                if (servico.status === 'Pendente') {
+                    badge = `<span class="bg-amber-100 text-amber-700 text-xs px-2.5 py-1 rounded-full font-bold">Aguardando Prestador</span>`;
+                    acao = usuarioLogado?.tipo === 'colaborador' && isOnline ? 
+                        `<button onclick="abrirModalCamera(${servico.id}, 'entrada')" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white py-2.5 rounded-xl text-xs font-bold transition"><i class="fa-solid fa-camera mr-1"></i> Iniciar Atendimento (Check-in)</button>` : 
+                        `<span class="text-xs text-slate-400 block text-center p-2.5 bg-slate-50 rounded-xl">Fique Online para aceitar</span>`;
+                } else if (servico.status === 'Em Andamento') {
+                    badge = `<span class="bg-blue-100 text-blue-700 text-xs px-2.5 py-1 rounded-full font-bold">Em Andamento</span>`;
+                    acao = usuarioLogado?.tipo === 'colaborador' && usuarioLogado.nome === servico.colaborador ? 
+                        `<button onclick="abrirModalCamera(${servico.id}, 'saida')" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-xl text-xs font-bold"><i class="fa-solid fa-camera mr-1"></i> Concluir Serviço (Foto Saída)</button>` : 
+                        `<span class="text-xs text-blue-600 block text-center p-2.5 bg-blue-50 rounded-xl">Em atendimento por ${servico.colaborador}</span>`;
+                } else {
+                    badge = `<span class="bg-emerald-100 text-emerald-700 text-xs px-2.5 py-1 rounded-full font-bold">Pagamento Garantido</span>`;
+                    acao = `
+                        <div class="flex items-center gap-2">
+                            <span class="flex-1 text-xs font-bold text-emerald-700 bg-emerald-50 p-2.5 rounded-xl text-center border border-emerald-100">Finalizado com Sucesso</span>
+                            <button onclick="excluirServico(${servico.id})" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-2.5 rounded-xl text-xs font-bold shadow-sm" title="Excluir Chamado">
+                                <i class="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
+                    `;
+                }
+
+                let card = document.createElement('div');
+                card.className = "bg-white border border-slate-200 rounded-2xl p-4 shadow-sm space-y-3";
+                card.innerHTML = `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <span class="text-[11px] font-bold text-indigo-600 uppercase block mb-0.5">${servico.forma_pgto}</span>
+                            <h3 class="text-sm font-extrabold text-slate-800">${servico.titulo}</h3>
+                        </div>
+                        ${badge}
+                    </div>
+                    <div class="text-xs text-slate-600 flex justify-between">
+                        <span><i class="fa-solid fa-location-dot text-slate-400 mr-1"></i> ${servico.local}</span>
+                        <span class="font-bold text-emerald-600 text-sm">R$ ${servico.valor}</span>
+                    </div>
+                    <p class="text-xs text-slate-500 bg-slate-50 p-2.5 rounded-xl">${servico.descricao}</p>
+                    <div>${acao}</div>
+                `;
+                lista.appendChild(card);
+            });
+        }
+    </script>
+</body>
+</html>
