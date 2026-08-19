@@ -1,229 +1,368 @@
 const express = require('express');
-const { createClient } = require('@supabase/supabase-js');
-const cors = require('cors');
-const bcrypt = require('bcrypt');
+const http = require('http');
+const { Server } = require('socket.io');
 const path = require('path');
+const { Pool } = require('pg');
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+const server = http.createServer(app);
+const io = new Server(server);
 
-// Configuração do Supabase (Usando a chave de serviço para operações administrativas e do sistema)
-const supabase = createClient(
-    process.env.SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-);
-
-// Servir arquivos estáticos do front-end
+// Aumentado o limite para aceitar imagens pesadas (Selfies, Documentos, Fotos de Ponto/Checkout em Base64)
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ limit: '50mb', extended: true }));
 app.use(express.static(path.join(__dirname)));
-app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
 
-// ==========================================
-// 1. MÓDULO DE AUTENTICAÇÃO E CADASTRO (ETAPA 1)
-// ==========================================
+// Configuração da Conexão PostgreSQL (Supabase / Nuvem)
+const pool = new Pool({
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+});
 
-// Cadastro unificado (Empresa ou Prestador com todos os campos exigidos)
-app.post('/api/auth/registrar', async (req, res) => {
-    const { 
-        nome, email, senha, tipo, cnpj, razaoSocial, cpf, 
-        rgCnh, endereco, telefone, chavePix, dadosBancarios, profissao, experiencia, curriculo 
-    } = req.body;
-
-    try {
-        const hashSenha = await bcrypt.hash(senha, 10);
-        
-        const { data, error } = await supabase
-            .from('usuarios')
-            .insert([{ 
-                nome, email, senha: hashSenha, tipo, cnpj, razaoSocial, cpf, 
-                rgCnh, endereco, telefone, chavePix, dadosBancarios, profissao, experiencia, curriculo,
-                statusAprovacao: 'pendente' // Administrador aprova depois
-            }]);
-            
-        if (error) return res.status(400).json({ sucesso: false, erro: error.message });
-        res.json({ sucesso: true, mensagem: "Cadastro realizado com sucesso! Aguardando aprovação." });
-    } catch (err) {
-        res.status(500).json({ sucesso: false, erro: err.message });
+pool.connect((err, client, release) => {
+    if (err) {
+        console.error('Erro ao conectar ao PostgreSQL:', err.stack);
+    } else {
+        console.log('Conectado com sucesso ao banco PostgreSQL.');
+        release();
+        criarTabelas();
     }
 });
 
-// Login
+// Criação e verificação das Tabelas no PostgreSQL (Preservando todas as colunas anteriores e adicionando as novas)
+async function criarTabelas() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS usuarios (
+                id SERIAL PRIMARY KEY,
+                tipo TEXT,
+                nome TEXT,
+                doc TEXT,
+                responsavel TEXT,
+                email TEXT UNIQUE,
+                senha TEXT,
+                whatsapp TEXT,
+                endereco TEXT,
+                rg_cnh TEXT,
+                profissao TEXT,
+                tipo_chave_pix TEXT,
+                pix TEXT,
+                banco TEXT,
+                conta TEXT,
+                experiencia TEXT
+            );
+
+            CREATE TABLE IF NOT EXISTS servicos (
+                id SERIAL PRIMARY KEY,
+                titulo TEXT,
+                local TEXT,
+                endereco TEXT,
+                valor TEXT,
+                data_horario TEXT,
+                forma_pgto TEXT,
+                descricao TEXT,
+                contrato_texto TEXT,
+                empresa_email TEXT,
+                empresa_whatsapp TEXT,
+                status TEXT DEFAULT 'ativo',
+                prestador_email TEXT,
+                prestador_nome TEXT,
+                prestador_pix TEXT,
+                prestador_whatsapp TEXT,
+                foto_ponto TEXT,
+                reservas JSONB DEFAULT '[]'::jsonb,
+                mensagens JSONB DEFAULT '[]'::jsonb,
+                selfie_confirmacao TEXT,
+                documento_comprovante TEXT,
+                presenca_confirmada BOOLEAN DEFAULT FALSE,
+                checkin_hora TEXT,
+                checkout_hora TEXT,
+                comprovante_pagamento BOOLEAN DEFAULT FALSE
+            );
+
+            CREATE TABLE IF NOT EXISTS ledger_transacoes (
+                id SERIAL PRIMARY KEY,
+                servico_id INTEGER,
+                usuario_email TEXT NOT NULL,
+                tipo_movimento TEXT NOT NULL, 
+                valor NUMERIC(10, 2) NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PROCESSADO',
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE TABLE IF NOT EXISTS auditoria_sistema (
+                id SERIAL PRIMARY KEY,
+                usuario_email TEXT,
+                acao TEXT NOT NULL,
+                detalhes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+        `);
+
+        // Garante que colunas adicionais existam caso a tabela já estivesse criada
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS documento_comprovante TEXT;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_hora TEXT;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_hora TEXT;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento BOOLEAN DEFAULT FALSE;`);
+
+        console.log('Tabelas e colunas verificadas/criadas com sucesso no PostgreSQL.');
+    } catch (err) {
+        console.error('Erro ao criar tabelas:', err);
+    }
+}
+
+// Funções auxiliares para gravação no Ledger e Auditoria
+async function registrarLedger(servicoId, email, tipoMovimento, valor) {
+    try {
+        await pool.query(
+            `INSERT INTO ledger_transacoes (servico_id, usuario_email, tipo_movimento, valor) VALUES ($1, $2, $3, $4)`,
+            [servicoId, email, tipoMovimento, valor]
+        );
+    } catch (err) {
+        console.error('Erro ao registrar ledger:', err);
+    }
+}
+
+async function registrarAuditoria(email, acao, detalhes) {
+    try {
+        await pool.query(
+            `INSERT INTO auditoria_sistema (usuario_email, acao, detalhes) VALUES ($1, $2, $3)`,
+            [email, acao, detalhes]
+        );
+    } catch (err) {
+        console.error('Erro ao registrar auditoria:', err);
+    }
+}
+
+// Rotas de Autenticação
+app.post('/api/auth/registrar', async (req, res) => {
+    const d = req.body;
+    try {
+        const query = `INSERT INTO usuarios (tipo, nome, doc, responsavel, email, senha, whatsapp, endereco, rg_cnh, profissao, tipo_chave_pix, pix, banco, conta, experiencia) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15) RETURNING id`;
+        const params = [d.tipo, d.nome, d.doc, d.responsavel, d.email, d.senha, d.whatsapp, d.endereco, d.rgCnh, d.profissao, d.tipoChavePix, d.pix, d.banco, d.conta, d.experiencia];
+        
+        const result = await pool.query(query, params);
+        await registrarAuditoria(d.email, 'CADASTRO_USUARIO', `Novo usuário tipo ${d.tipo} cadastrado.`);
+        res.json({ sucesso: true, id: result.rows[0].id });
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'E-mail já cadastrado ou erro nos dados.' });
+    }
+});
+
 app.post('/api/auth/login', async (req, res) => {
     const { email, senha } = req.body;
     try {
-        const { data: usuario, error } = await supabase
-            .from('usuarios')
-            .select('*')
-            .eq('email', email)
-            .single();
-
-        if (error || !usuario) return res.status(401).json({ sucesso: false, erro: "Usuário não encontrado" });
-
-        const senhaValida = await bcrypt.compare(senha, usuario.senha);
-        if (!senhaValida) return res.status(401).json({ sucesso: false, erro: "Senha incorreta" });
-
-        res.json({ sucesso: true, usuario });
+        const result = await pool.query(`SELECT * FROM usuarios WHERE email = $1 AND senha = $2`, [email, senha]);
+        if (result.rows.length === 0) {
+            return res.json({ sucesso: false, erro: 'E-mail ou senha incorretos.' });
+        }
+        await registrarAuditoria(email, 'LOGIN', 'Login realizado com sucesso.');
+        res.json({ sucesso: true, usuario: result.rows[0] });
     } catch (err) {
-        res.status(500).json({ sucesso: false, erro: err.message });
+        res.status(500).json({ sucesso: false, erro: 'Erro no servidor.' });
     }
 });
 
-
-// ==========================================
-// 2. MÓDULO DE SERVIÇOS E PUBLICAÇÃO (ETAPA 2)
-// ==========================================
-
+// Rotas de Serviços e Gestão Escrow
 app.get('/api/servicos', async (req, res) => {
-    const { data, error } = await supabase
-        .from('servicos')
-        .select('*')
-        .order('id', { ascending: false });
-
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json(data);
+    try {
+        const result = await pool.query(`SELECT * FROM servicos ORDER BY id DESC`);
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ erro: 'Erro ao buscar serviços.' });
+    }
 });
 
-// Empresa publica o chamado (Dinheiro retido na plataforma - Escrow)
 app.post('/api/servicos', async (req, res) => {
-    const { 
-        titulo, local, endereco, valor, dataHorario, quantidadeProfissionais, 
-        descricao, equipamentos, formaPgto, empresaEmail, empresaWhatsapp 
-    } = req.body;
-    
-    const { data, error } = await supabase
-        .from('servicos')
-        .insert([{ 
-            titulo, local, endereco, valor, dataHorario, quantidadeProfissionais, 
-            descricao, equipamentos, formaPgto, empresaEmail, empresaWhatsapp, 
-            status: 'pendente' // Disponível para prestadores
-        }]);
+    const s = req.body;
+    try {
+        const query = `INSERT INTO servicos (titulo, local, endereco, valor, data_horario, forma_pgto, descricao, contrato_texto, empresa_email, empresa_whatsapp, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ativo') RETURNING id`;
+        const params = [s.titulo, s.local, s.endereco, s.valor, s.dataHorario, s.formaPgto, s.descricao, s.contratoTexto, s.empresaEmail, s.empresaWhatsapp];
 
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json({ sucesso: true, data });
+        const result = await pool.query(query, params);
+        const servicoId = result.rows[0].id;
+        
+        const valorNumerico = parseFloat(s.valor.replace(',', '.')) || 0;
+        await registrarLedger(servicoId, s.empresaEmail, 'RETENCAO_GARANTIA', valorNumerico);
+        await registrarAuditoria(s.empresaEmail, 'PUBLICAR_SERVICO', `Serviço #${servicoId} publicado com valor R$ ${s.valor}`);
+
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true, id: servicoId });
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'Erro ao publicar serviço.' });
+    }
 });
 
-
-// ==========================================
-// 3. MÓDULO DE ACEITE E CONTRATO (ETAPAS 3 e 4)
-// ==========================================
-
+// Aceitar Vaga (Titular ou Fila de Reserva)
 app.post('/api/servicos/:id/aceitar', async (req, res) => {
-    const { id } = req.params;
-    const { prestadorEmail, prestadorNome, prestadorPix, prestadorWhatsapp, selfieUrl } = req.body;
+    const id = req.params.id;
+    const { prestadorEmail, prestadorNome, prestadorPix, prestadorWhatsapp, rgCnh } = req.body;
 
-    const { data, error } = await supabase
-        .from('servicos')
-        .update({ 
-            prestadorEmail, prestadorNome, prestadorPix, prestadorWhatsapp, 
-            prestadorSelfie: selfieUrl,
-            status: 'ativo' 
-        })
-        .eq('id', id);
+    try {
+        const resultServico = await pool.query(`SELECT * FROM servicos WHERE id = $1`, [id]);
+        if (resultServico.rows.length === 0) {
+            return res.json({ sucesso: false, erro: 'Serviço não encontrado.' });
+        }
+        const servico = resultServico.rows[0];
+        let reservas = servico.reservas || [];
 
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json({ sucesso: true, mensagem: "Serviço aceito e contrato gerado com sucesso!" });
+        // Se não tem titular, assume como titular
+        if (!servico.prestador_email) {
+            const query = `UPDATE servicos SET status = 'em_andamento', prestador_email = $1, prestador_nome = $2, prestador_pix = $3, prestador_whatsapp = $4 WHERE id = $5`;
+            await pool.query(query, [prestadorEmail, prestadorNome, prestadorPix, prestadorWhatsapp, id]);
+            
+            await registrarAuditoria(prestadorEmail, 'ACEITAR_SERVICO', `Prestador assumiu Vaga Titular #${id}`);
+            io.emit('atualizar_servicos');
+            return res.json({ sucesso: true, mensagem: 'Você assumiu a Vaga Titular!' });
+        } else {
+            // Se já tem titular, adiciona na fila de reserva (limite de 2)
+            if (servico.prestador_email === prestadorEmail || reservas.some(r => r.email === prestadorEmail)) {
+                return res.json({ sucesso: false, erro: 'Você já está inscrito nesta vaga.' });
+            }
+            if (reservas.length >= 2) {
+                return res.json({ sucesso: false, erro: 'A fila de reservas (máximo 2) já está lotada.' });
+            }
+
+            reservas.push({ email: prestadorEmail, nome: prestadorNome, whatsapp: prestadorWhatsapp, rgCnh, pix: prestadorPix });
+            await pool.query(`UPDATE servicos SET reservas = $1 WHERE id = $2`, [JSON.stringify(reservas), id]);
+
+            await registrarAuditoria(prestadorEmail, 'ENTRAR_RESERVA', `Prestador entrou na Fila de Reserva do serviço #${id}`);
+            io.emit('atualizar_servicos');
+            return res.json({ sucesso: true, mensagem: 'Você entrou na Fila de Reserva (Emergência)!' });
+        }
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'Erro ao aceitar contrato.' });
+    }
 });
 
-
-// ==========================================
-// 4. MÓDULO DE EXECUÇÃO: CHECK-IN E CHECK-OUT (ETAPAS 5, 6 e 7)
-// ==========================================
-
-// Check-in com foto, GPS e horário
-app.post('/api/servicos/:id/checkin', async (req, res) => {
-    const { id } = req.params;
-    const { fotoUrl, gpsLat, gpsLng } = req.body;
-
-    const { data, error } = await supabase
-        .from('servicos')
-        .update({ 
-            fotoPontoCheckin: fotoUrl, 
-            checkinLat: gpsLat,
-            checkinLng: gpsLng,
-            checkinHora: new Date().toISOString(),
-            status: 'em_andamento' 
-        })
-        .eq('id', id);
-
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json({ sucesso: true, mensagem: "Check-in realizado com sucesso." });
+// Confirmação de Presença corrigida para atualizar o status instantaneamente no banco e notificar a tela
+app.post('/api/servicos/:id/confirmar-presenca', async (req, res) => {
+    const id = req.params.id;
+    const { selfie, documentoComprovante } = req.body;
+    try {
+        await pool.query(
+            `UPDATE servicos SET selfie_confirmacao = COALESCE($1, selfie_confirmacao), documento_comprovante = COALESCE($2, documento_comprovante), presenca_confirmada = TRUE WHERE id = $3`,
+            [selfie, documentoComprovante, id]
+        );
+        await registrarAuditoria('sistema', 'CONFIRMAR_PRESENCA', `Presença confirmada para o serviço #${id}`);
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true, mensagem: 'Presença confirmada com sucesso!' });
+    } catch (err) {
+        console.error("Erro ao confirmar presença:", err);
+        res.json({ sucesso: false, erro: 'Erro ao confirmar presença.' });
+    }
 });
 
-// Check-out e solicitação de aprovação
+// Check-in com Hora e Foto de Ponto
+app.post('/api/servicos/:id/ponto', async (req, res) => {
+    const id = req.params.id;
+    const { foto, hora } = req.body;
+    try {
+        await pool.query(`UPDATE servicos SET foto_ponto = $1, checkin_hora = $2 WHERE id = $3`, [foto, hora || new Date().toLocaleTimeString(), id]);
+        await registrarAuditoria('sistema', 'CHECKIN_PONTO', `Check-in realizado para o serviço #${id}`);
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true });
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'Erro ao registrar ponto.' });
+    }
+});
+
+// Check-out / Finalização com Foto de Conclusão e Mensagem no Chat
 app.post('/api/servicos/:id/checkout', async (req, res) => {
-    const { id } = req.params;
-    const { fotoCheckoutUrl } = req.body;
+    const id = req.params.id;
+    const { hora, fotoCheckout } = req.body;
+    try {
+        const horaFinal = hora || new Date().toLocaleTimeString();
+        await pool.query(
+            `UPDATE servicos SET status = 'concluido', checkout_hora = $1, documento_comprovante = COALESCE($2, documento_comprovante), comprovante_pagamento = true WHERE id = $3`,
+            [horaFinal, fotoCheckout, id]
+        );
 
-    const { data, error } = await supabase
-        .from('servicos')
-        .update({ 
-            fotoCheckout: fotoCheckoutUrl,
-            status: 'aguardando_aprovacao', 
-            dataCheckout: new Date().toISOString() 
-        })
-        .eq('id', id);
+        // Adiciona notificação automática no histórico de chat do serviço
+        const resultMsg = await pool.query(`SELECT mensagens FROM servicos WHERE id = $1`, [id]);
+        let mensagens = resultMsg.rows[0]?.mensagens || [];
+        mensagens.push({ 
+            remetente: 'SISTEMA', 
+            texto: `Serviço finalizado pelo prestador às ${horaFinal}. Fotos de conclusão enviadas.`, 
+            data: new Date().toLocaleTimeString() 
+        });
+        await pool.query(`UPDATE servicos SET mensagens = $1 WHERE id = $2`, [JSON.stringify(mensagens), id]);
 
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json({ sucesso: true, mensagem: "Check-out realizado. Aguardando aprovação do cliente." });
+        await registrarAuditoria('sistema', 'CHECKOUT', `Serviço #${id} marcado como concluído pelo prestador.`);
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true, mensagem: 'Serviço finalizado com sucesso!' });
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'Erro ao realizar check-out.' });
+    }
 });
 
+// Chat Interno do Serviço
+app.post('/api/servicos/:id/chat', async (req, res) => {
+    const id = req.params.id;
+    const { remetente, texto } = req.body;
+    try {
+        const result = await pool.query(`SELECT mensagens FROM servicos WHERE id = $1`, [id]);
+        if (result.rows.length === 0) return res.status(404).json({ sucesso: false });
 
-// ==========================================
-// 5. MÓDULO DE PAGAMENTO E CONTESTAÇÃO (ETAPA 8)
-// ==========================================
+        let mensagens = result.rows[0].mensagens || [];
+        mensagens.push({ remetente, texto, data: new Date().toLocaleTimeString() });
 
-// Cliente aprova (Libera Pix e desconta taxa da plataforma)
+        await pool.query(`UPDATE servicos SET mensagens = $1 WHERE id = $2`, [JSON.stringify(mensagens), id]);
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true });
+    } catch (err) {
+        res.status(500).json({ sucesso: false });
+    }
+});
+
 app.post('/api/servicos/:id/aprovar', async (req, res) => {
-    const { id } = req.params;
+    const id = req.params.id;
+    try {
+        const servicoRes = await pool.query(`SELECT * FROM servicos WHERE id = $1`, [id]);
+        if (servicoRes.rows.length === 0) {
+            return res.json({ sucesso: false, erro: 'Serviço não encontrado.' });
+        }
+        const servico = servicoRes.rows[0];
 
-    const { data, error } = await supabase
-        .from('servicos')
-        .update({ status: 'concluido_aprovado' })
-        .eq('id', id);
+        await pool.query(`UPDATE servicos SET status = 'aprovado' WHERE id = $1`, [id]);
 
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json({ sucesso: true, mensagem: "Pagamento liberado com sucesso para o prestador!" });
+        const valorTotal = parseFloat(servico.valor.replace(',', '.')) || 0;
+        const taxaPlataforma = valorTotal * 0.10; 
+        const repassePrestador = valorTotal - taxaPlataforma;
+
+        await registrarLedger(id, servico.prestador_email, 'REPASSE_PRESTADOR', repassePrestador);
+        await registrarLedger(id, 'admin@grupors.com', 'TAXA_PLATAFORMA', taxaPlataforma);
+        await registrarAuditoria(servico.empresa_email, 'APROVAR_PAGAMENTO', `Pagamento do serviço #${id} aprovado. Repasse: R$ ${repassePrestador}`);
+
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true });
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'Erro ao aprovar serviço.' });
+    }
 });
 
-// Cliente contesta (Bloqueia pagamento para análise do ADM)
-app.post('/api/servicos/:id/contestar', async (req, res) => {
-    const { id } = req.params;
-    const { motivo } = req.body;
-
-    const { data, error } = await supabase
-        .from('servicos')
-        .update({ 
-            status: 'contestado', 
-            motivoContestacao: motivo 
-        })
-        .eq('id', id);
-
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json({ sucesso: true, mensagem: "Serviço contestado. O pagamento ficará retido para análise." });
+// Rota para excluir/remover serviço incorreto ou duplicado (ajuda a limpar confusões)
+app.delete('/api/servicos/:id', async (req, res) => {
+    const id = req.params.id;
+    try {
+        await pool.query(`DELETE FROM servicos WHERE id = $1`, [id]);
+        await registrarAuditoria('sistema', 'DELETAR_SERVICO', `Serviço #${id} foi removido.`);
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true, mensagem: 'Serviço removido com sucesso!' });
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'Erro ao excluir serviço.' });
+    }
 });
 
-
-// ==========================================
-// 6. MÓDULO FISCAL E NOTAS (Planejamento / Integração)
-// ==========================================
-
-// Salvar dados da Nota Fiscal emitida
-app.post('/api/servicos/:id/notafiscal', async (req, res) => {
-    const { id } = req.params;
-    const { numeroNota, pdfUrl, xmlUrl } = req.body;
-
-    const { data, error } = await supabase
-        .from('servicos')
-        .update({ numeroNotaFiscal: numeroNota, notaPdfUrl: pdfUrl, notaXmlUrl: xmlUrl })
-        .eq('id', id);
-
-    if (error) return res.status(500).json({ sucesso: false, erro: error.message });
-    res.json({ sucesso: true, mensagem: "Nota fiscal anexada com sucesso." });
+io.on('connection', (socket) => {
+    console.log('Novo cliente conectado via WebSocket:', socket.id);
 });
 
-
-// Inicialização do Servidor
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-    console.log(`RS Connect rodando com sucesso na porta ${PORT}`);
+server.listen(PORT, () => {
+    console.log(`Servidor rodando na porta ${PORT}`);
 });
