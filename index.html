@@ -1316,16 +1316,11 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             reader.onload = async function(e) {
                 const fotoBase64 = e.target.result;
                 try {
-                    await fetch(`/api/servicos/${id}/ponto`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ foto: fotoBase64, email: usuarioLogado.email })
-                    });
-
+                    // Função corrigida: Envia diretamente para a rota de checkout sem sobrescrever o ponto/check-in
                     const res = await fetch(`/api/servicos/${id}/checkout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
+                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), fotoCheckout: fotoBase64 })
                     });
                     const data = await res.json();
                     
