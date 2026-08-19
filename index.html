@@ -3,820 +3,1217 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RSConnect - Gestão Corporativa e Garantia de Pagamento</title>
+    <title>Grupo RS Connect - Gestão Profissional de Serviços</title>
     <script src="/socket.io/socket.io.js"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary: #1e293b;
+            --primary: #0b1329;
             --accent: #2563eb;
             --accent-hover: #1d4ed8;
-            --success: #059669;
-            --danger: #dc3545;
-            --danger-hover: #c82333;
+            --success: #16a34a;
             --warning: #d97706;
-            --bg-body: #f8fafc;
+            --danger: #dc2626;
+            --bg-gradient: linear-gradient(135deg, #f0f4ff 0%, #e2e8f0 100%);
             --card-bg: #ffffff;
-            --text-main: #1e293b;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --radius: 12px;
+            --text: #334155;
+            --text-light: #64748b;
+            --border: #cbd5e1;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', sans-serif; }
-        body { background-color: var(--bg-body); color: var(--text-main); min-height: 100vh; display: flex; flex-direction: column; }
-
-        /* TELA DE BOAS-VINDAS (LANDING PAGE) */
-        #tela-welcome {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: linear-gradient(135deg, #0d1b2a 0%, #1b263b 50%, #1d3557 100%);
-            color: #ffffff; display: flex; justify-content: center; align-items: center;
-            text-align: center; padding: 20px; z-index: 3000;
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background: var(--bg-gradient);
+            color: var(--text);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            -webkit-font-smoothing: antialiased;
         }
-        .welcome-container {
-            max-width: 600px; padding: 40px; background: rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px); border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.1);
-            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
-        }
-        .welcome-container h1 { font-size: 2.5rem; margin-bottom: 15px; color: #4ea8de; font-weight: 700; }
-        .welcome-container p { font-size: 1.1rem; line-height: 1.6; color: #e0e1dd; margin-bottom: 30px; }
-        .btn-entrar-welcome {
-            display: inline-block; background-color: #38b000; color: white; font-size: 1.2rem;
-            font-weight: 600; padding: 14px 40px; border-radius: 30px; text-decoration: none;
-            transition: all 0.3s ease; box-shadow: 0 4px 15px rgba(56, 176, 0, 0.4); cursor: pointer; border: none;
-        }
-        .btn-entrar-welcome:hover { background-color: #2ec4b6; transform: translateY(-2px); box-shadow: 0 6px 20px rgba(46, 196, 182, 0.6); }
-
-        /* AUTENTICAÇÃO E SISTEMA */
-        .auth-wrapper { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: var(--bg-body); display: none; z-index: 2000; overflow-y: auto; }
-        .auth-hero-side { flex: 1; background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color: white; display: flex; flex-direction: column; justify-content: center; padding: 3rem; min-height: 280px; }
-        .auth-hero-side h1 { font-size: 2.1rem; font-weight: 700; margin-bottom: 0.75rem; line-height: 1.2; }
-        .auth-hero-side p { font-size: 0.95rem; opacity: 0.9; line-height: 1.5; max-width: 450px; }
         
-        .auth-form-side { width: 550px; background: var(--card-bg); display: flex; justify-content: center; align-items: center; padding: 2rem; overflow-y: auto; flex-shrink: 0; }
-        .auth-card-inner { width: 100%; max-width: 460px; }
-
-        header { background: white; padding: 0.75rem 1.5rem; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid var(--border); height: 70px; position: sticky; top: 0; z-index: 1000; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
-        .header-logo { display: flex; align-items: center; gap: 10px; text-decoration: none; }
-        .logo-badge { background: var(--accent); color: white; font-weight: 700; padding: 6px 12px; border-radius: 8px; font-size: 1.1rem; }
-        .header-logo h1 { font-size: 1.15rem; font-weight: 700; color: var(--primary); letter-spacing: -0.5px; }
-
-        .header-nav { display: flex; align-items: center; gap: 1rem; }
-        .user-pill { display: flex; align-items: center; gap: 10px; background: #f1f5f9; padding: 6px 14px; border-radius: 30px; font-size: 0.85rem; border: 1px solid var(--border); }
-        .btn-logout { background: #fee2e2; color: #ef4444; border: none; padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        .btn-logout:hover { background: #fecaca; }
-
-        .main-content { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 1200px; margin: 0 auto; padding: 1.5rem; }
-        
-        .hero-banner { background: linear-gradient(135deg, #1e40af 0%, #2563eb 100%); color: white; padding: 2rem; border-radius: var(--radius); margin-bottom: 1.5rem; box-shadow: 0 10px 15px -3px rgba(37, 99, 235, 0.2); }
-        .hero-banner h2 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.4rem; }
-        .hero-banner p { font-size: 0.95rem; opacity: 0.9; }
-
-        .metrics-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
-        .metric-card { background: white; padding: 1.25rem; border-radius: var(--radius); border: 1px solid var(--border); display: flex; flex-direction: column; justify-content: space-between; }
-        .metric-card span { font-size: 0.8rem; color: var(--text-muted); font-weight: 600; text-transform: uppercase; }
-        .metric-card h3 { font-size: 1.8rem; color: var(--primary); margin-top: 0.4rem; font-weight: 700; }
-
-        .card-panel { background: white; border-radius: var(--radius); padding: 1.5rem; border: 1px solid var(--border); margin-bottom: 1.5rem; }
-        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
-        .form-group { margin-bottom: 1rem; }
-        .form-group.full { grid-column: span 2; }
-
-        label { display: block; margin-bottom: 0.3rem; font-weight: 600; color: var(--primary); font-size: 0.85rem; }
-        input, select, textarea { width: 100%; padding: 0.7rem 0.9rem; border: 1px solid var(--border); border-radius: 8px; font-size: 0.9rem; background-color: #f8fafc; outline: none; }
-        input:focus, select:focus, textarea:focus { border-color: var(--accent); background-color: #fff; box-shadow: 0 0 0 3px rgba(37,99,235,0.1); }
-
-        button { background-color: var(--accent); color: white; border: none; padding: 0.7rem 1.25rem; border-radius: 8px; font-size: 0.9rem; font-weight: 600; cursor: pointer; transition: background 0.2s; }
-        button:hover { background-color: var(--accent-hover); }
-        .btn-secondary { background-color: #e2e8f0; color: var(--primary); }
-        .btn-success { background-color: var(--success); }
-        .btn-success:hover { background-color: #047857; }
-        .btn-vermelho { background-color: var(--danger); color: white; }
-        .btn-vermelho:hover { background-color: var(--danger-hover); }
-        .btn-warning { background-color: var(--warning); color: white; }
-        .btn-warning:hover { background-color: #b45309; }
-
-        .card-grid-servicos { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 1.25rem; margin-top: 1rem; }
-        .card-servico { background: white; border: 1px solid var(--border); padding: 1.25rem; border-radius: var(--radius); display: flex; flex-direction: column; justify-content: space-between; box-shadow: 0 1px 3px rgba(0,0,0,0.02); }
-        .card-servico h4 { color: var(--primary); font-size: 1.05rem; margin-bottom: 0.4rem; }
-        .card-servico p { font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.25rem; }
-
-        .badge-status { display: inline-block; background: #dbeafe; color: #1e40af; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin: 0.4rem 0; }
-        .badge-garantia { display: inline-block; background: #ecfdf5; color: #047857; border: 1px solid #10b981; padding: 4px 10px; border-radius: 20px; font-size: 0.75rem; font-weight: 700; margin: 0.4rem 0; }
-        
-        .modal-contrato { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); justify-content: center; align-items: center; z-index: 3000; padding: 1rem; }
-        .modal-content { background: white; padding: 1.5rem; border-radius: var(--radius); max-width: 550px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.2); }
-        
-        .switch-link { text-align: center; margin-top: 1rem; font-size: 0.85rem; color: var(--text-muted); }
-        .switch-link a { color: var(--accent); text-decoration: none; font-weight: 600; cursor: pointer; }
-
-        /* RODAPÉ */
-        footer.app-footer {
-            text-align: center;
-            padding: 1rem;
-            font-size: 0.8rem;
-            color: var(--text-muted);
-            border-top: 1px solid var(--border);
-            background: white;
-            margin-top: auto;
+        header {
+            background: #ffffff;
+            color: var(--primary);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgb(0 0 0 / 0.05);
+            border-bottom: 1px solid #e2e8f0;
         }
 
-        @media (max-width: 768px) {
-            .auth-wrapper { flex-direction: column; }
-            .auth-hero-side { padding: 2rem 1.5rem; min-height: auto; flex: none; width: 100%; }
-            .auth-hero-side h1 { font-size: 1.5rem; }
-            .auth-hero-side p { font-size: 0.85rem; }
-            .auth-form-side { width: 100%; padding: 1.5rem; flex: 1; }
-            .form-grid { grid-template-columns: 1fr; }
-            .form-group.full { grid-column: span 1; }
-            header { padding: 0.5rem 1rem; }
+        .logo-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-light);
+        }
+
+        .main-wrapper {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 30px 20px;
+        }
+
+        .split-container {
+            display: grid;
+            grid-template-columns: 1fr 480px;
+            gap: 40px;
+            max-width: 1050px;
+            width: 100%;
+            align-items: center;
+        }
+
+        .hero-section {
+            padding: 20px;
+        }
+
+        .hero-section h1 {
+            font-size: 38px;
+            color: var(--primary);
+            margin-bottom: 15px;
+            line-height: 1.2;
+            font-weight: 800;
+            letter-spacing: -1px;
+        }
+
+        .hero-section h1 span {
+            color: var(--accent);
+        }
+
+        .hero-section p {
+            color: var(--text-light);
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 30px;
+        }
+
+        .feature-box {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            background: rgba(255, 255, 255, 0.7);
+            padding: 14px;
+            border-radius: 12px;
+            border: 1px solid rgba(226, 232, 240, 0.8);
+        }
+
+        .feature-icon {
+            font-size: 22px;
+            background: #dbeafe;
+            width: 45px;
+            height: 45px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            flex-shrink: 0;
+        }
+
+        .feature-text h4 {
+            margin: 0 0 4px 0;
+            font-size: 14px;
+            color: var(--primary);
+        }
+
+        .feature-text p {
+            margin: 0;
+            font-size: 12px;
+            color: var(--text-light);
+        }
+
+        .auth-card {
+            background: var(--card-bg);
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgb(0 0 0 / 0.08);
+            border: 1px solid #e2e8f0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+
+        .auth-card h2 {
+            font-size: 22px;
+            color: var(--primary);
+            margin-bottom: 6px;
+            font-weight: 700;
+        }
+
+        .auth-card .sub-title {
+            color: var(--text-light);
+            font-size: 13px;
+            margin-bottom: 25px;
+        }
+
+        .auth-tabs {
+            display: flex;
+            background: #f1f5f9;
+            padding: 4px;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            border: 1px solid var(--border);
+        }
+
+        .auth-tab-btn {
+            flex: 1;
+            padding: 10px;
+            border: none;
+            background: transparent;
+            color: var(--text-light);
+            font-weight: 600;
+            font-size: 13px;
+            border-radius: 9px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .auth-tab-btn.active {
+            background: var(--card-bg);
+            color: var(--accent);
+            box-shadow: 0 2px 8px rgb(0 0 0 / 0.06);
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 6px;
+            font-size: 11px;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            padding: 11px 14px;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            box-sizing: border-box;
+            font-size: 14px;
+            background: #f8fafc;
+            color: var(--text);
+            transition: all 0.2s ease;
+        }
+
+        input:focus, select:focus, textarea:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: #ffffff;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.12);
+        }
+        
+        button {
+            background: var(--accent);
+            color: white;
+            border: none;
+            padding: 13px 18px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+            width: 100%;
+        }
+
+        button:hover { background: var(--accent-hover); }
+        .btn-success { background: var(--success); box-shadow: 0 4px 12px rgba(22, 163, 74, 0.2); }
+        .btn-success:hover { background: #15803d; }
+        .btn-danger { background: var(--danger); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
+        .btn-danger:hover { background: #b91c1c; }
+
+        .dashboard-container {
+            max-width: 960px;
+            width: 100%;
+            margin: 0 auto;
+            background: var(--card-bg);
+            padding: 35px;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgb(0 0 0 / 0.06);
+            border: 1px solid #e2e8f0;
+        }
+
+        .info-card-empresa {
+            background: linear-gradient(135deg, #0b1329 0%, #1e293b 100%);
+            color: white;
+            padding: 22px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 20px rgba(11, 19, 41, 0.15);
+        }
+        .info-card-empresa h3 { margin: 0 0 5px 0; font-size: 15px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;}
+        .info-card-empresa .dados-empresa { font-size: 13px; color: #e2e8f0; line-height: 1.5; }
+
+        .wallet-card {
+            background: linear-gradient(135deg, #0b1329 0%, #1e293b 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 14px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 8px 20px rgba(11, 19, 41, 0.15);
+        }
+        .wallet-card h3 { margin: 0 0 5px 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;}
+        .wallet-saldo { font-size: 26px; font-weight: 800; color: #4ade80; }
+
+        .card-chamado {
+            background: #ffffff;
+            border: 1px solid #e2e8f0;
+            border-left: 6px solid var(--accent);
+            padding: 22px;
+            margin-bottom: 18px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgb(0 0 0 / 0.03);
+        }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .card-header h4 { margin: 0; color: var(--primary); font-size: 17px; font-weight: 700; }
+        .preco-tag { background: #eff6ff; color: #1d4ed8; padding: 5px 12px; border-radius: 20px; font-weight: 700; font-size: 14px; border: 1px solid #dbeafe; }
+
+        .hidden { display: none !important; }
+        .topo-usuario { display: flex; gap: 15px; align-items: center; }
+        .grid-duplo { display: flex; gap: 14px; }
+        .grid-duplo > div { flex: 1; }
+        
+        .secao-prestador-box { background: #f8fafc; border: 1px dashed var(--border); padding: 16px; border-radius: 10px; margin-bottom: 14px; }
+        .detalhes-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-size: 13px; margin-top: 10px; }
+        .contrato-box { background: #fffbeb; border: 1px solid #fde68a; padding: 14px; border-radius: 10px; margin-top: 10px; font-size: 13px; }
+
+        /* Estilos do Chat Interno */
+        .chat-container { border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; background: #f8fafc; display: flex; flex-direction: column; height: 200px; }
+        .chat-mensagens { flex: 1; padding: 10px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
+        .chat-msg-item { background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; max-width: 85%; }
+        .chat-input-area { display: flex; border-top: 1px solid var(--border); background: #fff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
+        .chat-input-area input { border: none; border-radius: 0; padding: 10px; font-size: 12px; }
+        .chat-input-area button { width: auto; padding: 0 16px; font-size: 12px; border-radius: 0; box-shadow: none; }
+
+        /* Estilos da Gestão Corporativa e Relógio */
+        .rs-gestor-section { margin-top: 30px; background: #fff; padding: 25px; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
+        .rs-table { width: 100%; border-collapse: collapse; margin-top: 15px; background: #fff; border-radius: 8px; overflow: hidden; }
+        .rs-table th, .rs-table td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #eee; font-size: 13px; }
+        .rs-table th { background-color: var(--primary); color: #fff; font-weight: 600; }
+        .badge { padding: 5px 10px; border-radius: 6px; font-weight: bold; font-size: 11px; display: inline-block; }
+        .badge.confirmed { background: #e6f4ea; color: #137333; }
+        .badge.titular { background: #dbeafe; color: #1d4ed8; }
+        .badge.reserva { background: #fef3c7; color: #d97706; }
+        
+        .rs-modal { position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; }
+        .rs-modal-content { background-color: #fff; padding: 25px; width: 90%; max-width: 600px; border-radius: 12px; position: relative; max-height: 90vh; overflow-y: auto; }
+        .close-modal { color: #aaa; position: absolute; right: 20px; top: 15px; font-size: 26px; font-weight: bold; cursor: pointer; }
+        .worker-details-list { list-style: none; padding: 0; margin: 0; }
+        .worker-details-list li { padding: 8px 0; border-bottom: 1px solid #f1f1f1; font-size: 13px; display: flex; justify-content: space-between; }
+
+        @media (max-width: 850px) {
+            .split-container { grid-template-columns: 1fr; gap: 20px; }
+            .hero-section { text-align: center; padding: 10px; }
+            .hero-section h1 { font-size: 28px; }
+            header { padding: 12px 20px; }
+            .nav-links { display: none; }
+            .dashboard-container { padding: 15px; }
+            .grid-duplo { flex-direction: column; gap: 0; }
         }
     </style>
 </head>
 <body>
 
-    <!-- TELA 1: BOAS-VINDAS -->
-    <div id="tela-welcome">
-        <div class="welcome-container">
-            <h1>Bem-vindo à RSConnect</h1>
-            <p>A plataforma mais segura do Brasil com <strong>Garantia de Pagamento (Escrow)</strong> e Reembolso Automático em caso de ausência[cite: 1].</p>
-            <button onclick="entrarNoSistema()" class="btn-entrar-welcome">Entrar no Sistema</button>
-        </div>
-    </div>
-
-    <!-- TELA 2: LOGIN / CADASTRO -->
-    <div id="tela-auth" class="auth-wrapper">
-        <div class="auth-hero-side">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
-                <div class="logo-badge" style="background: white; color: var(--accent); font-size: 1.3rem; padding: 6px 12px;">RS</div>
-                <h2 style="font-size: 1.4rem; font-weight: 700;">RS CONNECT</h2>
-            </div>
-            <h1>Segurança Total com Cadastro Verificado e Contratos Digitais</h1>
-            <p>Garantia financeira e conformidade estrita: validação de documentos, check-in com GPS e fluxo automatizado de liberação ou reembolso[cite: 1].</p>
-        </div>
-
-        <div class="auth-form-side">
-            <div class="auth-card-inner">
-                <div id="box-login">
-                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 1rem;">
-                        <div class="logo-badge">RS</div>
-                        <h2 style="font-size: 1.2rem; color: var(--primary);">Entrar na Plataforma</h2>
-                    </div>
-                    <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">Insira seus dados para acessar o painel.</p>
-                    
-                    <div class="form-group">
-                        <label>Tipo de Acesso</label>
-                        <select id="login-tipo">
-                            <option value="empresa">Empresa / Cliente</option>
-                            <option value="colaborador">Colaborador / Prestador</option>
-                        </select>
-                    </div>
-
-                    <div class="form-group">
-                        <label>E-mail</label>
-                        <input type="text" id="login-identificador" placeholder="email@exemplo.com">
-                    </div>
-                    <div class="form-group">
-                        <label>Senha</label>
-                        <input type="password" id="login-senha" placeholder="Sua senha">
-                    </div>
-                    <button onclick="realizarLogin()" style="width: 100%; margin-top: 0.25rem;">Acessar Plataforma</button>
-                    <div class="switch-link">
-                        Não tem conta? <a onclick="alternarTelaAuth('registrar')">Cadastre-se</a>
-                    </div>
-                </div>
-
-                <div id="box-registrar" style="display: none;">
-                    <h2 style="font-size: 1.2rem; color: var(--primary); margin-bottom: 0.3rem;">Criar Nova Conta Verificada</h2>
-                    <p style="color: var(--text-muted); font-size: 0.8rem; margin-bottom: 0.75rem;">Preencha os dados completos conforme exigência regulatória.</p>
-                    
-                    <div class="form-group">
-                        <label>Perfil de Cadastro</label>
-                        <select id="reg-tipo" onchange="alternarCamposPerfilRegistro()">
-                            <option value="empresa">Empresa / Cliente</option>
-                            <option value="colaborador">Prestador de Serviço</option>
-                        </select>
-                    </div>
-
-                    <div class="form-grid">
-                        <div class="form-group full">
-                            <label id="lbl-nome-reg">Nome Completo / Razão Social</label>
-                            <input type="text" id="reg-nome" placeholder="Seu nome ou nome da empresa">
-                        </div>
-                        <div class="form-group">
-                            <label id="lbl-doc-reg">CPF / CNPJ</label>
-                            <input type="text" id="reg-cpf-cnpj" placeholder="000.000.000-00 ou CNPJ">
-                        </div>
-                        <div class="form-group" id="grupo-rg-cnh" style="display:none;">
-                            <label>RG ou CNH</label>
-                            <input type="text" id="reg-rg-cnh" placeholder="Número do documento">
-                        </div>
-                        <div class="form-group">
-                            <label>E-mail</label>
-                            <input type="email" id="reg-email" placeholder="email@exemplo.com">
-                        </div>
-                        <div class="form-group">
-                            <label>WhatsApp / Telefone</label>
-                            <input type="text" id="reg-whatsapp" placeholder="(33) 99999-9999">
-                        </div>
-                        <div class="form-group full">
-                            <label>Endereço Completo</label>
-                            <input type="text" id="reg-endereco" placeholder="Rua, Número, Bairro, Cidade - UF">
-                        </div>
-                        <div class="form-group">
-                            <label>Senha de Acesso</label>
-                            <input type="password" id="reg-senha" placeholder="Sua senha segura">
-                        </div>
-
-                        <!-- Campos exclusivos para Prestador -->
-                        <div id="campos-prestador-extra" class="form-group full" style="display: none; background: #f8fafc; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border);">
-                            <label style="color: var(--accent); margin-bottom: 0.5rem; font-size: 0.8rem;">Dados Profissionais & Recebimento (Pix)</label>
-                            <div class="form-grid">
-                                <div class="form-group"><label>Profissão / Especialidade</label><input type="text" id="reg-profissao" placeholder="Ex: Eletricista / Técnico"></div>
-                                <div class="form-group"><label>Tipo de Chave Pix</label>
-                                    <select id="reg-tipo-pix">
-                                        <option value="CPF">CPF</option>
-                                        <option value="CNPJ">CNPJ</option>
-                                        <option value="Celular">Celular</option>
-                                        <option value="E-mail">E-mail</option>
-                                        <option value="Aleatória">Chave Aleatória</option>
-                                    </select>
-                                </div>
-                            </div>
-                            <div class="form-group"><label>Sua Chave Pix</label><input type="text" id="reg-pix" placeholder="Sua chave pix cadastrada"></div>
-                            <div class="form-grid" style="margin-top: 0.3rem;">
-                                <div class="form-group"><label>Banco</label><input type="text" id="reg-banco" placeholder="Ex: Nubank"></div>
-                                <div class="form-group"><label>Agência / Conta</label><input type="text" id="reg-conta" placeholder="Ag: 0001 CC: 123-4"></div>
-                            </div>
-                            <div class="form-group full" style="margin-top: 0.3rem;">
-                                <label>Breve Descrição da Experiência / Currículo</label>
-                                <textarea id="reg-experiencia" rows="2" placeholder="Resumo da sua experiência profissional..."></textarea>
-                            </div>
-                        </div>
-
-                        <div class="form-group full" style="background: #f1f5f9; padding: 0.5rem; border-radius: 6px; font-size: 0.75rem; color: var(--text-muted);">
-                            <input type="checkbox" id="reg-termos" style="width: auto; margin-right: 5px;"> Li e concordo com os <strong>Termos de Uso</strong> e Políticas de Privacidade da RS Connect.
-                        </div>
-                    </div>
-                    <button onclick="realizarRegistro()" style="width: 100%; margin-top: 0.5rem;">Concluir Cadastro Verificado</button>
-                    <div class="switch-link">
-                        Já tem conta? <a onclick="alternarTelaAuth('login')">Faça login</a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- CABEÇALHO DO SISTEMA -->
     <header>
-        <div class="header-logo">
-            <div class="logo-badge">RS</div>
-            <h1>RS CONNECT <span style="font-size: 0.75rem; color: var(--success); font-weight: 500; margin-left: 5px;">● Garantia Ativa</span></h1>
+        <div class="logo-container">
+            <span style="font-weight: 800; font-size: 18px; color: var(--primary); letter-spacing: -0.5px;">🔵 RS CONNECT</span>
         </div>
-        <div class="header-nav" id="header-user" style="display: none;">
-            <div class="user-pill">
-                <span id="lbl-nome-usuario" style="font-weight: 600;"></span>
-                <span style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; display: inline-block;"></span>
-            </div>
-            <button onclick="fazerLogout()" class="btn-logout">Sair</button>
+        <div class="nav-links">
+            <span>Início</span>
+            <span>Sobre</span>
+            <span>Suporte</span>
+        </div>
+        <div id="painel-usuario-topo" class="topo-usuario hidden">
+            <span id="txt-usuario-logado" style="font-weight: 600; font-size: 12px;"></span>
+            <button class="btn-danger" style="padding: 6px 12px; font-size: 11px; width:auto;" onclick="fazerLogout()">Sair</button>
         </div>
     </header>
 
-    <!-- CONTEÚDO PRINCIPAL (PAINÉIS) -->
-    <div class="main-content">
-        <div id="painel-empresa" class="painel" style="display: none;">
-            <div class="hero-banner">
-                <h2>GESTÃO CORPORATIVA & GARANTIA DE PAGAMENTO</h2>
-                <p>Publicação de vagas com retenção financeira segura (Escrow) e reembolso automático em caso de ausência do prestador[cite: 1].</p>
+    <div class="main-wrapper">
+        
+        <!-- TELA DE AUTENTICAÇÃO -->
+        <div id="secao-auth" class="split-container">
+            <div class="hero-section">
+                <h1>Bem-vindo ao <span>RS Connect</span></h1>
+                <p>Plataforma inteligente que conecta empresas a prestadores de serviços. Regra de preenchimento inteligente: 1 vaga titular e até 2 vagas de reserva/emergência na fila de espera[cite: 1].</p>
+                
+                <div class="feature-box">
+                    <div class="feature-icon">👥</div>
+                    <div class="feature-text">
+                        <h4>Vaga Titular + 2 Reservas de Emergência</h4>
+                        <p>Até 3 profissionais podem se cadastrar por vaga: o 1º assume como titular e o 2º e 3º ficam na fila de emergência prontos para acionamento[cite: 1].</p>
+                    </div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-icon">⏱️</div>
+                    <div class="feature-text">
+                        <h4>Relógio & Substituição Automática</h4>
+                        <p>Gestão de prazos com acionamento automático da fila (Titular → Reserva 1 → Reserva 2)[cite: 1].</p>
+                    </div>
+                </div>
+                <div class="feature-box">
+                    <div class="feature-icon">📍</div>
+                    <div class="feature-text">
+                        <h4>Geolocalização em Tempo Real</h4>
+                        <p>Acompanhamento de check-in e check-out com coordenadas GPS e fotos[cite: 1].</p>
+                    </div>
+                </div>
             </div>
 
-            <div class="metrics-grid">
-                <div class="metric-card">
-                    <span>Serviços Ativos</span>
-                    <h3 id="stat-ativos">0</h3>
-                </div>
-                <div class="metric-card">
-                    <span>Total Publicado</span>
-                    <h3 id="stat-total">0</h3>
-                </div>
-                <div class="metric-card" style="border-left: 4px solid var(--success);">
-                    <span>Status de Garantia</span>
-                    <h3 style="font-size: 1.1rem; color: var(--success); margin-top: 0.6rem;">✔️ Custódia Ativa</h3>
-                </div>
-            </div>
+            <div class="auth-card">
+                <h2>Acesse sua conta</h2>
+                <div class="sub-title">Entre para continuar sua experiência</div>
 
-            <div class="card-panel">
-                <h3 style="margin-bottom: 1rem; color: var(--primary);">Cadastrar Chamado com Garantia Financeira</h3>
-                <div class="form-grid">
-                    <div class="form-group"><label>Título do Serviço</label><input type="text" id="srv-titulo" placeholder="Ex: Manutenção Elétrica Preventiva"></div>
-                    <div class="form-group"><label>Cidade / Local</label><input type="text" id="srv-local" placeholder="Ex: Nanuque - MG"></div>
-                    <div class="form-group full"><label>Endereço Completo</label><input type="text" id="srv-endereco" placeholder="Rua, Número, Bairro"></div>
-                    <div class="form-group"><label>Valor da Diária / Serviço (R$)</label><input type="text" id="srv-valor" placeholder="Ex: 350,00"></div>
-                    <div class="form-group"><label>Data e Horário</label><input type="text" id="srv-datahorario" placeholder="Ex: 15/08/2026 às 08:00"></div>
+                <div class="auth-tabs">
+                    <button type="button" id="tab-login" class="auth-tab-btn active" onclick="alternarAba('login')">Entrar</button>
+                    <button type="button" id="tab-cadastro" class="auth-tab-btn" onclick="alternarAba('cadastro')">Cadastrar-se</button>
+                </div>
+
+                <form id="form-login" onsubmit="realizarLogin(event)">
                     <div class="form-group">
-                        <label>Forma de Pagamento & Retenção</label>
-                        <select id="srv-formapgto">
-                            <option value="Pix (Garantia Imediata)">Pix (Garantia Imediata)</option>
-                            <option value="Cartão de Crédito (Pré-autorização)">Cartão de Crédito (Pré-autorização)</option>
-                            <option value="Faturamento Mensal (Garantia Contratual)">Faturamento Mensal (Garantia Contratual)</option>
+                        <label>E-mail</label>
+                        <input type="email" id="login-email" required placeholder="seu@email.com">
+                    </div>
+                    <div class="form-group">
+                        <label>Senha</label>
+                        <input type="password" id="login-senha" required placeholder="••••••••">
+                    </div>
+                    <button type="submit" style="margin-top: 10px;">Entrar na Conta</button>
+                </form>
+
+                <form id="form-cadastro" class="hidden" onsubmit="realizarRegistro(event)">
+                    <div class="form-group">
+                        <label>Tipo de Perfil</label>
+                        <select id="cad-tipo" onchange="mudarTipoPerfil()" required>
+                            <option value="empresa">Empresa / Contratante</option>
+                            <option value="prestador">Prestador / Técnico</option>
                         </select>
                     </div>
-                    <div class="form-group full"><label>Descrição Detalhada & Equipamentos Necessários</label><textarea id="srv-descricao" rows="2" placeholder="O que o prestador precisa executar e ferramentas exigidas..."></textarea></div>
-                    <div class="form-group full">
-                        <label>Termos do Contrato de Prestação</label>
-                        <textarea id="srv-contrato" rows="2">CLÁUSULA PRIMEIRA: O prestador compromete-se a executar os serviços conforme especificações. O pagamento está garantido e retido em conta escrow pela RS Connect. Ausência do prestador gera reembolso automático integral ao cliente[cite: 1].</textarea>
+                    <div class="form-group">
+                        <label id="label-nome">Razão Social</label>
+                        <input type="text" id="cad-nome" required placeholder="Nome ou Empresa">
                     </div>
-                </div>
-                <button onclick="cadastrarServico()" style="margin-top: 0.5rem;" class="btn-success">🔒 Publicar com Garantia Financeira Vinculada</button>
-            </div>
+                    <div class="grid-duplo">
+                        <div class="form-group">
+                            <label id="label-doc">CNPJ</label>
+                            <input type="text" id="cad-doc" required placeholder="Documento">
+                        </div>
+                        <div class="form-group" id="grupo-responsavel">
+                            <label>Responsável</label>
+                            <input type="text" id="cad-responsavel" placeholder="Nome">
+                        </div>
+                    </div>
+                    <div class="grid-duplo">
+                        <div class="form-group">
+                            <label>E-mail</label>
+                            <input type="email" id="cad-email" required placeholder="email@dominio.com">
+                        </div>
+                        <div class="form-group">
+                            <label>Senha</label>
+                            <input type="password" id="cad-senha" required placeholder="Mínimo 6 chars">
+                        </div>
+                    </div>
+                    <div class="grid-duplo">
+                        <div class="form-group">
+                            <label>WhatsApp</label>
+                            <input type="text" id="cad-whatsapp" placeholder="(33) 99999-9999">
+                        </div>
+                        <div class="form-group">
+                            <label>Cidade / Local</label>
+                            <input type="text" id="cad-endereco" placeholder="Ex: Nanuque - MG">
+                        </div>
+                    </div>
 
-            <h3 style="margin-bottom: 1rem; color: var(--primary);">Ordens de Serviço e Auditoria</h3>
-            <div id="lista-servicos-empresa" class="card-grid-servicos"></div>
+                    <div id="campos-prestador" class="hidden secao-prestador-box">
+                        <h4 style="margin-top:0; color:var(--primary); font-size:13px; margin-bottom: 10px;">📑 Dados do Prestador</h4>
+                        <div class="grid-duplo">
+                            <div class="form-group">
+                                <label>RG / CNH</label>
+                                <input type="text" id="cad-rg-cnh" placeholder="Documento">
+                            </div>
+                            <div class="form-group">
+                                <label>Especialidade</label>
+                                <input type="text" id="cad-profissao" placeholder="Ex: Técnico">
+                            </div>
+                        </div>
+                        <div class="form-group">
+                            <label>Chave PIX</label>
+                            <input type="text" id="cad-pix" placeholder="Sua chave PIX">
+                        </div>
+                    </div>
+
+                    <button type="submit" class="btn-success" style="margin-top: 10px;">Finalizar Cadastro</button>
+                </form>
+            </div>
         </div>
 
-        <div id="painel-prestador" class="painel" style="display: none;">
-            <div class="hero-banner">
-                <h2>OPORTUNIDADES COM PAGAMENTO 100% GARANTIDO</h2>
-                <p>Aceite vagas com segurança jurídica: cumpra o contrato, faça o check-in por GPS/Foto e receba sem discussão[cite: 1]!</p>
-            </div>
-            <h3 style="margin-bottom: 1rem; color: var(--primary);">Vagas Disponíveis com Garantia Ativa</h3>
-            <div id="lista-servicos-prestador" class="card-grid-servicos"></div>
-        </div>
-    </div>
-
-    <!-- RODAPÉ -->
-    <footer class="app-footer">
-        RS Connect – A Plataforma Mais Segura do Brasil | Produzido por Jefferson Fernandes Borges[cite: 1]
-    </footer>
-
-    <!-- MODAL DE CONTRATO E GARANTIA -->
-    <div id="modal-contrato" class="modal-contrato">
-        <div class="modal-content">
-            <h3 style="color: var(--primary); margin-bottom: 0.75rem;">Termos, Documentos e Contrato Escrow</h3>
-            <p id="texto-contrato-modal" style="background: #f8fafc; padding: 0.75rem; border-radius: 8px; border: 1px solid var(--border); font-size: 0.85rem; white-space: pre-wrap; margin-bottom: 1rem;"></p>
+        <!-- PAINEL INTERNO DO SISTEMA -->
+        <div id="secao-sistema" class="dashboard-container hidden">
             
-            <div style="background: #ecfdf5; border: 1px solid #10b981; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem;">
-                <p style="font-size: 0.8rem; font-weight: 700; color: var(--success); margin-bottom: 0.2rem;">🛡️ Política de Garantia e Reembolso Automático</p>
-                <p style="font-size: 0.75rem; color: var(--primary);">O valor está retido em custódia. O aceite gera vínculo contratual digital com assinatura eletrônica registrada[cite: 1].</p>
-            </div>
-
-            <div style="background: #f1f5f9; padding: 0.75rem; border-radius: 8px; margin-bottom: 1rem;">
-                <p style="font-size: 0.8rem; font-weight: 600; color: var(--primary); margin-bottom: 0.4rem;">Sua Chave Pix Cadastrada para Recebimento:</p>
-                <input type="text" id="modal-prestador-pix-conf" readonly style="background: white; font-size: 0.85rem;">
-            </div>
-
-            <div style="display: flex; gap: 1rem;">
-                <button onclick="fecharModalContrato()" class="btn-secondary" style="flex: 1;">Cancelar</button>
-                <button onclick="confirmarAceiteServico()" class="btn-success" style="flex: 1;">Aceitar Contrato Digital</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- MODAL DE PONTO / FOTO / GPS / QR CODE -->
-    <div id="modal-ponto" class="modal-contrato">
-        <div class="modal-content" style="text-align: center;">
-            <h3 style="color: var(--primary); margin-bottom: 0.75rem;">Check-in Georreferenciado (GPS + Foto + QR)</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;">Valide sua chegada ao local para iniciar o atendimento e garantir seu direito de recebimento[cite: 1].</p>
-            
-            <div class="form-group" style="text-align: left;">
-                <label>Simulação de QR Code da Empresa (Opcional)</label>
-                <input type="text" id="input-qrcode" placeholder="Insira o código QR se fornecido no local">
-            </div>
-
-            <div style="margin-bottom: 1rem;">
-                <input type="file" id="input-foto-ponto" accept="image/*" capture="environment" style="display:none;" onchange="converterFotoPonto(event)">
-                <button onclick="document.getElementById('input-foto-ponto').click()" class="btn-secondary" style="margin-bottom: 0.75rem; width: 100%;">📸 Capturar Foto no Local (GPS Ativo)</button>
-                <div id="preview-container">
-                    <img id="img-preview" style="max-width: 100%; max-height: 180px; border-radius: 8px; display: none; margin: 0 auto; border: 1px solid var(--border);">
+            <!-- Card Informativo da Empresa -->
+            <div id="widget-empresa-info" class="info-card-empresa hidden">
+                <div>
+                    <h3>🏢 Painel de Controle Corporativo</h3>
+                    <div id="detalhes-empresa-logada" class="dados-empresa">Carregando dados...</div>
+                </div>
+                <div style="text-align: right;">
+                    <span style="background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600;">Status: Ativo 🟢</span>
                 </div>
             </div>
 
-            <div style="display: flex; gap: 1rem;">
-                <button onclick="fecharModalPonto()" class="btn-secondary" style="flex: 1;">Cancelar</button>
-                <button onclick="enviarBaterPonto()" class="btn-success" id="btn-enviar-ponto" style="flex: 1;" disabled>Confirmar Check-in Seguro</button>
+            <!-- Widget de Carteira Digital para Prestadores -->
+            <div id="widget-carteira" class="wallet-card hidden">
+                <div>
+                    <h3>💰 Saldo Disponível na Carteira</h3>
+                    <div id="saldo-valor" class="wallet-saldo">R$ 0,00</div>
+                </div>
+                <div style="text-align: right; font-size: 12px; color: #94a3b8;">
+                    <span>Status: Ativo na Plataforma</span><br>
+                    <span>⭐ Reputação: <b id="prestador-estrelas">5.0</b> (Verificado)</span>
+                </div>
+            </div>
+
+            <div id="painel-empresa" class="hidden" style="margin-bottom: 30px; background: #f8fafc; padding: 22px; border-radius: 12px; border: 1px solid var(--border);">
+                <h2>🛠️ Publicar Novo Serviço no Radar (1 Titular + 2 Reservas)[cite: 1]</h2>
+                <form onsubmit="publicarServico(event)">
+                    <div class="grid-duplo">
+                        <div class="form-group">
+                            <label>Título do Serviço</label>
+                            <input type="text" id="srv-titulo" required placeholder="Ex: Manutenção de Equipamentos">
+                        </div>
+                        <div class="form-group">
+                            <label>Categoria</label>
+                            <select id="srv-categoria">
+                                <option value="Manutenção">Manutenção Geral</option>
+                                <option value="Limpeza">Limpeza e Conservação</option>
+                                <option value="Instalação">Instalação Técnica</option>
+                                <option value="TI e Redes">TI / Redes / Suporte</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="grid-duplo">
+                        <div class="form-group">
+                            <label>Cidade / Local</label>
+                            <input type="text" id="srv-local" required placeholder="Ex: Nanuque - MG">
+                        </div>
+                        <div class="form-group">
+                            <label>Valor (R$)</label>
+                            <input type="text" id="srv-valor" required placeholder="300,00">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>Endereço Completo</label>
+                        <input type="text" id="srv-endereco" required placeholder="Rua, Número, Bairro">
+                    </div>
+                    <div class="form-group">
+                        <label>Garantia Financeira</label>
+                        <select id="srv-pagamento">
+                            <option value="pix_garantido">Pix Retido com Garantia RS Connect</option>
+                            <option value="cartao_pre">Cartão de Crédito (Pré-autorização)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Descrição Detalhada</label>
+                        <textarea id="srv-descricao" rows="2" required placeholder="Descreva as instruções para o prestador..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>Termos do Contrato e Chamada de Emergência (Desistência)</label>
+                        <textarea id="srv-contrato" rows="4">O prestador compromete-se a executar os serviços conforme padrões exigidos. O pagamento garantido será liberado automaticamente após check-out validado. 
+CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irrevogável. Em caso de desistência posterior, abandono ou recusa injustificada após a aceitação, a parte lesada fica determinada a tomar medidas legais imediatas nas esferas cabíveis para reparação de danos e cumprimento da obrigação.</textarea>
+                    </div>
+                    <button type="submit" class="btn-success">🔒 Validar Garantia e Publicar (1 Titular + 2 Reservas)[cite: 1]</button>
+                </form>
+            </div>
+
+            <!-- ABA EXCLUSIVA DA EMPRESA/GESTOR (TRABALHADORES & ESCALAS) -->
+            <div id="painel-gestor-trabalhadores" class="rs-gestor-section hidden">
+                <h2 style="font-size: 18px; margin-top: 0; color: var(--primary);">📋 Gestão de Titular e Fila de Emergência (Até 3 Inscritos)[cite: 1]</h2>
+                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Visualização do trabalhador titular e dos 2 reservas na escala de plantão[cite: 1].</p>
+                
+                <div class="form-group">
+                    <input type="text" id="searchWorker" placeholder="🔍 Pesquisar pelo nome completo do trabalhador..." onkeyup="filtrarTrabalhadoresGestor()">
+                </div>
+
+                <div style="overflow-x: auto;">
+                    <table class="rs-table">
+                        <thead>
+                            <tr>
+                                <th>Nome Completo</th>
+                                <th>Função na Vaga</th>
+                                <th>Serviço / Local</th>
+                                <th>Empresa</th>
+                                <th>Valor</th>
+                                <th>Status / Relógio</th>
+                                <th>Ações</th>
+                            </tr>
+                        </thead>
+                        <tbody id="workerTableBodyGestor">
+                            <!-- Preenchido Dinamicamente via Script -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <h2 id="titulo-radar" style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; margin-top: 30px;">📡 Radar de Vagas Disponíveis</h2>
+            <div id="lista-servicos">
+                <p style="text-align:center; color:var(--text-light);">Carregando...</p>
             </div>
         </div>
     </div>
 
-    <!-- MODAL DE MAPA -->
-    <div id="modal-mapa" class="modal-contrato">
-        <div class="modal-content" style="max-width: 650px;">
-            <h3 style="color: var(--primary); margin-bottom: 0.5rem;" id="mapa-titulo-modal">Localização Georreferenciada</h3>
-            <p style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1rem;" id="mapa-endereco-modal"></p>
-            <div style="width: 100%; height: 350px; border-radius: 8px; overflow: hidden; border: 1px solid var(--border); margin-bottom: 1rem;">
-                <iframe id="iframe-mapa" width="100%" height="100%" style="border:0;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    <!-- MODAL DE DETALHES DA FICHA DO TRABALHADOR (GESTOR) -->
+    <div id="workerModal" class="rs-modal" style="display:none;">
+        <div class="rs-modal-content">
+            <span class="close-modal" onclick="fecharDetalhesTrabalhador()">&times;</span>
+            <h3 style="color: var(--primary); margin-top:0; font-size:16px;">Ficha Completa do Trabalhador</h3>
+            <ul class="worker-details-list">
+                <li><strong>Nome Completo:</strong> <span id="m-nome"></span></li>
+                <li><strong>Posição na Vaga:</strong> <span id="m-posicao"></span></li>
+                <li><strong>Serviço/Função:</strong> <span id="m-servico"></span></li>
+                <li><strong>Data do Serviço:</strong> <span id="m-data"></span></li>
+                <li><strong>Empresa:</strong> <span id="m-empresa"></span></li>
+                <li><strong>Horário:</strong> <span id="m-horario"></span></li>
+                <li><strong>Valor:</strong> <span id="m-valor"></span></li>
+                <li><strong>Contrato/Termo Assinado:</strong> <span id="m-contrato"></span></li>
+                <li><strong>Data/Horário do Aceite:</strong> <span id="m-aceite"></span></li>
+                <li><strong>Status da Confirmação:</strong> <span id="m-status"></span></li>
+                <li><strong>Check-in / Check-out:</strong> <span id="m-checkin"></span></li>
+                <li><strong>Documentos / Comprovantes:</strong> <span id="m-docs"></span></li>
+            </ul>
+            <div style="margin-top: 15px; text-align: center;">
+                <strong>Selfie de Confirmação:</strong><br>
+                <img id="m-selfie" src="" alt="Selfie de Confirmação" style="max-width:130px; display:none; margin-top:6px; border-radius:6px; border: 1px solid var(--border);">
             </div>
-            <button onclick="fecharModalMapa()" class="btn-secondary" style="width: 100%;">Fechar Mapa</button>
         </div>
     </div>
 
     <script>
         const socket = io();
-        let servicoSelecionadoId = null;
-        let contratoTextoGlobal = '';
-        let fotoPontoBase64 = null;
-        let acaoPontoTipo = 'CHECKIN';
+        let usuarioLogado = JSON.parse(localStorage.getItem('rs_usuario')) || null;
 
-        socket.on('atualizar_servicos', () => {
+        document.addEventListener("DOMContentLoaded", () => {
+            verificarEstadoSessao();
             carregarServicos();
         });
 
-        function entrarNoSistema() {
-            document.getElementById('tela-welcome').style.display = 'none';
-            document.getElementById('tela-auth').style.display = 'flex';
-        }
-
-        function alternarTelaAuth(modo) {
-            if (modo === 'registrar') {
-                document.getElementById('box-login').style.display = 'none';
-                document.getElementById('box-registrar').style.display = 'block';
-            } else {
-                document.getElementById('box-registrar').style.display = 'none';
-                document.getElementById('box-login').style.display = 'block';
-            }
-        }
-
-        function alternarCamposPerfilRegistro() {
-            const tipo = document.getElementById('reg-tipo').value;
-            const camposPrestador = document.getElementById('campos-prestador-extra');
-            const grupoRgCnh = document.getElementById('grupo-rg-cnh');
-            const lblNome = document.getElementById('lbl-nome-reg');
-            const lblDoc = document.getElementById('lbl-doc-reg');
-
-            if (tipo === 'colaborador') {
-                camposPrestador.style.display = 'block';
-                grupoRgCnh.style.display = 'block';
-                lblNome.innerText = 'Nome Completo';
-                lblDoc.innerText = 'CPF';
-            } else {
-                camposPrestador.style.display = 'none';
-                grupoRgCnh.style.display = 'none';
-                lblNome.innerText = 'Razão Social / Nome da Empresa';
-                lblDoc.innerText = 'CNPJ';
-            }
-        }
-
-        async function realizarLogin() {
-            const email = document.getElementById('login-identificador').value.trim();
-            const senha = document.getElementById('login-senha').value.trim();
-            const tipo = document.getElementById('login-tipo').value;
-
-            if (!email || !senha) { alert('Preencha todos os campos.'); return; }
-
-            const res = await fetch('/api/auth/login', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ email, senha, tipo })
-            });
-            const resposta = await res.json();
-            if (resposta.sucesso) {
-                processarSessaoUsuario(resposta.usuario);
-            } else {
-                alert(resposta.erro);
-            }
-        }
-
-        async function realizarRegistro() {
-            const tipo = document.getElementById('reg-tipo').value;
-            const nome = document.getElementById('reg-nome').value.trim();
-            const doc = document.getElementById('reg-cpf-cnpj').value.trim();
-            const email = document.getElementById('reg-email').value.trim();
-            const whatsapp = document.getElementById('reg-whatsapp').value.trim();
-            const endereco = document.getElementById('reg-endereco').value.trim();
-            const senha = document.getElementById('reg-senha').value.trim();
-            const termos = document.getElementById('reg-termos').checked;
-
-            if (!termos) { alert('Você deve aceitar os Termos de Uso para continuar.'); return; }
-            if (!nome || !doc || !email || !senha) { alert('Preencha os campos obrigatórios de cadastro.'); return; }
-
-            let payload = { tipo, nome, doc, email, whatsapp, endereco, senha };
-
-            if (tipo === 'colaborador') {
-                payload.rgCnh = document.getElementById('reg-rg-cnh').value.trim();
-                payload.profissao = document.getElementById('reg-profissao').value.trim();
-                payload.tipoChavePix = document.getElementById('reg-tipo-pix').value;
-                payload.pix = document.getElementById('reg-pix').value.trim();
-                payload.banco = document.getElementById('reg-banco').value.trim();
-                payload.conta = document.getElementById('reg-conta').value.trim();
-                payload.experiencia = document.getElementById('reg-experiencia').value.trim();
-            }
-
-            const res = await fetch('/api/auth/registrar', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const resposta = await res.json();
-            if (resposta.sucesso) {
-                alert('Cadastro verificado e salvo com sucesso! Faça seu login.');
-                alternarTelaAuth('login');
-            } else {
-                alert(resposta.erro);
-            }
-        }
-
-        function processarSessaoUsuario(usuario) {
-            localStorage.setItem('usuario_logado', JSON.stringify(usuario));
-            document.getElementById('tela-welcome').style.display = 'none';
-            document.getElementById('tela-auth').style.display = 'none';
-            document.getElementById('header-user').style.display = 'flex';
-            document.getElementById('lbl-nome-usuario').innerText = `${usuario.nome} (${usuario.tipo.toUpperCase()})`;
-
-            if (usuario.tipo === 'empresa') {
-                document.getElementById('painel-empresa').style.display = 'block';
-            } else {
-                document.getElementById('painel-prestador').style.display = 'block';
-            }
+        socket.on('atualizar_servicos', () => { 
             carregarServicos();
+            tocarAlertaSonoro();
+        });
+
+        function tocarAlertaSonoro() {
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const osc = audioCtx.createOscillator();
+                const gain = audioCtx.createGain();
+                osc.type = 'sine';
+                osc.frequency.value = 587.33; 
+                gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.5);
+                osc.connect(gain);
+                gain.connect(audioCtx.destination);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.5);
+            } catch(e) {}
         }
 
-        async function fazerLogout() {
-            localStorage.removeItem('usuario_logado');
-            location.reload();
+        function alternarAba(aba) {
+            const btnLogin = document.getElementById('tab-login');
+            const btnCadastro = document.getElementById('tab-cadastro');
+            if (aba === 'login') {
+                document.getElementById('form-login').classList.remove('hidden');
+                document.getElementById('form-cadastro').classList.add('hidden');
+                btnLogin.classList.add('active');
+                btnCadastro.classList.remove('active');
+            } else {
+                document.getElementById('form-login').classList.add('hidden');
+                document.getElementById('form-cadastro').classList.remove('hidden');
+                btnCadastro.classList.add('active');
+                btnLogin.classList.remove('active');
+            }
         }
 
-        async function cadastrarServico() {
-            const usuario = JSON.parse(localStorage.getItem('usuario_logado'));
-            const titulo = document.getElementById('srv-titulo').value;
-            const local = document.getElementById('srv-local').value;
-            const endereco = document.getElementById('srv-endereco').value;
-            const valor = document.getElementById('srv-valor').value;
-            const dataHorario = document.getElementById('srv-datahorario').value;
-            const formaPgto = document.getElementById('srv-formapgto').value;
-            const descricao = document.getElementById('srv-descricao').value;
-            const contratoTexto = document.getElementById('srv-contrato').value;
+        function mudarTipoPerfil() {
+            const tipo = document.getElementById('cad-tipo').value;
+            const camposPrestador = document.getElementById('campos-prestador');
+            const grupoResponsavel = document.getElementById('grupo-responsavel');
+            if (tipo === 'prestador') {
+                camposPrestador.classList.remove('hidden');
+                grupoResponsavel.classList.add('hidden');
+                document.getElementById('label-nome').innerText = 'Nome Completo';
+                document.getElementById('label-doc').innerText = 'CPF';
+            } else {
+                camposPrestador.classList.add('hidden');
+                grupoResponsavel.classList.remove('hidden');
+                document.getElementById('label-nome').innerText = 'Razão Social';
+                document.getElementById('label-doc').innerText = 'CNPJ';
+            }
+        }
 
-            if (!titulo || !local || !valor) { alert('Preencha os campos principais do serviço.'); return; }
+        async function realizarLogin(e) {
+            e.preventDefault();
+            const email = document.getElementById('login-email').value;
+            const senha = document.getElementById('login-senha').value;
+            try {
+                const res = await fetch('/api/auth/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, senha })
+                });
+                const data = await res.json();
+                if (data.sucesso) {
+                    usuarioLogado = data.usuario;
+                    localStorage.setItem('rs_usuario', JSON.stringify(usuarioLogado));
+                    verificarEstadoSessao();
+                    carregarServicos();
+                } else { alert(data.erro || 'Dados incorretos.'); }
+            } catch (err) { alert('Erro de conexão.'); }
+        }
 
-            if (!confirm("🔒 O Módulo de Garantia Financeira irá reter o valor em conta Escrow. Se houver ausência injustificada do prestador, o reembolso automático será acionado. Deseja publicar?")) {
+        async function realizarRegistro(e) {
+            e.preventDefault();
+            const dados = {
+                tipo: document.getElementById('cad-tipo').value,
+                nome: document.getElementById('cad-nome').value,
+                doc: document.getElementById('cad-doc').value,
+                responsavel: document.getElementById('cad-responsavel')?.value || '',
+                email: document.getElementById('cad-email').value,
+                senha: document.getElementById('cad-senha').value,
+                whatsapp: document.getElementById('cad-whatsapp').value,
+                endereco: document.getElementById('cad-endereco').value,
+                rgCnh: document.getElementById('cad-rg-cnh')?.value || '',
+                profissao: document.getElementById('cad-profissao')?.value || '',
+                pix: document.getElementById('cad-pix')?.value || ''
+            };
+            try {
+                const res = await fetch('/api/auth/registrar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(dados)
+                });
+                const data = await res.json();
+                if (data.sucesso) {
+                    alert('Cadastro realizado com sucesso! Faça login.');
+                    alternarAba('login');
+                } else { alert(data.erro || 'Erro ao registrar.'); }
+            } catch (err) { alert('Erro ao registrar.'); }
+        }
+
+        function fazerLogout() {
+            localStorage.removeItem('rs_usuario');
+            usuarioLogado = null;
+            verificarEstadoSessao();
+        }
+
+        function verificarEstadoSessao() {
+            const secaoAuth = document.getElementById('secao-auth');
+            const secaoSistema = document.getElementById('secao-sistema');
+            const painelTopo = document.getElementById('painel-usuario-topo');
+            const txtUsuario = document.getElementById('txt-usuario-logado');
+            const painelEmpresa = document.getElementById('painel-empresa');
+            const widgetCarteira = document.getElementById('widget-carteira');
+            const widgetEmpresaInfo = document.getElementById('widget-empresa-info');
+            const painelGestorTrabalhadores = document.getElementById('painel-gestor-trabalhadores');
+
+            if (usuarioLogado) {
+                secaoAuth.classList.add('hidden');
+                secaoSistema.classList.remove('hidden');
+                painelTopo.classList.remove('hidden');
+                txtUsuario.innerText = `${usuarioLogado.nome} (${usuarioLogado.tipo.toUpperCase()})`;
+                
+                if (usuarioLogado.tipo === 'empresa') {
+                    painelEmpresa.classList.remove('hidden');
+                    widgetCarteira.classList.add('hidden');
+                    widgetEmpresaInfo.classList.remove('hidden');
+                    painelGestorTrabalhadores.classList.remove('hidden');
+                    document.getElementById('titulo-radar').innerText = "📋 Meus Serviços Solicitados";
+                    
+                    document.getElementById('detalhes-empresa-logada').innerHTML = `
+                        <strong>Empresa:</strong> ${usuarioLogado.nome}<br>
+                        <strong>CNPJ:</strong> ${usuarioLogado.doc || 'Não informado'} | <strong>Resp:</strong> ${usuarioLogado.responsavel || 'N/D'}<br>
+                        <strong>E-mail:</strong> ${usuarioLogado.email} | <strong>Zap:</strong> ${usuarioLogado.whatsapp || 'N/D'}<br>
+                        <strong>Localização:</strong> ${usuarioLogado.endereco || 'N/D'}
+                    `;
+                } else {
+                    painelEmpresa.classList.add('hidden');
+                    widgetEmpresaInfo.classList.add('hidden');
+                    widgetCarteira.classList.remove('hidden');
+                    painelGestorTrabalhadores.classList.add('hidden');
+                    document.getElementById('titulo-radar').innerText = "📡 Radar de Vagas Disponíveis (Titular e Reservas)[cite: 1]";
+                }
+            } else {
+                secaoAuth.classList.remove('hidden');
+                secaoSistema.classList.add('hidden');
+                painelTopo.classList.add('hidden');
+            }
+        }
+
+        async function publicarServico(e) {
+            e.preventDefault();
+            if (!usuarioLogado || !usuarioLogado.email) {
+                alert('Sessão expirada. Faça login novamente.');
                 return;
             }
 
-            const payload = { 
-                titulo, local, endereco, valor, dataHorario, formaPgto, descricao, contratoTexto, 
-                empresaEmail: usuario.email, empresaWhatsapp: usuario.whatsapp,
-                garantiaStatus: 'APROVADA' 
+            const servico = {
+                titulo: document.getElementById('srv-titulo').value.trim(),
+                categoria: document.getElementById('srv-categoria').value,
+                local: document.getElementById('srv-local').value.trim(),
+                endereco: document.getElementById('srv-endereco').value.trim(),
+                valor: document.getElementById('srv-valor').value.trim(),
+                pagamento: document.getElementById('srv-pagamento').value,
+                descricao: document.getElementById('srv-descricao').value.trim(),
+                contrato: document.getElementById('srv-contrato').value.trim(),
+                empresa_email: usuarioLogado.email,
+                empresaEmail: usuarioLogado.email,
+                empresa_nome: usuarioLogado.nome || '',
+                empresaNome: usuarioLogado.nome || '',
+                empresa_whatsapp: usuarioLogado.whatsapp || '',
+                empresaWhatsapp: usuarioLogado.whatsapp || ''
             };
 
-            const res = await fetch('/api/servicos', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload)
-            });
-            const resposta = await res.json();
-
-            if (resposta.sucesso) {
-                alert('Serviço publicado com sucesso! Valores retidos em custódia segura.');
-                document.getElementById('srv-titulo').value = '';
-                document.getElementById('srv-local').value = '';
-                document.getElementById('srv-endereco').value = '';
-                document.getElementById('srv-valor').value = '';
-                document.getElementById('srv-datahorario').value = '';
-                document.getElementById('srv-descricao').value = '';
-                carregarServicos();
-            } else {
-                alert(resposta.erro || 'Erro ao cadastrar serviço.');
+            try {
+                const res = await fetch('/api/servicos', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(servico)
+                });
+                const data = await res.json();
+                if (res.ok && data.sucesso) {
+                    alert('✅ Vaga publicada com sistema de 1 titular e até 2 reservas de emergência![cite: 1]');
+                    document.getElementById('srv-titulo').value = '';
+                    document.getElementById('srv-local').value = '';
+                    document.getElementById('srv-endereco').value = '';
+                    document.getElementById('srv-valor').value = '';
+                    document.getElementById('srv-descricao').value = '';
+                    carregarServicos();
+                } else {
+                    alert(data.erro || 'Erro ao publicar serviço no servidor.');
+                }
+            } catch (err) {
+                alert('Erro de conexão ao tentar publicar o serviço.');
             }
         }
 
         async function carregarServicos() {
-            const usuario = JSON.parse(localStorage.getItem('usuario_logado'));
-            if (!usuario) return;
-
             try {
                 const res = await fetch('/api/servicos');
-                const lista = await res.json();
+                const servicos = await res.json();
+                const container = document.getElementById('lista-servicos');
+                const tbodyGestor = document.getElementById('workerTableBodyGestor');
 
-                if (usuario.tipo === 'empresa') {
-                    const meus = lista.filter(s => s.empresaEmail === usuario.email);
-                    renderizarPainelEmpresa(meus);
-                    document.getElementById('stat-total').innerText = meus.length;
-                    document.getElementById('stat-ativos').innerText = meus.filter(s => s.status === 'ativo' || s.status === 'em_andamento').length;
-                } else {
-                    renderizarPainelPrestador(lista);
-                }
-            } catch (e) {
-                console.error('Erro ao carregar serviços:', e);
-            }
-        }
-
-        function renderizarPainelEmpresa(meusServicos) {
-            const container = document.getElementById('lista-servicos-empresa');
-            container.innerHTML = meusServicos.length ? '' : '<p style="color:var(--text-muted); font-size:0.9rem;">Nenhum serviço cadastrado ainda.</p>';
-            
-            meusServicos.forEach(s => {
-                let acoesEmpresa = '';
-                if (s.status === 'em_andamento' || s.status === 'concluido') {
-                    acoesEmpresa = `
-                        <div style="margin-top:0.75rem; display:flex; gap:0.5rem;">
-                            <button onclick="aprovarServicoEmpresa('${s._id}')" class="btn-success" style="flex:1; font-size:0.75rem;">✔️ Aprovar & Liberar Pix</button>
-                            <button onclick="contestarServicoEmpresa('${s._id}')" class="btn-vermelho" style="flex:1; font-size:0.75rem;">⚠️ Contestar</button>
-                        </div>
-                    `;
+                if (!servicos || servicos.length === 0) {
+                    container.innerHTML = '<p style="color: var(--text-light); text-align: center; padding: 20px;">Nenhuma vaga ativa no momento.</p>';
+                    if(tbodyGestor) tbodyGestor.innerHTML = '<tr><td colspan="7" style="text-align:center; color:var(--text-light);">Nenhum trabalhador cadastrado ainda.</td></tr>';
+                    return;
                 }
 
-                container.innerHTML += `
-                    <div class="card-servico">
-                        <div>
-                            <h4>${s.titulo}</h4>
-                            <p><strong>Local:</strong> ${s.local}</p>
-                            <p><strong>Valor Retido:</strong> R$ ${s.valor}</p>
-                            <span class="badge-status">Status: ${s.status}</span>
-                            <span class="badge-garantia">🛡️ Escrow Ativo</span>
-                            ${s.prestadorNome ? `<p style="margin-top:0.4rem;"><strong>Prestador:</strong> ${s.prestadorNome} (${s.prestadorPix || 'Sem Pix'})</p>` : ''}
-                            ${s.fotoPontoCheckin ? `<div style="margin-top:0.5rem;"><p style="font-size:0.75rem;">Comprovação Check-in:</p><img src="${s.fotoPontoCheckin}" style="max-width:100px; border-radius:6px; border:1px solid var(--border);"></div>` : ''}
-                        </div>
-                        ${acoesEmpresa}
-                    </div>
-                `;
-            });
-        }
+                let saldoTotal = 0;
+                if (usuarioLogado && usuarioLogado.tipo === 'prestador') {
+                    servicos.forEach(s => {
+                        const listaReservas = s.reservas || [];
+                        const souTitular = (s.prestador_email === usuarioLogado.email);
+                        const souReserva = listaReservas.some(r => r.email === usuarioLogado.email);
+                        if ((souTitular || souReserva) && s.comprovante_pagamento) {
+                            saldoTotal += parseFloat(s.valor.toString().replace(',', '.')) || 0;
+                        }
+                    });
+                    document.getElementById('saldo-valor').innerText = `R$ ${saldoTotal.toFixed(2).replace('.', ',')}`;
+                }
 
-        function renderizarPainelPrestador(lista) {
-            const container = document.getElementById('lista-servicos-prestador');
-            const usuario = JSON.parse(localStorage.getItem('usuario_logado'));
-            
-            container.innerHTML = lista.length ? '' : '<p style="color:var(--text-muted); font-size:0.9rem;">Não há vagas disponíveis no momento.</p>';
-            
-            lista.forEach(s => {
-                let meuServico = s.prestadorEmail === usuario.email;
-                let disponivel = s.status === 'pendente' || s.status === 'ativo';
+                container.innerHTML = '';
+                if(tbodyGestor) tbodyGestor.innerHTML = '';
 
-                if (disponivel || meuServico) {
-                    let enderecoCompleto = s.endereco ? `${s.endereco}, ${s.local}` : s.local;
-                    
-                    let botoesAcao = `<button onclick="abrirMapa('${s.titulo}', \`${enderecoCompleto}\`)" class="btn-secondary" style="width:100%;">🗺️ Ver Mapa do Local</button>`;
-                    
-                    if (disponivel && !s.prestadorEmail) {
-                        botoesAcao += `<button onclick="abrirModalContrato('${s._id}', \`${s.contratoTexto || 'Sem contrato especificado.'}\`)" style="width:100%;">🛡️ Ver Contrato & Aceitar</button>`;
-                    } else if (meuServico && s.status === 'ativo') {
-                        botoesAcao += `<button onclick="abrirModalPonto('${s._id}', 'CHECKIN')" class="btn-success" style="width:100%;">📸 Registrar Check-in (GPS/Foto)</button>`;
-                    } else if (meuServico && s.status === 'em_andamento') {
-                        botoesAcao += `<button onclick="fazerCheckout('${s._id}')" class="btn-warning" style="width:100%;">🏁 Check-out & Fim do Serviço</button>`;
+                servicos.forEach(s => {
+                    const empresaEmailServico = (s.empresa_email || s.empresaEmail || '').trim().toLowerCase();
+                    const usuarioEmailAtual = (usuarioLogado.email || '').trim().toLowerCase();
+
+                    if (usuarioLogado.tipo === 'empresa' && empresaEmailServico !== usuarioEmailAtual) return;
+
+                    const reservas = s.reservas || [];
+                    const totalInscritos = (s.prestador_email ? 1 : 0) + reservas.length;
+                    const vagaLotada = totalInscritos >= 3;
+
+                    const estaConfirmado = Boolean(
+                        s.presenca_confirmada || 
+                        s.presencaConfirmada || 
+                        s.confirmado || 
+                        (s.selfie_confirmacao && s.selfie_confirmacao.length > 10)
+                    );
+
+                    // Alimentar tabela do gestor com Titular e Reservas + Área de Substituição Rápida
+                    if (usuarioLogado.tipo === 'empresa') {
+                        if (s.prestador_nome) {
+                            const trTitular = document.createElement('tr');
+                            trTitular.innerHTML = `
+                                <td><strong>${s.prestador_nome}</strong><br><small style="color:var(--text-light);">Aceite: ${s.data_aceite || 'Registrado'}</small></td>
+                                <td><span class="badge titular">⭐ Vaga Principal (Titular)[cite: 1]</span></td>
+                                <td>${s.titulo} (${s.local})</td>
+                                <td>${s.empresa_nome || usuarioLogado.nome}</td>
+                                <td>R$ ${s.valor}</td>
+                                <td>${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge" style="background:#fef3c7; color:#d97706;">⏳ Aguardando</span>'}</td>
+                                <td>
+                                    <button class="btn-view" style="padding:6px 10px; font-size:11px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
+                                </td>
+                            `;
+                            tbodyGestor.appendChild(trTitular);
+                        }
+
+                        reservas.forEach((r, idx) => {
+                            const trReserva = document.createElement('tr');
+                            trReserva.innerHTML = `
+                                <td><strong>${r.nome}</strong><br><small style="color:var(--text-light);">Contato: ${r.whatsapp || 'N/D'}</small></td>
+                                <td><span class="badge reserva">🔄 Reserva ${idx + 1} (Emergência)[cite: 1]</span></td>
+                                <td>${s.titulo} (${s.local})</td>
+                                <td>${s.empresa_nome || usuarioLogado.nome}</td>
+                                <td>R$ ${s.valor}</td>
+                                <td><span class="badge reserva">Em Espera / Plantão</span></td>
+                                <td>
+                                    <button class="btn-success" style="padding:5px 8px; font-size:11px; margin-bottom:4px; width:auto;" onclick='promoverReservaParaTitular(${s.id}, "${r.email}")'>⬆️ Promover a Titular</button>
+                                    <button class="btn-view" style="padding:5px 8px; font-size:11px; width:auto;" onclick='abrirFichaGestor(${JSON.stringify({ ...s, prestador_nome: r.nome, prestador_email: r.email, prestador_whatsapp: r.whatsapp })}, "Reserva ${idx + 1}")'>Ficha</button>
+                                </td>
+                            `;
+                            tbodyGestor.appendChild(trReserva);
+                        });
                     }
+
+                    const card = document.createElement('div');
+                    card.className = 'card-chamado';
                     
-                    container.innerHTML += `
-                        <div class="card-servico">
-                            <div>
-                                <h4>${s.titulo}</h4>
-                                <p><strong>Cidade:</strong> ${s.local}</p>
-                                <p><strong>Endereço:</strong> ${s.endereco || 'Não informado'}</p>
-                                <p><strong>Valor Garantido:</strong> R$ ${s.valor}</p>
-                                <p><strong>Horário:</strong> ${s.dataHorario || 'A combinar'}</p>
-                                <span class="badge-status">Status: ${s.status}</span>
-                                <span class="badge-garantia">✔️ Pagamento Garantido</span>
+                    const souTitular = usuarioLogado.tipo === 'prestador' && s.prestador_email === usuarioLogado.email;
+                    const reservaObj = reservas.find(r => r.email === usuarioLogado.email);
+                    const souReserva = !!reservaObj;
+                    const jaCadastrado = souTitular || souReserva;
+
+                    card.innerHTML = `
+                        <div class="card-header">
+                            <h4>${s.titulo} ${s.categoria ? `<small style="font-size:12px; color:var(--accent);">(${s.categoria})</small>` : ''}</h4>
+                            <span class="preco-tag">R$ ${s.valor}</span>
+                        </div>
+                        <p style="margin:4px 0; font-size:13px;">📍 <strong>Local:</strong> ${s.local} - ${s.endereco}</p>
+                        <p style="margin:4px 0; font-size:13px;">📝 <strong>Descrição:</strong> ${s.descricao}</p>
+                        <p style="margin:4px 0 10px 0; font-size:13px;">👥 <strong>Vagas Preenchidas:</strong> <span style="font-weight:bold; color:var(--accent);">${totalInscritos} / 3</span> (1 Titular + 2 Reservas de Emergência)[cite: 1]</p>
+                        
+                        ${s.prestador_nome ? `
+                            <div class="detalhes-box">
+                                <strong>⭐ Titular Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
+                                ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
+                                ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado</span>` : ''}
                             </div>
-                            <div style="margin-top: 1rem; display: flex; flex-direction: column; gap: 0.5rem;">
-                                ${botoesAcao}
+                        ` : '<div class="detalhes-box">⭐ <strong>Titular Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
+
+                        ${reservas.length > 0 ? `
+                            <div class="detalhes-box" style="background:#fefce8;">
+                                <strong>🔄 Fila de Reserva / Emergência (Até 2)[cite: 1]:</strong>
+                                <ul style="margin:4px 0 0 15px; padding:0; font-size:12px;">
+                                    ${reservas.map((r, i) => `<li>Reserva ${i+1}[cite: 1]: <b>${r.nome}</b> ${r.email === usuarioLogado.email ? '(Você)' : ''}</li>`).join('')}
+                                </ul>
+                            </div>
+                        ` : ''}
+
+                        <!-- BOTÃO DE INSCRIÇÃO PARA O PRESTADOR (SE HOUVER VAGA ATÉ 3) -->
+                        ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
+                            <div class="contrato-box">
+                                <strong>📜 Termos do Contrato Digital:</strong>
+                                <p style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #fde68a; margin: 6px 0;">${s.contrato || 'Contrato padrão.'}</p>
+                                <label style="font-size:11px;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li e aceito os termos do contrato.</label>
+                                <input type="text" id="assinatura-${s.id}" placeholder="Digite seu Nome Completo e CPF" style="margin:8px 0; background:white;">
+                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px;" disabled>✍️ ${!s.prestador_email ? 'Assumir Vaga Titular' : 'Entrar na Fila de Reserva (Emergência)'}</button>
+                            </div>
+                        ` : ''}
+
+                        ${usuarioLogado.tipo === 'prestador' && vagaLotada && !jaCadastrado ? `
+                            <div style="background:#fce8e6; padding:10px; border-radius:8px; font-size:12px; color:var(--danger); text-align:center; margin-top:10px;">
+                                ❌ Vaga Lotada (1 Titular e 2 Reservas já cadastrados).
+                            </div>
+                        ` : ''}
+
+                        ${souReserva ? `
+                            <div style="background:#fef3c7; padding:10px; border-radius:8px; font-size:12px; color:#d97706; font-weight:bold; margin-top:10px;">
+                                🔄 Você está na Fila de Reserva (Emergência) para esta vaga.
+                            </div>
+                        ` : ''}
+
+                        <!-- AÇÕES DO TITULAR (CONFIRMAÇÃO / CHECK-IN) -->
+                        ${souTitular && !estaConfirmado ? `
+                            <div style="background:#fffbeb; border:1px solid #fde68a; padding:15px; border-radius:10px; margin-top:12px;">
+                                <h4 style="margin:0 0 8px 0; color:#d97706; font-size:14px;">⏰ Confirmação de Presença Necessária</h4>
+                                <label style="font-size:11px; display:block; margin-bottom:4px;">📸 Enviar Selfie de Confirmação:</label>
+                                <input type="file" id="selfie-confirmacao-${s.id}" accept="image/*" capture="user" style="margin-bottom:10px; background:white;">
+                                <button onclick="confirmarPresencaPrestador(${s.id})" class="btn-success" style="padding:10px;">🟢 CONFIRMAR PRESENÇA COMO TITULAR</button>
+                            </div>
+                        ` : ''}
+
+                        ${souTitular && estaConfirmado ? `
+                            <div style="margin-top: 12px; display:flex; flex-direction:column; gap:12px;">
+                                <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
+                                    <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Chegada (Check-in via Câmera)</label>
+                                    <input type="file" id="foto-checkin-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
+                                    <button onclick="realizarCheckinComGPS(${s.id})" style="background:var(--warning); padding:10px; width:100%; font-size:13px;">📍 Registrar Check-in com GPS</button>
+                                </div>
+                                <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
+                                    <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Conclusão (Check-out)</label>
+                                    <input type="file" id="foto-checkout-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
+                                    <button onclick="realizarCheckout(${s.id})" class="btn-success" style="padding:10px; width:100%; font-size:13px;">✅ Finalizar Check-out</button>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- CHAT INTERNO -->
+                        <div class="chat-container">
+                            <div class="chat-mensagens" id="chat-msgs-${s.id}">
+                                ${s.mensagens && s.mensagens.length > 0 ? s.mensagens.map(m => `<div class="chat-msg-item"><b>${m.remetente}:</b> ${m.texto}</div>`).join('') : '<i style="color:#94a3b8; padding:5px;">Nenhuma mensagem no chat ainda.</i>'}
+                            </div>
+                            <div class="chat-input-area">
+                                <input type="text" id="chat-txt-${s.id}" placeholder="Escrever mensagem..." onkeypress="if(event.key === 'Enter') enviarMensagem(${s.id})">
+                                <button onclick="enviarMensagem(${s.id})">Enviar</button>
                             </div>
                         </div>
                     `;
+                    container.appendChild(card);
+                });
+            } catch (err) { console.error("Erro ao carregar serviços:", err); }
+        }
+
+        function toggleAceiteContrato(id) {
+            const marcado = document.getElementById(`check-termo-${id}`).checked;
+            document.getElementById(`btn-aceitar-${id}`).disabled = !marcado;
+        }
+
+        async function inscreverVaga(id) {
+            const assinatura = document.getElementById(`assinatura-${id}`).value;
+            if (!assinatura || assinatura.length < 6) {
+                alert('Digite seu Nome Completo e CPF para assinar o contrato.');
+                return;
+            }
+            if (!confirm('Deseja confirmar sua inscrição na vaga (Titular ou Fila de Reserva)?')) return;
+
+            try {
+                const res = await fetch(`/api/servicos/${id}/aceitar`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prestadorEmail: usuarioLogado.email,
+                        prestadorNome: usuarioLogado.nome,
+                        prestadorWhatsapp: usuarioLogado.whatsapp || '',
+                        prestadorRgCnh: usuarioLogado.rgCnh || '',
+                        prestadorProfissao: usuarioLogado.profissao || '',
+                        prestadorPix: usuarioLogado.pix || '',
+                        contratoAssinado: assinatura
+                    })
+                });
+                const data = await res.json();
+                if (data.sucesso) { carregarServicos(); alert(data.mensagem || 'Inscrição efetuada com sucesso!'); } 
+                else { alert(data.erro); }
+            } catch(e) { alert('Erro ao processar inscrição.'); }
+        }
+
+        async function promoverReservaParaTitular(servicoId, reservaEmail) {
+            if (!confirm('Deseja promover este profissional da reserva para a vaga de Titular?')) return;
+
+            try {
+                const res = await fetch(`/api/servicos/${servicoId}/promover`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ emailReserva: reservaEmail })
+                });
+                const data = await res.json();
+                if (res.ok && data.sucesso) {
+                    alert('✅ Profissional promovido a Titular com sucesso!');
+                    carregarServicos();
+                } else {
+                    alert(data.erro || 'Erro ao realizar a substituição.');
                 }
-            });
-        }
-
-        async function aprovarServicoEmpresa(id) {
-            if (!confirm("Deseja aprovar a execução e liberar o pagamento automático via Pix para o prestador?")) return;
-            const res = await fetch(`/api/servicos/${id}/aprovar`, { method: 'POST' });
-            const resp = await res.json();
-            if (resp.sucesso) {
-                alert('Serviço aprovado! Pagamento liberado com sucesso.');
-                carregarServicos();
-            } else {
-                alert(resp.erro || 'Erro ao aprovar.');
+            } catch (err) {
+                alert('Erro de conexão ao processar substituição.');
             }
         }
 
-        async function contestarServicoEmpresa(id) {
-            const motivo = prompt("Informe o motivo da contestação (ex: ausência do prestador, serviço incompleto):");
-            if (!motivo) return;
-            const res = await fetch(`/api/servicos/${id}/contestar`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ motivo })
-            });
-            const resp = await res.json();
-            if (resp.sucesso) {
-                alert('Contestação registrada. O pagamento está bloqueado para análise administrativa[cite: 1].');
-                carregarServicos();
-            } else {
-                alert(resp.erro || 'Erro ao contestar.');
+        async function confirmarPresencaPrestador(id) {
+            const inputSelfie = document.getElementById(`selfie-confirmacao-${id}`);
+            if (!inputSelfie.files || inputSelfie.files.length === 0) {
+                alert('Por favor, selecione ou tire a foto da selfie de confirmação!');
+                return;
             }
-        }
 
-        async function fazerCheckout(id) {
-            if (!confirm("Deseja realizar o check-out e notificar o cliente para aprovação?")) return;
-            const res = await fetch(`/api/servicos/${id}/checkout`, { method: 'POST' });
-            const resp = await res.json();
-            if (resp.sucesso) {
-                alert('Check-out realizado! Aguardando aprovação do cliente.');
-                carregarServicos();
-            } else {
-                alert(resp.erro || 'Erro ao fazer checkout.');
-            }
-        }
-
-        function abrirMapa(titulo, endereco) {
-            document.getElementById('mapa-titulo-modal').innerText = titulo;
-            document.getElementById('mapa-endereco-modal').innerText = `Endereço: ${endereco}`;
-            document.getElementById('iframe-mapa').src = `https://maps.google.com/maps?q=${encodeURIComponent(endereco)}&output=embed`;
-            document.getElementById('modal-mapa').style.display = 'flex';
-        }
-
-        function fecharModalMapa() {
-            document.getElementById('modal-mapa').style.display = 'none';
-            document.getElementById('iframe-mapa').src = '';
-        }
-
-        function abrirModalContrato(servicoId, textoContrato) {
-            servicoSelecionadoId = servicoId;
-            document.getElementById('texto-contrato-modal').innerText = textoContrato;
-            const usuario = JSON.parse(localStorage.getItem('usuario_logado'));
-            document.getElementById('modal-prestador-pix-conf').value = usuario.pix ? `${usuario.tipoChavePix}: ${usuario.pix}` : '⚠️ Cadastre sua chave Pix no perfil!';
-            document.getElementById('modal-contrato').style.display = 'flex';
-        }
-
-        function fecharModalContrato() {
-            document.getElementById('modal-contrato').style.display = 'none';
-        }
-
-        async function confirmarAceiteServico() {
-            const usuario = JSON.parse(localStorage.getItem('usuario_logado'));
-            if (!usuario.pix) { alert('Cadastre sua chave Pix antes de aceitar chamados.'); return; }
-
-            const res = await fetch(`/api/servicos/${servicoSelecionadoId}/aceitar`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    prestadorEmail: usuario.email,
-                    prestadorNome: usuario.nome,
-                    prestadorPix: usuario.pix,
-                    prestadorWhatsapp: usuario.whatsapp
-                })
-            });
-            const resp = await res.json();
-            if (resp.sucesso) {
-                alert('Contrato aceito digitalmente! Seus dados foram enviados ao cliente[cite: 1].');
-                fecharModalContrato();
-                carregarServicos();
-            } else {
-                alert(resp.erro || 'Erro ao aceitar.');
-            }
-        }
-
-        function abrirModalPonto(servicoId, tipo) {
-            servicoSelecionadoId = servicoId;
-            acaoPontoTipo = tipo;
-            fotoPontoBase64 = null;
-            document.getElementById('img-preview').style.display = 'none';
-            document.getElementById('btn-enviar-ponto').disabled = true;
-            document.getElementById('modal-ponto').style.display = 'flex';
-        }
-
-        function fecharModalPonto() {
-            document.getElementById('modal-ponto').style.display = 'none';
-        }
-
-        function converterFotoPonto(event) {
-            const file = event.target.files[0];
-            if (!file) return;
             const reader = new FileReader();
-            reader.onload = (e) => {
-                fotoPontoBase64 = e.target.result;
-                const img = document.getElementById('img-preview');
-                img.src = fotoPontoBase64;
-                img.style.display = 'block';
-                document.getElementById('btn-enviar-ponto').disabled = false;
+            reader.onload = async function(e) {
+                const selfieBase64 = e.target.result;
+                await enviarConfirmacaoServidor(id, selfieBase64);
             };
-            reader.readAsDataURL(file);
+            reader.readAsDataURL(inputSelfie.files[0]);
         }
 
-        async function enviarBaterPonto() {
-            if (!fotoPontoBase64) { alert('Tire a foto de check-in.'); return; }
-            const qrcode = document.getElementById('input-qrcode').value.trim();
+        async function enviarConfirmacaoServidor(id, selfie) {
+            try {
+                const res = await fetch(`/api/servicos/${id}/confirmar-presenca`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ selfie, presenca_confirmada: true, presencaConfirmada: true })
+                });
+                const data = await res.json();
+                if (res.ok && data.sucesso !== false) {
+                    carregarServicos();
+                    alert('🟢 Presença confirmada como Titular com sucesso!');
+                } else {
+                    alert(data.erro || 'Erro ao confirmar presença.');
+                }
+            } catch(e) { alert('Erro de conexão ao confirmar presença.'); }
+        }
 
-            const res = await fetch(`/api/servicos/${servicoSelecionadoId}/ponto`, {
+        async function realizarCheckinComGPS(id) {
+            const inputFoto = document.getElementById(`foto-checkin-${id}`);
+            if (!inputFoto.files || inputFoto.files.length === 0) {
+                alert('Por favor, tire a foto da chegada usando a câmera!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const fotoBase64 = e.target.result;
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(async (position) => {
+                        const gpsCoords = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
+                        await enviarCheckinServidor(id, fotoBase64, gpsCoords);
+                    }, () => {
+                        enviarCheckinServidor(id, fotoBase64, "GPS Indisponível");
+                    });
+                } else {
+                    enviarCheckinServidor(id, fotoBase64, "GPS não suportado");
+                }
+            };
+            reader.readAsDataURL(inputFoto.files[0]);
+        }
+
+        async function enviarCheckinServidor(id, foto, gps) {
+            await fetch(`/api/servicos/${id}/checkin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ foto: fotoPontoBase64, qrcode, tipoAcao: acaoPontoTipo })
+                body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto, gps })
             });
-            const resp = await res.json();
-            if (resp.sucesso) {
-                alert('Check-in registrado com GPS e foto com sucesso[cite: 1]!');
-                fecharModalPonto();
+            carregarServicos();
+            alert(`Check-in registrado! GPS: ${gps}`);
+        }
+
+        async function realizarCheckout(id) {
+            const inputFoto = document.getElementById(`foto-checkout-${id}`);
+            if (!inputFoto.files || inputFoto.files.length === 0) {
+                alert('Por favor, selecione ou tire a foto de conclusão (check-out) antes de finalizar!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const fotoBase64 = e.target.result;
+                try {
+                    await fetch(`/api/servicos/${id}/ponto`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ foto: fotoBase64, email: usuarioLogado.email })
+                    });
+
+                    const res = await fetch(`/api/servicos/${id}/checkout`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
+                    });
+                    const data = await res.json();
+                    
+                    if (res.ok && data.sucesso !== false) {
+                        carregarServicos();
+                        alert('✅ Check-out realizado com sucesso! Serviço finalizado.');
+                    } else { 
+                        alert(data.erro || 'Erro ao realizar check-out.'); 
+                    }
+                } catch (err) { 
+                    alert('Erro de conexão ao finalizar o serviço.'); 
+                }
+            };
+            reader.readAsDataURL(inputFoto.files[0]);
+        }
+
+        async function enviarMensagem(id) {
+            const txt = document.getElementById(`chat-txt-${id}`).value;
+            if (!txt) return;
+            try {
+                await fetch(`/api/servicos/${id}/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ remetente: usuarioLogado.nome, texto: txt })
+                });
+                document.getElementById(`chat-txt-${id}`).value = '';
                 carregarServicos();
-            } else {
-                alert(resp.erro || 'Erro ao registrar ponto.');
+            } catch(e) { alert('Erro ao enviar mensagem.'); }
+        }
+
+        function filtrarTrabalhadoresGestor() {
+            let input = document.getElementById("searchWorker").value.toUpperCase();
+            let trs = document.getElementById("workerTableBodyGestor").getElementsByTagName("tr");
+            for (let i = 0; i < trs.length; i++) {
+                let td = trs[i].getElementsByTagName("td")[0];
+                if (td) {
+                    trs[i].style.display = (td.textContent || td.innerText).toUpperCase().indexOf(input) > -1 ? "" : "none";
+                }
             }
         }
 
-        window.onload = () => {
-            const usuarioSalvo = localStorage.getItem('usuario_logado');
-            if (usuarioSalvo) {
-                try { processarSessaoUsuario(JSON.parse(usuarioSalvo)); } 
-                catch (e) { localStorage.removeItem('usuario_logado'); }
+        function abrirFichaGestor(s, posicao) {
+            const estaConfirmado = Boolean(s.presenca_confirmada || s.presencaConfirmada || s.confirmado || (s.selfie_confirmacao && s.selfie_confirmacao.length > 10));
+
+            document.getElementById("m-nome").innerText = s.prestador_nome || 'N/D';
+            document.getElementById("m-posicao").innerText = posicao || 'Titular';
+            document.getElementById("m-servico").innerText = `${s.titulo} (${s.categoria || 'Geral'})`;
+            document.getElementById("m-data").innerText = s.local || 'N/D';
+            document.getElementById("m-empresa").innerText = s.empresa_nome || usuarioLogado.nome;
+            document.getElementById("m-horario").innerText = s.horario || 'Horário padrão';
+            document.getElementById("m-valor").innerText = `R$ ${s.valor}`;
+            document.getElementById("m-contrato").innerText = s.contrato_assinado ? `Assinado por: ${s.contrato_assinado}` : 'Pendente';
+            document.getElementById("m-aceite").innerText = s.data_aceite || 'N/D';
+            document.getElementById("m-status").innerText = estaConfirmado ? '🟢 Presença Confirmada' : '⏳ Aguardando';
+            document.getElementById("m-checkin").innerText = `Check-in: ${s.checkin_hora || 'Pendente'} | Check-out: ${s.checkout_hora || 'Pendente'}`;
+            document.getElementById("m-docs").innerText = s.prestador_rg_cnh ? `RG/CNH: ${s.prestador_rg_cnh} | PIX: ${s.prestador_pix}` : 'N/D';
+            
+            const imgSelfie = document.getElementById("m-selfie");
+            if (s.selfie_confirmacao) {
+                imgSelfie.src = s.selfie_confirmacao;
+                imgSelfie.style.display = "block";
+            } else {
+                imgSelfie.style.display = "none";
             }
-        };
+
+            document.getElementById("workerModal").style.display = "flex";
+        }
+
+        function fecharDetalhesTrabalhador() {
+            document.getElementById("workerModal").style.display = "none";
+        }
     </script>
 </body>
 </html>
