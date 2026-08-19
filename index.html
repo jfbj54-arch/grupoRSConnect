@@ -822,6 +822,23 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             }
         }
 
+        // Função para Excluir Serviço
+        async function excluirServico(id) {
+            if (!confirm("Deseja realmente excluir este serviço do sistema?")) return;
+            try {
+                const res = await fetch(`/api/servicos/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (res.ok && data.sucesso !== false) {
+                    alert("🗑️ Serviço excluído com sucesso!");
+                    carregarServicos();
+                } else {
+                    alert(data.erro || "Erro ao excluir o serviço.");
+                }
+            } catch (err) {
+                alert("Erro de conexão ao excluir o serviço.");
+            }
+        }
+
         async function carregarServicos() {
             try {
                 const res = await fetch('/api/servicos');
@@ -912,12 +929,34 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     const souReserva = !!reservaObj;
                     const jaCadastrado = souTitular || souReserva;
 
+                    // Link do endereço para o Google Maps / GPS
+                    const linkGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.endereco || s.local)}`;
+
+                    // Separação inteligente de valores (Empresa paga vs Prestador recebe)
+                    let infoValorHTML = '';
+                    const valorServico = s.valor || '0,00';
+                    const valorPrestador = s.valor_prestador || s.valor || '0,00';
+                    if (usuarioLogado.tipo === 'empresa') {
+                        infoValorHTML = `<span class="preco-tag" style="background:#eff6ff; color:#1d4ed8;">Valor a Pagar: R$ ${valorServico}</span>`;
+                    } else {
+                        infoValorHTML = `<span class="preco-tag" style="background:#e6f4ea; color:#137333;">Valor a Receber: R$ ${valorPrestador}</span>`;
+                    }
+
+                    // Fotos de Check-in e Check-out na visão da empresa/prestador
+                    let blocoFotosHTML = '';
+                    if (s.foto_checkin || s.foto_ponto) {
+                        blocoFotosHTML += `<div style="margin-top:6px; font-size:12px;">📸 <strong>Check-in Realizado:</strong><br><img src="${s.foto_checkin || s.foto_ponto}" style="max-width:100px; border-radius:6px; margin-top:4px; border:1px solid var(--border);"></div>`;
+                    }
+                    if (s.foto_checkout || s.documento_comprovante) {
+                        blocoFotosHTML += `<div style="margin-top:6px; font-size:12px;">✅ <strong>Check-out / Comprovante:</strong><br><img src="${s.foto_checkout || s.documento_comprovante}" style="max-width:100px; border-radius:6px; margin-top:4px; border:1px solid var(--border);"></div>`;
+                    }
+
                     card.innerHTML = `
                         <div class="card-header">
                             <h4>${s.titulo} ${s.categoria ? `<small style="font-size:12px; color:var(--accent);">(${s.categoria})</small>` : ''}</h4>
-                            <span class="preco-tag">R$ ${s.valor}</span>
+                            ${infoValorHTML}
                         </div>
-                        <p style="margin:4px 0; font-size:13px;">📍 <strong>Local:</strong> ${s.local} - ${s.endereco}</p>
+                        <p style="margin:4px 0; font-size:13px;">📍 <strong>Local:</strong> ${s.local} - <a href="${linkGoogleMaps}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">🗺️ Ver no Mapa (${s.endereco})</a></p>
                         <p style="margin:4px 0; font-size:13px;">📝 <strong>Descrição:</strong> ${s.descricao}</p>
                         <p style="margin:4px 0 10px 0; font-size:13px;">👥 <strong>Vagas Preenchidas:</strong> <span style="font-weight:bold; color:var(--accent);">${totalInscritos} / 3</span> (1 Titular + 2 Reservas de Emergência)[cite: 1]</p>
                         
@@ -926,6 +965,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                                 <strong>⭐ Titular Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
                                 ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
                                 ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado</span>` : ''}
+                                ${blocoFotosHTML}
                             </div>
                         ` : '<div class="detalhes-box">⭐ <strong>Titular Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
 
@@ -935,6 +975,13 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                                 <ul style="margin:4px 0 0 15px; padding:0; font-size:12px;">
                                     ${reservas.map((r, i) => `<li>Reserva ${i+1}[cite: 1]: <b>${r.nome}</b> ${r.email === usuarioLogado.email ? '(Você)' : ''}</li>`).join('')}
                                 </ul>
+                            </div>
+                        ` : ''}
+
+                        <!-- BOTÃO DE EXCLUIR SERVIÇO (EXCLUSIVO PARA EMPRESA DONA DO SERVIÇO) -->
+                        ${usuarioLogado.tipo === 'empresa' ? `
+                            <div style="margin-top: 12px; text-align: right;">
+                                <button onclick="excluirServico(${s.id})" class="btn-danger" style="padding: 6px 14px; font-size: 12px; width: auto;">🗑️ Excluir Serviço</button>
                             </div>
                         ` : ''}
 
