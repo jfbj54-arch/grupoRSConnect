@@ -328,6 +328,33 @@
         .worker-details-list { list-style: none; padding: 0; margin: 0; }
         .worker-details-list li { padding: 8px 0; border-bottom: 1px solid #f1f1f1; font-size: 13px; display: flex; justify-content: space-between; }
 
+        /* Estilo para Impressão da Nota Fiscal / Extrato */
+        @media print {
+            body * { visibility: hidden; }
+            #nota-fiscal-impressao, #nota-fiscal-impressao * { visibility: visible; }
+            #nota-fiscal-impressao {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+                background: white;
+                padding: 20px;
+                box-shadow: none;
+                border: none;
+            }
+            .no-print { display: none !important; }
+        }
+
+        .nf-container {
+            background: #fff;
+            border: 2px solid var(--primary);
+            padding: 30px;
+            border-radius: 12px;
+            max-width: 700px;
+            margin: 0 auto;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+
         @media (max-width: 850px) {
             .split-container { grid-template-columns: 1fr; gap: 20px; }
             .hero-section { text-align: center; padding: 10px; }
@@ -341,7 +368,7 @@
 </head>
 <body>
 
-    <header>
+    <header class="no-print">
         <div class="logo-container">
             <span style="font-weight: 800; font-size: 18px; color: var(--primary); letter-spacing: -0.5px;">🔵 RS CONNECT</span>
         </div>
@@ -359,7 +386,7 @@
     <div class="main-wrapper">
         
         <!-- TELA DE AUTENTICAÇÃO -->
-        <div id="secao-auth" class="split-container">
+        <div id="secao-auth" class="split-container no-print">
             <div class="hero-section">
                 <h1>Bem-vindo ao <span>RS Connect</span></h1>
                 <p>Plataforma inteligente que conecta empresas a prestadores de serviços. Regra de preenchimento inteligente: 1 vaga titular e até 2 vagas de reserva/emergência na fila de espera[cite: 1].</p>
@@ -500,7 +527,7 @@
                 </div>
             </div>
 
-            <div id="painel-empresa" class="hidden" style="margin-bottom: 30px; background: #f8fafc; padding: 22px; border-radius: 12px; border: 1px solid var(--border);">
+            <div id="painel-empresa" class="hidden no-print" style="margin-bottom: 30px; background: #f8fafc; padding: 22px; border-radius: 12px; border: 1px solid var(--border);">
                 <h2>🛠️ Publicar Novo Serviço no Radar (1 Titular + 2 Reservas)[cite: 1]</h2>
                 <form onsubmit="publicarServico(event)">
                     <div class="grid-duplo">
@@ -553,7 +580,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             </div>
 
             <!-- ABA EXCLUSIVA DA EMPRESA/GESTOR (TRABALHADORES & ESCALAS) -->
-            <div id="painel-gestor-trabalhadores" class="rs-gestor-section hidden">
+            <div id="painel-gestor-trabalhadores" class="rs-gestor-section no-print hidden">
                 <h2 style="font-size: 18px; margin-top: 0; color: var(--primary);">📋 Gestão de Titular e Fila de Emergência (Até 3 Inscritos)[cite: 1]</h2>
                 <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Visualização do trabalhador titular e dos 2 reservas na escala de plantão[cite: 1].</p>
                 
@@ -581,15 +608,15 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 </div>
             </div>
 
-            <h2 id="titulo-radar" style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; margin-top: 30px;">📡 Radar de Vagas Disponíveis</h2>
-            <div id="lista-servicos">
+            <h2 id="titulo-radar" class="no-print" style="font-size: 18px; border-bottom: 2px solid #e2e8f0; padding-bottom: 10px; margin-bottom: 20px; margin-top: 30px;">📡 Radar de Vagas Disponíveis</h2>
+            <div id="lista-servicos" class="no-print">
                 <p style="text-align:center; color:var(--text-light);">Carregando...</p>
             </div>
         </div>
     </div>
 
     <!-- MODAL DE DETALHES DA FICHA DO TRABALHADOR (GESTOR) -->
-    <div id="workerModal" class="rs-modal" style="display:none;">
+    <div id="workerModal" class="rs-modal no-print" style="display:none;">
         <div class="rs-modal-content">
             <span class="close-modal" onclick="fecharDetalhesTrabalhador()">&times;</span>
             <h3 style="color: var(--primary); margin-top:0; font-size:16px;">Ficha Completa do Trabalhador</h3>
@@ -610,6 +637,64 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             <div style="margin-top: 15px; text-align: center;">
                 <strong>Selfie de Confirmação:</strong><br>
                 <img id="m-selfie" src="" alt="Selfie de Confirmação" style="max-width:130px; display:none; margin-top:6px; border-radius:6px; border: 1px solid var(--border);">
+            </div>
+        </div>
+    </div>
+
+    <!-- TELA DE IMPRESSÃO DA NOTA FISCAL / COMPROVANTE DE PAGAMENTO -->
+    <div id="nota-fiscal-impressao" style="display:none;">
+        <div class="nf-container">
+            <div style="display: flex; justify-content: space-between; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px;">
+                <div>
+                    <h2 style="margin: 0; color: var(--primary); font-size: 20px;">🔵 GRUPO RS CONNECT</h2>
+                    <p style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-light);">Plataforma de Gestão e Intermediação de Serviços</p>
+                </div>
+                <div style="text-align: right;">
+                    <h3 style="margin: 0; color: var(--accent); font-size: 15px;">NOTA DE PAGAMENTO / SERVIÇO</h3>
+                    <p style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-light);" id="nf-codigo">Nº 000001 / 2026</p>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 15px; font-size: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 6px 0; color: var(--primary); font-size: 13px;">🏢 Dados da Empresa Contratante</h4>
+                <p style="margin: 2px 0;"><b>Empresa:</b> <span id="nf-empresa-nome">-</span></p>
+                <p style="margin: 2px 0;"><b>CNPJ:</b> <span id="nf-empresa-doc">-</span> | <b>Responsável:</b> <span id="nf-empresa-resp">-</span></p>
+                <p style="margin: 2px 0;"><b>Local:</b> <span id="nf-empresa-local">-</span></p>
+            </div>
+
+            <div style="margin-bottom: 15px; font-size: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 6px 0; color: var(--primary); font-size: 13px;">👤 Dados do Profissional / Prestador Executante</h4>
+                <p style="margin: 2px 0;"><b>Nome Completo:</b> <span id="nf-prestador-nome">-</span></p>
+                <p style="margin: 2px 0;"><b>CPF / RG:</b> <span id="nf-prestador-doc">-</span> | <b>Chave PIX:</b> <span id="nf-prestador-pix">-</span></p>
+            </div>
+
+            <div style="margin-bottom: 15px; font-size: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
+                <h4 style="margin: 0 0 6px 0; color: var(--primary); font-size: 13px;">🛠️ Descrição e Execução do Serviço</h4>
+                <p style="margin: 2px 0;"><b>Serviço:</b> <span id="nf-servico-titulo">-</span></p>
+                <p style="margin: 2px 0;"><b>Endereço de Execução:</b> <span id="nf-servico-endereco">-</span></p>
+                <p style="margin: 2px 0;"><b>Check-in (Chegada):</b> <span id="nf-checkin">-</span> | <b>Check-out (Conclusão):</b> <span id="nf-checkout">-</span></p>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; align-items: center; background: #e6f4ea; padding: 15px; border-radius: 8px; border: 1px solid #137333; margin-bottom: 25px;">
+                <div>
+                    <h4 style="margin: 0; color: #137333; font-size: 14px;">VALOR TOTAL LÍQUIDO A QUITADO</h4>
+                    <span style="font-size: 11px; color: var(--text-light);">Garantia RS Connect Liberada após Validação</span>
+                </div>
+                <div style="font-size: 22px; font-weight: 800; color: #137333;" id="nf-valor">R$ 0,00</div>
+            </div>
+
+            <div style="display: flex; justify-content: space-between; margin-top: 40px; font-size: 11px; text-align: center;">
+                <div style="width: 45%; border-top: 1px solid var(--text); padding-top: 5px;">
+                    Assinatura da Empresa / Gestor
+                </div>
+                <div style="width: 45%; border-top: 1px solid var(--text); padding-top: 5px;">
+                    Assinatura do Prestador / Recebedor
+                </div>
+            </div>
+
+            <div class="no-print" style="margin-top: 30px; text-align: center; display: flex; gap: 10px; justify-content: center;">
+                <button onclick="window.print()" class="btn-success" style="width: auto; padding: 10px 20px;">🖨️ Imprimir / Salvar PDF</button>
+                <button onclick="fecharNotaFiscal()" class="btn-danger" style="width: auto; padding: 10px 20px;">✖ Fechar Nota</button>
             </div>
         </div>
     </div>
@@ -795,8 +880,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 empresaEmail: usuarioLogado.email,
                 empresa_nome: usuarioLogado.nome || '',
                 empresaNome: usuarioLogado.nome || '',
-                empresa_whatsapp: usuarioLogado.whatsapp || '',
-                empresaWhatsapp: usuarioLogado.whatsapp || ''
+                empresa_whatsapp: usuarioLogado.whatsapp || ''
             };
 
             try {
@@ -822,7 +906,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             }
         }
 
-        // Função para Excluir Serviço
         async function excluirServico(id) {
             if (!confirm("Deseja realmente excluir este serviço do sistema?")) return;
             try {
@@ -885,7 +968,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                         (s.selfie_confirmacao && s.selfie_confirmacao.length > 10)
                     );
 
-                    // Alimentar tabela do gestor com Titular e Reservas + Área de Substituição Rápida
                     if (usuarioLogado.tipo === 'empresa') {
                         if (s.prestador_nome) {
                             const trTitular = document.createElement('tr');
@@ -897,7 +979,8 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                                 <td>R$ ${s.valor}</td>
                                 <td>${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge" style="background:#fef3c7; color:#d97706;">⏳ Aguardando</span>'}</td>
                                 <td>
-                                    <button class="btn-view" style="padding:6px 10px; font-size:11px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
+                                    <button class="btn-view" style="padding:6px 10px; font-size:11px; margin-bottom:4px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
+                                    <button class="btn-success" style="padding:6px 10px; font-size:11px;" onclick='gerarNotaFiscal(${JSON.stringify(s)})'>📄 Nota de Pagamento</button>
                                 </td>
                             `;
                             tbodyGestor.appendChild(trTitular);
@@ -929,10 +1012,8 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     const souReserva = !!reservaObj;
                     const jaCadastrado = souTitular || souReserva;
 
-                    // Link do endereço para o Google Maps / GPS
                     const linkGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.endereco || s.local)}`;
 
-                    // Separação inteligente de valores (Empresa paga vs Prestador recebe)
                     let infoValorHTML = '';
                     const valorServico = s.valor || '0,00';
                     const valorPrestador = s.valor_prestador || s.valor || '0,00';
@@ -942,7 +1023,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                         infoValorHTML = `<span class="preco-tag" style="background:#e6f4ea; color:#137333;">Valor a Receber: R$ ${valorPrestador}</span>`;
                     }
 
-                    // Fotos de Check-in e Check-out na visão da empresa/prestador
                     let blocoFotosHTML = '';
                     if (s.foto_checkin || s.foto_ponto) {
                         blocoFotosHTML += `<div style="margin-top:6px; font-size:12px;">📸 <strong>Check-in Realizado:</strong><br><img src="${s.foto_checkin || s.foto_ponto}" style="max-width:100px; border-radius:6px; margin-top:4px; border:1px solid var(--border);"></div>`;
@@ -978,14 +1058,13 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                             </div>
                         ` : ''}
 
-                        <!-- BOTÃO DE EXCLUIR SERVIÇO (EXCLUSIVO PARA EMPRESA DONA DO SERVIÇO) -->
                         ${usuarioLogado.tipo === 'empresa' ? `
-                            <div style="margin-top: 12px; text-align: right;">
+                            <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: flex-end;">
+                                <button onclick="gerarNotaFiscal(${JSON.stringify(s).replace(/"/g, '&quot;')})" class="btn-success" style="padding: 6px 14px; font-size: 12px; width: auto;">📄 Emitir Nota de Pagamento</button>
                                 <button onclick="excluirServico(${s.id})" class="btn-danger" style="padding: 6px 14px; font-size: 12px; width: auto;">🗑️ Excluir Serviço</button>
                             </div>
                         ` : ''}
 
-                        <!-- BOTÃO DE INSCRIÇÃO PARA O PRESTADOR (SE HOUVER VAGA ATÉ 3) -->
                         ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
                             <div class="contrato-box">
                                 <strong>📜 Termos do Contrato Digital:</strong>
@@ -1008,7 +1087,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                             </div>
                         ` : ''}
 
-                        <!-- AÇÕES DO TITULAR (CONFIRMAÇÃO / CHECK-IN) -->
                         ${souTitular && !estaConfirmado ? `
                             <div style="background:#fffbeb; border:1px solid #fde68a; padding:15px; border-radius:10px; margin-top:12px;">
                                 <h4 style="margin:0 0 8px 0; color:#d97706; font-size:14px;">⏰ Confirmação de Presença Necessária</h4>
@@ -1260,6 +1338,35 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
         function fecharDetalhesTrabalhador() {
             document.getElementById("workerModal").style.display = "none";
+        }
+
+        // Função para Gerar e Exibir a Nota Fiscal / Comprovante de Pagamento
+        function gerarNotaFiscal(s) {
+            document.getElementById("nf-codigo").innerText = `Nº 000${s.id || '1'} / 2026`;
+            document.getElementById("nf-empresa-nome").innerText = s.empresa_nome || usuarioLogado.nome || 'Grupo RS';
+            document.getElementById("nf-empresa-doc").innerText = usuarioLogado.doc || 'CNPJ não informado';
+            document.getElementById("nf-empresa-resp").innerText = usuarioLogado.responsavel || 'Gestão RS Connect';
+            document.getElementById("nf-empresa-local").innerText = s.local || 'Nanuque - MG';
+
+            document.getElementById("nf-prestador-nome").innerText = s.prestador_nome || 'Profissional Titular';
+            document.getElementById("nf-prestador-doc").innerText = s.prestador_rg_cnh || 'CPF/RG não informado';
+            document.getElementById("nf-prestador-pix").innerText = s.prestador_pix || 'Chave PIX padrão cadastrada';
+
+            document.getElementById("nf-servico-titulo").innerText = `${s.titulo} - ${s.descricao}`;
+            document.getElementById("nf-servico-endereco").innerText = s.endereco || s.local;
+            document.getElementById("nf-checkin").innerText = s.checkin_hora || 'Não registrado';
+            document.getElementById("nf-checkout").innerText = s.checkout_hora || 'Não registrado';
+            document.getElementById("nf-valor").innerText = `R$ ${s.valor}`;
+
+            // Exibir a tela de impressão / nota fiscal
+            document.getElementById("secao-sistema").classList.add("hidden");
+            document.getElementById("nota-fiscal-impressao").style.display = "block";
+            window.scrollTo(0, 0);
+        }
+
+        function fecharNotaFiscal() {
+            document.getElementById("nota-fiscal-impressao").style.display = "none";
+            document.getElementById("secao-sistema").classList.remove("hidden");
         }
     </script>
 </body>
