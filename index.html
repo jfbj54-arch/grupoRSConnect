@@ -303,6 +303,7 @@
         .secao-prestador-box { background: #f8fafc; border: 1px dashed var(--border); padding: 16px; border-radius: 10px; margin-bottom: 14px; }
         .detalhes-box { background: #f8fafc; border: 1px solid #e2e8f0; padding: 12px; border-radius: 8px; font-size: 13px; margin-top: 10px; }
         .contrato-box { background: #fffbeb; border: 1px solid #fde68a; padding: 14px; border-radius: 10px; margin-top: 10px; font-size: 13px; }
+        .nf-oficial-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px; border-radius: 10px; margin-top: 10px; font-size: 13px; }
 
         /* Estilos do Chat Interno */
         .chat-container { border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; background: #f8fafc; display: flex; flex-direction: column; height: 200px; }
@@ -389,7 +390,7 @@
         <div id="secao-auth" class="split-container no-print">
             <div class="hero-section">
                 <h1>Bem-vindo ao <span>RS Connect</span></h1>
-                <p>Plataforma inteligente que conecta empresas a prestadores de serviços. Regra de preenchimento inteligente: 1 vaga titular e até 2 vagas de reserva/emergência na fila de espera[cite: 1].</p>
+                <p>Plataforma inteligente que conecta empresas a prestadores de serviços com preenchimento em escala: 1 vaga titular e até 2 vagas de reserva/emergência na fila de espera[cite: 1].</p>
                 
                 <div class="feature-box">
                     <div class="feature-icon">👥</div>
@@ -399,10 +400,10 @@
                     </div>
                 </div>
                 <div class="feature-box">
-                    <div class="feature-icon">⏱️</div>
+                    <div class="feature-icon">📄</div>
                     <div class="feature-text">
-                        <h4>Relógio & Substituição Automática</h4>
-                        <p>Gestão de prazos com acionamento automático da fila (Titular → Reserva 1 → Reserva 2)[cite: 1].</p>
+                        <h4>Notas Fiscais & Comprovantes</h4>
+                        <p>Recibo interno do sistema e upload de Nota Fiscal Oficial (MEI / Prefeitura) integrado[cite: 1].</p>
                     </div>
                 </div>
                 <div class="feature-box">
@@ -641,16 +642,16 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
         </div>
     </div>
 
-    <!-- TELA DE IMPRESSÃO DA NOTA FISCAL / COMPROVANTE DE PAGAMENTO -->
+    <!-- TELA DE IMPRESSÃO DO RECIBO / COMPROVANTE INTERNO -->
     <div id="nota-fiscal-impressao" style="display:none;">
         <div class="nf-container">
             <div style="display: flex; justify-content: space-between; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px;">
                 <div>
                     <h2 style="margin: 0; color: var(--primary); font-size: 20px;">🔵 GRUPO RS CONNECT</h2>
-                    <p style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-light);">Plataforma de Gestão e Intermediação de Serviços</p>
+                    <p style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-light);">Comprovante de Intermediação e Pagamento</p>
                 </div>
                 <div style="text-align: right;">
-                    <h3 style="margin: 0; color: var(--accent); font-size: 15px;">NOTA DE PAGAMENTO / SERVIÇO</h3>
+                    <h3 style="margin: 0; color: var(--accent); font-size: 15px;">RECIBO INTERNO DO SISTEMA</h3>
                     <p style="margin: 2px 0 0 0; font-size: 11px; color: var(--text-light);" id="nf-codigo">Nº 000001 / 2026</p>
                 </div>
             </div>
@@ -677,7 +678,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
             <div style="display: flex; justify-content: space-between; align-items: center; background: #e6f4ea; padding: 15px; border-radius: 8px; border: 1px solid #137333; margin-bottom: 25px;">
                 <div>
-                    <h4 style="margin: 0; color: #137333; font-size: 14px;">VALOR TOTAL LÍQUIDO A QUITADO</h4>
+                    <h4 style="margin: 0; color: #137333; font-size: 14px;">VALOR TOTAL LÍQUIDO QUITADO</h4>
                     <span style="font-size: 11px; color: var(--text-light);">Garantia RS Connect Liberada após Validação</span>
                 </div>
                 <div style="font-size: 22px; font-weight: 800; color: #137333;" id="nf-valor">R$ 0,00</div>
@@ -694,7 +695,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
             <div class="no-print" style="margin-top: 30px; text-align: center; display: flex; gap: 10px; justify-content: center;">
                 <button onclick="window.print()" class="btn-success" style="width: auto; padding: 10px 20px;">🖨️ Imprimir / Salvar PDF</button>
-                <button onclick="fecharNotaFiscal()" class="btn-danger" style="width: auto; padding: 10px 20px;">✖ Fechar Nota</button>
+                <button onclick="fecharNotaFiscal()" class="btn-danger" style="width: auto; padding: 10px 20px;">✖ Fechar Comprovante</button>
             </div>
         </div>
     </div>
@@ -980,7 +981,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                                 <td>${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge" style="background:#fef3c7; color:#d97706;">⏳ Aguardando</span>'}</td>
                                 <td>
                                     <button class="btn-view" style="padding:6px 10px; font-size:11px; margin-bottom:4px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
-                                    <button class="btn-success" style="padding:6px 10px; font-size:11px;" onclick='gerarNotaFiscal(${JSON.stringify(s)})'>📄 Nota de Pagamento</button>
+                                    <button class="btn-success" style="padding:6px 10px; font-size:11px;" onclick='gerarNotaFiscal(${JSON.stringify(s)})'>📄 Recibo Interno</button>
                                 </td>
                             `;
                             tbodyGestor.appendChild(trTitular);
@@ -1016,11 +1017,10 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
                     let infoValorHTML = '';
                     const valorServico = s.valor || '0,00';
-                    const valorPrestador = s.valor_prestador || s.valor || '0,00';
                     if (usuarioLogado.tipo === 'empresa') {
                         infoValorHTML = `<span class="preco-tag" style="background:#eff6ff; color:#1d4ed8;">Valor a Pagar: R$ ${valorServico}</span>`;
                     } else {
-                        infoValorHTML = `<span class="preco-tag" style="background:#e6f4ea; color:#137333;">Valor a Receber: R$ ${valorPrestador}</span>`;
+                        infoValorHTML = `<span class="preco-tag" style="background:#e6f4ea; color:#137333;">Valor a Receber: R$ ${valorServico}</span>`;
                     }
 
                     let blocoFotosHTML = '';
@@ -1029,6 +1029,18 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     }
                     if (s.foto_checkout || s.documento_comprovante) {
                         blocoFotosHTML += `<div style="margin-top:6px; font-size:12px;">✅ <strong>Check-out / Comprovante:</strong><br><img src="${s.foto_checkout || s.documento_comprovante}" style="max-width:100px; border-radius:6px; margin-top:4px; border:1px solid var(--border);"></div>`;
+                    }
+
+                    // Seção de Nota Fiscal Oficial (MEI/Prefeitura) enviada
+                    let blocoNotaOficialHTML = '';
+                    if (s.nota_fiscal_oficial) {
+                        blocoNotaOficialHTML = `
+                            <div class="nf-oficial-box">
+                                <strong>📑 Nota Fiscal Oficial (MEI / Prefeitura) Anexada:</strong><br>
+                                <a href="${s.nota_fiscal_oficial}" target="_blank" style="color: var(--success); font-weight: bold; text-decoration: underline;">📄 Visualizar / Baixar Nota Fiscal Oficial</a>
+                                <br><small style="color: var(--text-light);">Enviada por ${s.nota_fiscal_remetente || 'Usuário'}</small>
+                            </div>
+                        `;
                     }
 
                     card.innerHTML = `
@@ -1042,12 +1054,12 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                         
                         ${s.prestador_nome ? `
                             <div class="detalhes-box">
-                                <strong>⭐ Titular Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
+                                <strong>⭐ Titular da Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
                                 ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
                                 ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado</span>` : ''}
                                 ${blocoFotosHTML}
                             </div>
-                        ` : '<div class="detalhes-box">⭐ <strong>Titular Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
+                        ` : '<div class="detalhes-box">⭐ <strong>Titular da Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
 
                         ${reservas.length > 0 ? `
                             <div class="detalhes-box" style="background:#fefce8;">
@@ -1058,9 +1070,22 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                             </div>
                         ` : ''}
 
+                        ${blocoNotaOficialHTML}
+
+                        <!-- Área para Enviar Nota Fiscal Oficial (MEI/Prefeitura) -->
+                        ${(souTitular || usuarioLogado.tipo === 'empresa') ? `
+                            <div style="background:#f8fafc; border:1px dashed var(--border); padding:12px; border-radius:8px; margin-top:12px;">
+                                <label style="font-size:11px; margin-bottom:4px; display:block;">📑 Enviar Nota Fiscal Oficial (MEI / Prefeitura - PDF ou Imagem):</label>
+                                <div style="display:flex; gap:8px;">
+                                    <input type="file" id="input-nf-oficial-${s.id}" accept="image/*,application/pdf" style="background:white; font-size:12px;">
+                                    <button onclick="enviarNotaFiscalOficial(${s.id})" class="btn-success" style="width:auto; padding:6px 14px; font-size:12px;">Enviar NF</button>
+                                </div>
+                            </div>
+                        ` : ''}
+
                         ${usuarioLogado.tipo === 'empresa' ? `
                             <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: flex-end;">
-                                <button onclick="gerarNotaFiscal(${JSON.stringify(s).replace(/"/g, '&quot;')})" class="btn-success" style="padding: 6px 14px; font-size: 12px; width: auto;">📄 Emitir Nota de Pagamento</button>
+                                <button onclick="gerarNotaFiscal(${JSON.stringify(s).replace(/"/g, '&quot;')})" class="btn-success" style="padding: 6px 14px; font-size: 12px; width: auto;">📄 Recibo Interno do Sistema</button>
                                 <button onclick="excluirServico(${s.id})" class="btn-danger" style="padding: 6px 14px; font-size: 12px; width: auto;">🗑️ Excluir Serviço</button>
                             </div>
                         ` : ''}
@@ -1179,6 +1204,39 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             } catch (err) {
                 alert('Erro de conexão ao processar substituição.');
             }
+        }
+
+        async function enviarNotaFiscalOficial(id) {
+            const inputArquivo = document.getElementById(`input-nf-oficial-${id}`);
+            if (!inputArquivo.files || inputArquivo.files.length === 0) {
+                alert('Selecione o arquivo da Nota Fiscal Oficial (PDF ou imagem)!');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const arquivoBase64 = e.target.result;
+                try {
+                    const res = await fetch(`/api/servicos/${id}/nota-oficial`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            nota_fiscal_oficial: arquivoBase64,
+                            nota_fiscal_remetente: usuarioLogado.nome
+                        })
+                    });
+                    const data = await res.json();
+                    if (res.ok && data.sucesso !== false) {
+                        carregarServicos();
+                        alert('📑 Nota Fiscal Oficial enviada com sucesso para o sistema!');
+                    } else {
+                        alert(data.erro || 'Erro ao enviar nota fiscal.');
+                    }
+                } catch(err) {
+                    alert('Erro de conexão ao enviar nota fiscal oficial.');
+                }
+            };
+            reader.readAsDataURL(inputArquivo.files[0]);
         }
 
         async function confirmarPresencaPrestador(id) {
@@ -1340,7 +1398,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             document.getElementById("workerModal").style.display = "none";
         }
 
-        // Função para Gerar e Exibir a Nota Fiscal / Comprovante de Pagamento
         function gerarNotaFiscal(s) {
             document.getElementById("nf-codigo").innerText = `Nº 000${s.id || '1'} / 2026`;
             document.getElementById("nf-empresa-nome").innerText = s.empresa_nome || usuarioLogado.nome || 'Grupo RS';
@@ -1358,7 +1415,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             document.getElementById("nf-checkout").innerText = s.checkout_hora || 'Não registrado';
             document.getElementById("nf-valor").innerText = `R$ ${s.valor}`;
 
-            // Exibir a tela de impressão / nota fiscal
             document.getElementById("secao-sistema").classList.add("hidden");
             document.getElementById("nota-fiscal-impressao").style.display = "block";
             window.scrollTo(0, 0);
