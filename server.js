@@ -9,8 +9,8 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-// Configuração do Multer para armazenar os arquivos temporariamente ou em memória
-const upload = multer({ limits: { fileSize: 50 * 1024 * 1024 } }); // Limite de 50mb para arquivos
+// Configuração do Multer com limite de 50mb para arquivos e imagens
+const upload = multer({ limits: { fileSize: 50 * 1024 * 1024 } });
 
 // Aumentado o limite para aceitar imagens pesadas (Selfies, Documentos, Fotos de Ponto/Checkout em Base64)
 app.use(express.json({ limit: '50mb' }));
@@ -216,7 +216,7 @@ app.post('/api/servicos/:id/aceitar', async (req, res) => {
         const servico = resultServico.rows[0];
         let reservas = servico.reservas || [];
 
-        // Se não tem titular, assume como titular
+        // Se não tiene titular, assume como titular
         if (!servico.prestador_email) {
             const query = `UPDATE servicos SET status = 'em_andamento', prestador_email = $1, prestador_nome = $2, prestador_pix = $3, prestador_whatsapp = $4 WHERE id = $5`;
             await pool.query(query, [prestadorEmail, prestadorNome, prestadorPix, prestadorWhatsapp, id]);
@@ -245,7 +245,7 @@ app.post('/api/servicos/:id/aceitar', async (req, res) => {
     }
 });
 
-// Rota de Upload da Nota Fiscal Oficial (Corrigindo o erro 404)
+// Rota de Upload da Nota Fiscal Oficial
 app.post('/api/servicos/:id/nota-oficial', upload.single('notaFiscal'), async (req, res) => {
     const id = req.params.id;
     try {
@@ -277,7 +277,7 @@ app.post('/api/servicos/:id/nota-oficial', upload.single('notaFiscal'), async (r
     }
 });
 
-// Confirmação de Presença corrigida para atualizar o status instantaneamente no banco e notificar a tela
+// Confirmação de Presença
 app.post('/api/servicos/:id/confirmar-presenca', async (req, res) => {
     const id = req.params.id;
     const { selfie, documentoComprovante } = req.body;
@@ -309,12 +309,14 @@ app.post('/api/servicos/:id/ponto', async (req, res) => {
     }
 });
 
-// Check-out / Finalização com Foto de Conclusão e Mensagem no Chat
-app.post('/api/servicos/:id/checkout', async (req, res) => {
+// Check-out / Finalização com Foto de Conclusão e Mensagem no Chat (Atualizado para aceitar arquivo via multer)
+app.post('/api/servicos/:id/checkout', upload.single('fotoCheckout'), async (req, res) => {
     const id = req.params.id;
-    const { hora, fotoCheckout } = req.body;
     try {
-        const horaFinal = hora || new Date().toLocaleTimeString();
+        const arquivo = req.file;
+        let fotoCheckout = req.body.fotoCheckout || (arquivo ? `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}` : null);
+        const horaFinal = req.body.hora || new Date().toLocaleTimeString();
+
         await pool.query(
             `UPDATE servicos SET status = 'concluido', checkout_hora = $1, documento_comprovante = COALESCE($2, documento_comprovante), comprovante_pagamento = true WHERE id = $3`,
             [horaFinal, fotoCheckout, id]
@@ -325,7 +327,7 @@ app.post('/api/servicos/:id/checkout', async (req, res) => {
         let mensagens = resultMsg.rows[0]?.mensagens || [];
         mensagens.push({ 
             remetente: 'SISTEMA', 
-            texto: `Serviço finalizado pelo prestador às ${horaFinal}. Fotos de conclusão enviadas.`, 
+            texto: `Serviço finalizado pelo prestador às ${horaFinal}. Foto de conclusão enviada.`, 
             data: new Date().toLocaleTimeString() 
         });
         await pool.query(`UPDATE servicos SET mensagens = $1 WHERE id = $2`, [JSON.stringify(mensagens), id]);
@@ -334,6 +336,7 @@ app.post('/api/servicos/:id/checkout', async (req, res) => {
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, mensagem: 'Serviço finalizado com sucesso!' });
     } catch (err) {
+        console.error('Erro no checkout:', err);
         res.json({ sucesso: false, erro: 'Erro ao realizar check-out.' });
     }
 });
@@ -383,7 +386,7 @@ app.post('/api/servicos/:id/aprovar', async (req, res) => {
     }
 });
 
-// Rota para excluir/remover serviço incorreto ou duplicado (ajuda a limpar confusões)
+// Rota para excluir/remover serviço incorreto ou duplicado
 app.delete('/api/servicos/:id', async (req, res) => {
     const id = req.params.id;
     try {
