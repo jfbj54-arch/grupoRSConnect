@@ -63,6 +63,7 @@
             align-items: center;
             justify-content: center;
             padding: 30px 20px;
+            flex-direction: column;
         }
 
         .split-container {
@@ -245,6 +246,7 @@
             border-radius: 16px;
             box-shadow: 0 10px 30px rgb(0 0 0 / 0.06);
             border: 1px solid #e2e8f0;
+            box-sizing: border-box;
         }
 
         .info-card-empresa {
@@ -328,6 +330,37 @@
         .worker-details-list { list-style: none; padding: 0; margin: 0; }
         .worker-details-list li { padding: 8px 0; border-bottom: 1px solid #f1f1f1; font-size: 13px; display: flex; justify-content: space-between; }
 
+        /* Nova Seção: Inclusão de Notas Fiscais (Estilo Integrado) */
+        .rs-nf-section {
+            max-width: 1050px;
+            width: 100%;
+            margin: 40px auto 20px auto;
+            background: #ffffff;
+            padding: 35px;
+            border-radius: 20px;
+            box-shadow: 0 10px 30px rgb(0 0 0 / 0.04);
+            border: 1px solid #e2e8f0;
+            box-sizing: border-box;
+        }
+        .rs-nf-header { text-align: center; margin-bottom: 30px; }
+        .rs-nf-header h2 { font-size: 24px; color: var(--primary); margin-bottom: 8px; font-weight: 800; }
+        .rs-nf-header p { color: var(--text-light); font-size: 14px; margin: 0; }
+        .rs-nf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px; }
+        .rs-nf-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 12px;
+            padding: 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            transition: all 0.2s ease;
+        }
+        .rs-nf-card:hover { border-color: var(--accent); box-shadow: 0 4px 15px rgba(37,99,235,0.06); }
+        .rs-nf-icon { font-size: 22px; background: #dbeafe; width: 42px; height: 42px; display: flex; align-items: center; justify-content: center; border-radius: 10px; color: var(--accent); }
+        .rs-nf-card h4 { margin: 0; font-size: 16px; color: var(--primary); font-weight: 700; }
+        .rs-nf-card p { margin: 0; font-size: 13px; color: var(--text-light); line-height: 1.5; }
+
         /* Estilo para Impressão da Nota Fiscal / Extrato */
         @media print {
             body * { visibility: hidden; }
@@ -363,6 +396,7 @@
             .nav-links { display: none; }
             .dashboard-container { padding: 15px; }
             .grid-duplo { flex-direction: column; gap: 0; }
+            .rs-nf-section { padding: 20px; margin: 20px 10px; width: auto; }
         }
     </style>
 </head>
@@ -613,6 +647,35 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 <p style="text-align:center; color:var(--text-light);">Carregando...</p>
             </div>
         </div>
+
+        <!-- NOVA SEÇÃO: INCLUSÃO DE NOTAS FISCAIS (APLICATIVOS, MEI E PREFEITURAS) -->
+        <section class="rs-nf-section no-print">
+            <div class="rs-nf-header">
+                <h2>Inclusão de Notas Fiscais: Aplicativos, MEI e Prefeituras</h2>
+                <p>Diretrizes completas para captação, conferência e lançamento contábil de documentos emitidos por diferentes plataformas.</p>
+            </div>
+            <div class="rs-nf-grid">
+                <!-- Passo 1 -->
+                <div class="rs-nf-card">
+                    <div class="rs-nf-icon">📥</div>
+                    <h4>1. Obtenção do XML</h4>
+                    <p>Baixe o arquivo XML oficial da NFS-e ou NF-e diretamente pelo aplicativo emissor, portal do MEI ou sistema da prefeitura municipal antes de realizar a importação no sistema de gestão.</p>
+                </div>
+                <!-- Passo 2 -->
+                <div class="rs-nf-card">
+                    <div class="rs-nf-icon">📋</div>
+                    <h4>2. Apropriação e Vínculo</h4>
+                    <p>No setor público ou privado, associe os dados da nota fiscal à respectiva Nota de Empenho ou aos lançamentos de contas a pagar/receber, realizando a liquidação e escrituração fiscal correta.</p>
+                </div>
+                <!-- Passo 3 -->
+                <div class="rs-nf-card">
+                    <div class="rs-nf-icon">🛡️</div>
+                    <h4>3. Conferência de Requisitos</h4>
+                    <p>Valide a chave de acesso, código de verificação, retenções de impostos específicos (como ISS e INSS para MEIs ou prestadores) e o atesto de execução do serviço.</p>
+                </div>
+            </div>
+        </section>
+
     </div>
 
     <!-- MODAL DE DETALHES DA FICHA DO TRABALHADOR (GESTOR) -->
