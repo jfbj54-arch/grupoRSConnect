@@ -994,9 +994,7 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                                 <td>${s.titulo} (${s.local})</td>
                                 <td>${s.empresa_nome || usuarioLogado.nome}</td>
                                 <td>R$ ${s.valor}</td>
-                                <td class="status-relogio" data-confirmado="${estaConfirmado}">
-                                    ${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge relogio-regressivo" style="background:#fef3c7; color:#d97706;">Calculando...</span>'}
-                                </td>
+                                <td class="status-relogio">${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge relogio-regressivo" style="background:#fef3c7; color:#d97706;">Calculando...</span>'}</td>
                                 <td>
                                     <button class="btn-view" style="padding:6px 10px; font-size:11px; margin-bottom:4px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
                                     <button class="btn-success" style="padding:6px 10px; font-size:11px;" onclick='gerarNotaFiscal(${JSON.stringify(s)})'>📄 Recibo Interno</button>
@@ -1204,27 +1202,17 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
             const linhas = document.querySelectorAll('#workerTableBodyGestor tr');
 
             linhas.forEach(linha => {
+                const tempoCriacao = parseInt(linha.getAttribute('data-criacao')) || Date.now();
                 const statusElemento = linha.querySelector('.status-relogio');
                 const titularId = linha.getAttribute('data-titular-id');
                 
                 if (!statusElemento) return;
+                if (statusElemento.classList.contains('confirmed')) return;
 
-                if (statusElemento.getAttribute('data-confirmado') === 'true' || statusElemento.querySelector('.confirmed')) {
-                    statusElemento.innerHTML = '<span class="badge confirmed">🟢 Confirmado</span>';
-                    return;
-                }
-
-                const tempoCriacao = parseInt(linha.getAttribute('data-criacao')) || Date.now();
                 const duracaoLimiteMs = 30 * 60 * 1000; 
                 const tempoExpiracao = tempoCriacao + duracaoLimiteMs;
 
                 const intervalo = setInterval(() => {
-                    if (statusElemento.getAttribute('data-confirmado') === 'true' || statusElemento.querySelector('.confirmed')) {
-                        clearInterval(intervalo);
-                        statusElemento.innerHTML = '<span class="badge confirmed">🟢 Confirmado</span>';
-                        return;
-                    }
-
                     const agora = Date.now();
                     const diferenca = tempoExpiracao - agora;
 
@@ -1466,18 +1454,15 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
 
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const fotoBase64 = e.target.result;
+                const fotoCheckoutBase64 = e.target.result;
                 try {
-                    await fetch(`/api/servicos/${id}/ponto`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ foto: fotoBase64, email: usuarioLogado.email })
-                    });
-
                     const res = await fetch(`/api/servicos/${id}/checkout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
+                        body: JSON.stringify({ 
+                            hora: new Date().toLocaleTimeString(), 
+                            foto_checkout: fotoCheckoutBase64 
+                        })
                     });
                     const data = await res.json();
                     
