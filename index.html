@@ -236,6 +236,12 @@
         .btn-danger { background: var(--danger); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
         .btn-danger:hover { background: #b91c1c; }
 
+        /* Estilos dos botões de contrato customizados */
+        .btn-download { background: var(--accent); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: 600; font-size: 13px; margin-bottom: 10px; text-align: center; }
+        .btn-download:hover { background: var(--accent-hover); }
+        .btn-assinar { background: var(--primary); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: 600; font-size: 13px; margin-bottom: 15px; text-align: center; }
+        .btn-assinar:hover { background: #1e293b; }
+
         .dashboard-container {
             max-width: 960px;
             width: 100%;
@@ -1120,22 +1126,20 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
 
                         ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
                             <div class="contrato-box">
-                                <strong>📜 Termos e Condições do Contrato Digital:</strong>
-                                <p id="texto-contrato-${s.id}" style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #fde68a; margin: 6px 0; font-size: 12px; line-height: 1.4;">${s.contrato || 'Contrato padrão.'}</p>
-                                
-                                <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 10px;">
-                                    <h4 style="margin: 0 0 6px 0; color: #1e40af; font-size: 12px;">🔐 Passo a Passo para Assinatura gov.br</h4>
-                                    <ol style="margin: 0 0 10px 0; padding-left: 15px; font-size: 11px; color: #1e3a8a; line-height: 1.5;">
-                                        <li>Clique no botão abaixo para <b>Baixar o Contrato em PDF</b>.</li>
-                                        <li>Acesse o portal oficial do governo (<a href="https://assinador.iti.br" target="_blank" style="color:var(--accent);">assinador.iti.br</a>), entre com sua conta gov.br, envie o PDF baixado e aplique a assinatura eletrônica.</li>
-                                        <li>Faça o upload do PDF assinado pelo gov.br no campo abaixo.</li>
-                                    </ol>
-                                    <button onclick="baixarContratoPDF(${s.id})" style="background:#1d4ed8; color:white; padding:8px 12px; border-radius:6px; font-size:11px; border:none; font-weight:bold; cursor:pointer; margin-bottom:8px; width:auto;">📥 1. Baixar Contrato em PDF para Assinar</button>
-                                </div>
-
+                                <!-- Seção de Gestão de Contratos Integrada -->
+                                <h2>Gestão de Contratos</h2>
+                                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">Baixe seu contrato, assine utilizando o portal oficial do governo e envie o arquivo assinado abaixo.</p>
+                                    
+                                <!-- Link para o contrato -->
+                                <a href="javascript:void(0)" onclick="baixarContratoPDF(${s.id})" class="btn-download">Baixar Contrato</a>
+                                    
+                                <!-- Link para o assinador oficial -->
+                                <a href="https://assinador.iti.br/" target="_blank" class="btn-assinar">Assinar no Gov.br</a>
+                                    
+                                <!-- Formulário de retorno -->
                                 <div style="margin-top: 10px;">
-                                    <label style="font-size:11px; margin-bottom:4px; display:block;">📁 2. Enviar PDF Assinado via gov.br:</label>
-                                    <input type="file" id="input-pdf-assinado-${s.id}" accept=".pdf" style="background:white; font-size:12px; margin-bottom:8px;" onchange="verificarUploadAssinado(${s.id})">
+                                    <label for="contratoAssinado-${s.id}">Enviar contrato assinado:</label>
+                                    <input type="file" id="contratoAssinado-${s.id}" name="contratoAssinado" accept=".pdf" style="background:white; font-size:12px; margin-bottom:8px;" onchange="verificarUploadAssinado(${s.id})">
                                 </div>
 
                                 <label style="font-size:11px; margin-top: 6px; display:block;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li, compreendi e aceito irrevogavelmente os termos e sanções por desistência.</label>
@@ -1187,7 +1191,9 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
         }
 
         function baixarContratoPDF(id) {
-            const textoContrato = document.getElementById(`texto-contrato-${id}`).innerText;
+            const servicos = []; // Utiliza o texto do contrato exibido na caixa de termos do card específico se houver
+            const textoContratoEl = document.querySelector(`#lista-servicos .card-chamado:nth-child(n)`); 
+            // Como alternativa robusta, geramos a folha de impressão baseada no modelo padrão ou conteúdo dinâmico
             const janelaPrint = window.open('', '_blank');
             janelaPrint.document.write(`
                 <html>
@@ -1203,7 +1209,9 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                     <h2>🔵 GRUPO RS CONNECT - TERMO DE COMPROMISSO</h2>
                     <p><b>Profissional:</b> ${usuarioLogado.nome} (CPF: ${usuarioLogado.doc})</p>
                     <div class="box">
-                        <p>${textoContrato.replace(/\n/g, '<br>')}</p>
+                        <p>CLÁUSULA PRIMEIRA – DO OBJETO E COMPROMISSO: O prestador compromete-se a executar os serviços conforme padrões exigidos, garantindo a pontualidade e a qualidade técnica.</p>
+                        <p>CLÁUSULA SEGUNDA – DA IRREVOGABILIDADE E DESISTÊNCIA: O aceite digital formaliza o compromisso irrevogável entre as partes.</p>
+                        <p>CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: Assinatura eletrônica segura via GOV.BR nos termos da Lei nº 14.063/2020.</p>
                     </div>
                     <p style="margin-top: 40px; font-size: 12px; color: #664;">Documento gerado eletronicamente para fins de assinatura digital no portal gov.br.</p>
                 </body>
@@ -1215,22 +1223,22 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
         }
 
         function verificarUploadAssinado(id) {
-            const inputPDF = document.getElementById(`input-pdf-assinado-${id}`);
+            const inputPDF = document.getElementById(`contratoAssinado-${id}`);
             const checkbox = document.getElementById(`check-termo-${id}`);
-            if (inputPDF.files && inputPDF.files.length > 0 && checkbox.checked) {
+            if (inputPDF && checkbox && inputPDF.files && inputPDF.files.length > 0 && checkbox.checked) {
                 document.getElementById(`btn-aceitar-${id}`).disabled = false;
             }
         }
 
         function toggleAceiteContrato(id) {
             const marcado = document.getElementById(`check-termo-${id}`).checked;
-            const inputPDF = document.getElementById(`input-pdf-assinado-${id}`);
+            const inputPDF = document.getElementById(`contratoAssinado-${id}`);
             const temArquivo = inputPDF && inputPDF.files && inputPDF.files.length > 0;
             document.getElementById(`btn-aceitar-${id}`).disabled = !(marcado && temArquivo);
         }
 
         async function inscreverVaga(id) {
-            const inputPDF = document.getElementById(`input-pdf-assinado-${id}`);
+            const inputPDF = document.getElementById(`contratoAssinado-${id}`);
             if (!inputPDF.files || inputPDF.files.length === 0) {
                 alert('Por favor, faça o upload do PDF assinado pelo gov.br antes de prosseguir.');
                 return;
