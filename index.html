@@ -305,13 +305,13 @@
         .contrato-box { background: #fffbeb; border: 1px solid #fde68a; padding: 14px; border-radius: 10px; margin-top: 10px; font-size: 13px; }
         .nf-oficial-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px; border-radius: 10px; margin-top: 10px; font-size: 13px; }
 
-        /* Estilos do Chat Interno */
-        .chat-container { border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; background: #f8fafc; display: flex; flex-direction: column; height: 200px; }
-        .chat-mensagens { flex: 1; padding: 10px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 6px; }
-        .chat-msg-item { background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; max-width: 85%; }
-        .chat-input-area { display: flex; border-top: 1px solid var(--border); background: #fff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; }
-        .chat-input-area input { border: none; border-radius: 0; padding: 10px; font-size: 12px; }
-        .chat-input-area button { width: auto; padding: 0 16px; font-size: 12px; border-radius: 0; box-shadow: none; }
+        /* Estilos do Chat Interno ajustado 100% sem quebras de linha indesejadas */
+        .chat-container { border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; background: #f8fafc; display: flex; flex-direction: column; height: 200px; width: 100%; box-sizing: border-box; }
+        .chat-mensagens { flex: 1; padding: 10px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 6px; word-break: break-word; }
+        .chat-msg-item { background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; max-width: 85%; word-break: break-word; white-space: pre-wrap; }
+        .chat-input-area { display: flex; border-top: 1px solid var(--border); background: #fff; border-bottom-left-radius: 8px; border-bottom-right-radius: 8px; width: 100%; box-sizing: border-box; }
+        .chat-input-area input { border: none; border-radius: 0; padding: 10px; font-size: 12px; flex: 1; width: auto; background: transparent; }
+        .chat-input-area button { width: auto; padding: 0 16px; font-size: 12px; border-radius: 0; box-shadow: none; white-space: nowrap; }
 
         /* Estilos da Gestão Corporativa e Relógio */
         .rs-gestor-section { margin-top: 30px; background: #fff; padding: 25px; border-radius: 14px; border: 1px solid var(--border); box-shadow: 0 4px 15px rgba(0,0,0,0.03); }
@@ -1042,6 +1042,38 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                         `;
                     }
 
+                    // PROTEÇÃO DE PRIVACIDADE DO CHAT:
+                    // Verifica se o usuário logado é a empresa criadora DO SERVIÇO ou o prestador titular/reserva vinculado
+                    const temPermissaoChat = (usuarioLogado.tipo === 'empresa' && empresaEmailServico === usuarioEmailAtual) || souTitular || souReserva;
+
+                    let blocoChatHTML = '';
+                    if (temPermissaoChat) {
+                        const mensagensFiltradas = (s.mensagens || []).filter(m => {
+                            const remetenteEmail = (m.email || '').trim().toLowerCase();
+                            // Se for mensagem sem email antigo, exibe. Se tiver email, verifica se pertence aos envolvidos desta negociação
+                            if (!remetenteEmail) return true;
+                            return remetenteEmail === empresaEmailServico || remetenteEmail === (s.prestador_email || '').trim().toLowerCase() || reservas.some(r => r.email.trim().toLowerCase() === remetenteEmail);
+                        });
+
+                        blocoChatHTML = `
+                            <div class="chat-container">
+                                <div class="chat-mensagens" id="chat-msgs-${s.id}">
+                                    ${mensagensFiltradas.length > 0 ? mensagensFiltradas.map(m => `<div class="chat-msg-item"><b>${m.remetente}:</b> ${m.texto}</div>`).join('') : '<i style="color:#94a3b8; padding:5px;">Nenhuma mensagem nesta negociação ainda.</i>'}
+                                </div>
+                                <div class="chat-input-area">
+                                    <input type="text" id="chat-txt-${s.id}" placeholder="Escrever mensagem privada da negociação..." onkeypress="if(event.key === 'Enter') enviarMensagem(${s.id})">
+                                    <button onclick="enviarMensagem(${s.id})">Enviar</button>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        blocoChatHTML = `
+                            <div style="background:#f1f5f9; padding:10px; border-radius:8px; font-size:12px; color:var(--text-light); text-align:center; margin-top:12px; border:1px solid var(--border);">
+                                🔒 Chat privado (Disponível apenas para a empresa e o profissional vinculado a esta vaga).
+                            </div>
+                        `;
+                    }
+
                     card.innerHTML = `
                         <div class="card-header">
                             <h4>${s.titulo} ${s.categoria ? `<small style="font-size:12px; color:var(--accent);">(${s.categoria})</small>` : ''}</h4>
@@ -1071,6 +1103,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
                         ${blocoNotaOficialHTML}
 
+                        <!-- Área para Enviar Nota Fiscal Oficial (MEI/Prefeitura) -->
                         ${(souTitular || usuarioLogado.tipo === 'empresa') ? `
                             <div style="background:#f8fafc; border:1px dashed var(--border); padding:12px; border-radius:8px; margin-top:12px;">
                                 <label style="font-size:11px; margin-bottom:4px; display:block;">📑 Enviar Nota Fiscal Oficial (MEI / Prefeitura - PDF ou Imagem):</label>
@@ -1134,16 +1167,8 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                             </div>
                         ` : ''}
 
-                        <!-- CHAT INTERNO ISOLADO -->
-                        <div class="chat-container">
-                            <div class="chat-mensagens" id="chat-msgs-${s.id}">
-                                ${s.mensagens && s.mensagens.length > 0 ? s.mensagens.map(m => `<div class="chat-msg-item"><b>${m.remetente}:</b> ${m.texto}</div>`).join('') : '<i style="color:#94a3b8; padding:5px;">Nenhuma mensagem no chat ainda.</i>'}
-                            </div>
-                            <div class="chat-input-area">
-                                <input type="text" id="chat-txt-${s.id}" placeholder="Escrever mensagem..." onkeypress="if(event.key === 'Enter') enviarMensagem(${s.id})">
-                                <button onclick="enviarMensagem(${s.id})">Enviar</button>
-                            </div>
-                        </div>
+                        <!-- CHAT INTERNO PRIVADO -->
+                        ${blocoChatHTML}
                     `;
                     container.appendChild(card);
                 });
@@ -1340,7 +1365,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             reader.readAsDataURL(inputFoto.files[0]);
         }
 
-        // Função corrigida para enviar mensagem associando remetente e identificador do usuário
         async function enviarMensagem(id) {
             const txt = document.getElementById(`chat-txt-${id}`).value;
             if (!txt) return;
@@ -1348,11 +1372,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 await fetch(`/api/servicos/${id}/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        remetente: usuarioLogado.nome, 
-                        emailRemetente: usuarioLogado.email, 
-                        texto: txt 
-                    })
+                    body: JSON.stringify({ remetente: usuarioLogado.nome, email: usuarioLogado.email, texto: txt })
                 });
                 document.getElementById(`chat-txt-${id}`).value = '';
                 carregarServicos();
