@@ -547,6 +547,16 @@
                             <input type="text" id="srv-valor" required placeholder="300,00">
                         </div>
                     </div>
+                    <!-- CAMPO DE RECORRÊNCIA ADICIONADO AQUI -->
+                    <div class="form-group">
+                        <label>Recorrência do Serviço</label>
+                        <select id="srv-recorrencia">
+                            <option value="Único">Único (Pontual)</option>
+                            <option value="Semanal">Semanal</option>
+                            <option value="Quinzenal">Quinzenal</option>
+                            <option value="Mensal">Mensal</option>
+                        </select>
+                    </div>
                     <div class="form-group">
                         <label>Endereço Completo</label>
                         <input type="text" id="srv-endereco" required placeholder="Rua, Número, Bairro">
@@ -861,6 +871,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 local: document.getElementById('srv-local').value.trim(),
                 endereco: document.getElementById('srv-endereco').value.trim(),
                 valor: document.getElementById('srv-valor').value.trim(),
+                recorrencia: document.getElementById('srv-recorrencia').value, // ATRIBUTO DE RECORRÊNCIA CAPTURADO
                 pagamento: document.getElementById('srv-pagamento').value,
                 descricao: document.getElementById('srv-descricao').value.trim(),
                 contrato: document.getElementById('srv-contrato').value.trim(),
@@ -1004,10 +1015,11 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
                     let infoValorHTML = '';
                     const valorServico = s.valor || '0,00';
+                    const recorrenciaServico = s.recorrencia ? ` (${s.recorrencia})` : '';
                     if (usuarioLogado.tipo === 'empresa') {
-                        infoValorHTML = `<span class="preco-tag" style="background:#eff6ff; color:#1d4ed8;">Valor a Pagar: R$ ${valorServico}</span>`;
+                        infoValorHTML = `<span class="preco-tag" style="background:#eff6ff; color:#1d4ed8;">Valor: R$ ${valorServico}${recorrenciaServico}</span>`;
                     } else {
-                        infoValorHTML = `<span class="preco-tag" style="background:#e6f4ea; color:#137333;">Valor a Receber: R$ ${valorServico}</span>`;
+                        infoValorHTML = `<span class="preco-tag" style="background:#e6f4ea; color:#137333;">Valor: R$ ${valorServico}${recorrenciaServico}</span>`;
                     }
 
                     let blocoFotosHTML = '';
