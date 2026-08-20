@@ -7,7 +7,12 @@ const multer = require('multer'); // Biblioteca para gerenciar o upload de arqui
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
 
 // Configuração do Multer com limite de 50mb para arquivos e imagens
 const upload = multer({ limits: { fileSize: 50 * 1024 * 1024 } });
@@ -56,12 +61,21 @@ async function criarTabelas() {
                 experiencia TEXT
             );
 
+            CREATE TABLE IF NOT EXISTS prestadores (
+                id SERIAL PRIMARY KEY,
+                email TEXT UNIQUE,
+                reputacao NUMERIC(3,2) DEFAULT 5.0,
+                advertencias INTEGER DEFAULT 0
+            );
+
             CREATE TABLE IF NOT EXISTS servicos (
                 id SERIAL PRIMARY KEY,
                 titulo TEXT,
                 local TEXT,
                 endereco TEXT,
                 valor TEXT,
+                valor_diaria NUMERIC(10,2) DEFAULT 0,
+                valor_liquido NUMERIC(10,2) DEFAULT 0,
                 data_horario TEXT,
                 forma_pgto TEXT,
                 descricao TEXT,
@@ -69,7 +83,9 @@ async function criarTabelas() {
                 empresa_email TEXT,
                 empresa_whatsapp TEXT,
                 status TEXT DEFAULT 'ativo',
+                motivo_cancelamento TEXT,
                 prestador_email TEXT,
+                prestador_id INTEGER,
                 prestador_nome TEXT,
                 prestador_pix TEXT,
                 prestador_whatsapp TEXT,
@@ -79,6 +95,7 @@ async function criarTabelas() {
                 selfie_confirmacao TEXT,
                 documento_comprovante TEXT,
                 presenca_confirmada BOOLEAN DEFAULT FALSE,
+                status_checkin TEXT DEFAULT 'pendente',
                 checkin_hora TEXT,
                 checkout_hora TEXT,
                 comprovante_pagamento BOOLEAN DEFAULT FALSE,
@@ -88,8 +105,10 @@ async function criarTabelas() {
             CREATE TABLE IF NOT EXISTS ledger_transacoes (
                 id SERIAL PRIMARY KEY,
                 servico_id INTEGER,
-                usuario_email TEXT NOT NULL,
-                tipo_movimento TEXT NOT NULL, 
+                usuario_email TEXT,
+                usuario_id INTEGER,
+                tipo TEXT,
+                tipo_movimento TEXT, 
                 valor NUMERIC(10, 2) NOT NULL,
                 status TEXT NOT NULL DEFAULT 'PROCESSADO',
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -104,16 +123,18 @@ async function criarTabelas() {
             );
         `);
 
-        // Garante que colunas adicionais existam caso a tabela já estivesse criada
+        // Garante colunas caso já existam tabelas antigas
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS documento_comprovante TEXT;`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS status_checkin TEXT DEFAULT 'pendente';`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_hora TEXT;`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_hora TEXT;`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento BOOLEAN DEFAULT FALSE;`);
         await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT;`);
+        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS motivo_cancelamento TEXT;`);
 
         console.log('Tabelas e colunas verificadas/criadas com sucesso no PostgreSQL.');
     } catch (err) {
@@ -137,7 +158,7 @@ async function registrarAuditoria(email, acao, detalhes) {
     try {
         await pool.query(
             `INSERT INTO auditoria_sistema (usuario_email, acao, detalhes) VALUES ($1, $2, $3)`,
-            [email, acao, detalhes]
+            [email || 'sistema', acao, detalhes]
         );
     } catch (err) {
         console.error('Erro ao registrar auditoria:', err);
@@ -152,6 +173,12 @@ app.post('/api/auth/registrar', async (req, res) => {
         const params = [d.tipo, d.nome, d.doc, d.responsavel, d.email, d.senha, d.whatsapp, d.endereco, d.rgCnh, d.profissao, d.tipoChavePix, d.pix, d.banco, d.conta, d.experiencia];
         
         const result = await pool.query(query, params);
+        
+        // Se for prestador, inicializa na tabela de prestadores para controle de reputação
+        if (d.tipo === 'prestador') {
+            await pool.query(`INSERT INTO prestadores (email) VALUES ($1) ON CONFLICT (email) DO NOTHING`, [d.email]);
+        }
+
         await registrarAuditoria(d.email, 'CADASTRO_USUARIO', `Novo usuário tipo ${d.tipo} cadastrado.`);
         res.json({ sucesso: true, id: result.rows[0].id });
     } catch (err) {
@@ -186,19 +213,23 @@ app.get('/api/servicos', async (req, res) => {
 app.post('/api/servicos', async (req, res) => {
     const s = req.body;
     try {
-        const query = `INSERT INTO servicos (titulo, local, endereco, valor, data_horario, forma_pgto, descricao, contrato_texto, empresa_email, empresa_whatsapp, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, 'ativo') RETURNING id`;
-        const params = [s.titulo, s.local, s.endereco, s.valor, s.dataHorario, s.formaPgto, s.descricao, s.contratoTexto, s.empresaEmail, s.empresaWhatsapp];
+        const valorNumerico = parseFloat(String(s.valor).replace(',', '.')) || 0;
+        const taxaPlataforma = valorNumerico * 0.10;
+        const valorLiquido = valorNumerico - taxaPlataforma;
+
+        const query = `INSERT INTO servicos (titulo, local, endereco, valor, valor_diaria, valor_liquido, data_horario, forma_pgto, descricao, contrato_texto, empresa_email, empresa_whatsapp, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'ativo') RETURNING id`;
+        const params = [s.titulo, s.local, s.endereco, s.valor, valorNumerico, valorLiquido, s.dataHorario, s.formaPgto, s.descricao, s.contratoTexto, s.empresaEmail, s.empresaWhatsapp];
 
         const result = await pool.query(query, params);
         const servicoId = result.rows[0].id;
         
-        const valorNumerico = parseFloat(s.valor.replace(',', '.')) || 0;
         await registrarLedger(servicoId, s.empresaEmail, 'RETENCAO_GARANTIA', valorNumerico);
-        await registrarAuditoria(s.empresaEmail, 'PUBLICAR_SERVICO', `Serviço #${servicoId} publicado com valor R$ ${s.valor}`);
+        await registrarAuditoria(s.empresaEmail, 'PUBLICAR_SERVICO', `Serviço #${servicoId} publicado com garantia financeira retida de R$ ${s.valor}`);
 
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, id: servicoId });
     } catch (err) {
+        console.error('Erro ao publicar serviço:', err);
         res.json({ sucesso: false, erro: 'Erro ao publicar serviço.' });
     }
 });
@@ -216,16 +247,19 @@ app.post('/api/servicos/:id/aceitar', async (req, res) => {
         const servico = resultServico.rows[0];
         let reservas = servico.reservas || [];
 
+        // Busca ID do prestador se existir na tabela
+        const prestadorRes = await pool.query(`SELECT id FROM usuarios WHERE email = $1`, [prestadorEmail]);
+        const prestadorId = prestadorRes.rows[0]?.id || null;
+
         // Se não tem titular, assume como titular
         if (!servico.prestador_email) {
-            const query = `UPDATE servicos SET status = 'em_andamento', prestador_email = $1, prestador_nome = $2, prestador_pix = $3, prestador_whatsapp = $4 WHERE id = $5`;
-            await pool.query(query, [prestadorEmail, prestadorNome, prestadorPix, prestadorWhatsapp, id]);
+            const query = `UPDATE servicos SET status = 'em_andamento', prestador_email = $1, prestador_id = $2, prestador_nome = $3, prestador_pix = $4, prestador_whatsapp = $5 WHERE id = $6`;
+            await pool.query(query, [prestadorEmail, prestadorId, prestadorNome, prestadorPix, prestadorWhatsapp, id]);
             
             await registrarAuditoria(prestadorEmail, 'ACEITAR_SERVICO', `Prestador assumiu Vaga Titular #${id}`);
             io.emit('atualizar_servicos');
             return res.json({ sucesso: true, mensagem: 'Você assumiu a Vaga Titular!' });
         } else {
-            // Se já tem titular, adiciona na fila de reserva (limite de 2)
             if (servico.prestador_email === prestadorEmail || reservas.some(r => r.email === prestadorEmail)) {
                 return res.json({ sucesso: false, erro: 'Você já está inscrito nesta vaga.' });
             }
@@ -241,11 +275,70 @@ app.post('/api/servicos/:id/aceitar', async (req, res) => {
             return res.json({ sucesso: true, mensagem: 'Você entrou na Fila de Reserva (Emergência)!' });
         }
     } catch (err) {
+        console.error('Erro ao aceitar contrato:', err);
         res.json({ sucesso: false, erro: 'Erro ao aceitar contrato.' });
     }
 });
 
-// Rota de Upload da Nota Fiscal Oficial
+// POLÍTICA DE REEMBOLSO AUTOMÁTICO E PROTEÇÃO AO PRESTADOR
+app.post('/api/servicos/:id/processar-status', async (req, res) => {
+    const servicoId = req.params.id;
+    const { acao, motivo } = req.body; // 'verificar_ausencia' ou 'concluir'
+
+    try {
+        const servicoQuery = await pool.query('SELECT * FROM servicos WHERE id = $1', [servicoId]);
+        if (servicoQuery.rows.length === 0) {
+            return res.status(404).json({ sucesso: false, erro: 'Serviço não encontrado.' });
+        }
+        const servico = servicoQuery.rows[0];
+
+        // CENÁRIO A: Prestador faltou -> Reembolso automático ao cliente e penalidade
+        if (acao === 'verificar_ausencia') {
+            if (servico.status_checkin === 'pendente') {
+                await pool.query(
+                    'UPDATE servicos SET status = $1, motivo_cancelamento = $2 WHERE id = $3',
+                    ['cancelado_ausencia_prestador', motivo || 'Prestador não compareceu no horário.', servicoId]
+                );
+
+                await registrarLedger(servicoId, servico.empresa_email, 'REEMBOLSO_AUTOMATICO', servico.valor_diaria);
+
+                if (servico.prestador_email) {
+                    await pool.query(
+                        `UPDATE prestadores SET reputacao = GREATEST(reputacao - 0.5, 0), advertencias = advertencias + 1 WHERE email = $1`,
+                        [servico.prestador_email]
+                    );
+                }
+
+                await registrarAuditoria('sistema', 'REEMBOLSO_AUTOMATICO_EXECUTADO', `Serviço #${servicoId} cancelado por ausência. Reembolso efetuado para o cliente e penalidade aplicada.`);
+                io.emit('atualizar_servicos');
+                return res.json({ sucesso: true, mensagem: 'Ausência registrada. Reembolso automático processado para o cliente.' });
+            } else {
+                return res.status(400).json({ sucesso: false, erro: 'O prestador realizou o check-in, o reembolso automático não se aplica.' });
+            }
+        }
+
+        // CENÁRIO B: Serviço concluído com sucesso -> Blindagem e Repasse ao Prestador
+        if (acao === 'concluir') {
+            if (servico.status_checkin !== 'concluido' && servico.status !== 'concluido') {
+                return res.status(400).json({ sucesso: false, erro: 'O serviço precisa estar com check-in e check-out válidos.' });
+            }
+
+            await registrarLedger(servicoId, servico.prestador_email, 'REPASSE_PRESTADOR', servico.valor_liquido);
+            await pool.query('UPDATE servicos SET status = $1 WHERE id = $2', ['concluido_com_sucesso', servicoId]);
+
+            await registrarAuditoria('sistema', 'REPASSE_PRESTADOR_LIBERADO', `Serviço #${servicoId} concluído. Repasse seguro liberado ao prestador.`);
+            io.emit('atualizar_servicos');
+            return res.json({ sucesso: true, mensagem: 'Serviço concluído. Pagamento protegido e liberado ao prestador.' });
+        }
+
+        res.status(400).json({ sucesso: false, erro: 'Ação inválida.' });
+    } catch (err) {
+        console.error('Erro no fluxo de reembolso/conclusão:', err);
+        res.status(500).json({ sucesso: false, erro: 'Erro interno ao processar fluxo.' });
+    }
+});
+
+// Upload da Nota Fiscal Oficial
 app.post('/api/servicos/:id/nota-oficial', upload.single('notaFiscal'), async (req, res) => {
     const id = req.params.id;
     try {
@@ -258,7 +351,6 @@ app.post('/api/servicos/:id/nota-oficial', upload.single('notaFiscal'), async (r
 
         await pool.query(`UPDATE servicos SET nota_oficial = $1 WHERE id = $2`, [dadosNota, id]);
         
-        // Adiciona notificação automática no chat do serviço
         const resultMsg = await pool.query(`SELECT mensagens FROM servicos WHERE id = $1`, [id]);
         let mensagens = resultMsg.rows[0]?.mensagens || [];
         mensagens.push({ 
@@ -300,7 +392,7 @@ app.post('/api/servicos/:id/ponto', async (req, res) => {
     const id = req.params.id;
     const { foto, hora } = req.body;
     try {
-        await pool.query(`UPDATE servicos SET foto_ponto = $1, checkin_hora = $2 WHERE id = $3`, [foto, hora || new Date().toLocaleTimeString(), id]);
+        await pool.query(`UPDATE servicos SET foto_ponto = $1, checkin_hora = $2, status_checkin = 'realizado' WHERE id = $3`, [foto, hora || new Date().toLocaleTimeString(), id]);
         await registrarAuditoria('sistema', 'CHECKIN_PONTO', `Check-in realizado para o serviço #${id}`);
         io.emit('atualizar_servicos');
         res.json({ sucesso: true });
@@ -309,7 +401,7 @@ app.post('/api/servicos/:id/ponto', async (req, res) => {
     }
 });
 
-// Check-out / Finalização com Foto de Conclusão e Mensagem no Chat
+// Check-out / Finalização
 app.post('/api/servicos/:id/checkout', upload.single('fotoCheckout'), async (req, res) => {
     const id = req.params.id;
     try {
@@ -318,11 +410,10 @@ app.post('/api/servicos/:id/checkout', upload.single('fotoCheckout'), async (req
         const horaFinal = req.body.hora || new Date().toLocaleTimeString();
 
         await pool.query(
-            `UPDATE servicos SET status = 'concluido', checkout_hora = $1, documento_comprovante = COALESCE($2, documento_comprovante), comprovante_pagamento = true WHERE id = $3`,
+            `UPDATE servicos SET status = 'concluido', status_checkin = 'concluido', checkout_hora = $1, documento_comprovante = COALESCE($2, documento_comprovante), comprovante_pagamento = true WHERE id = $3`,
             [horaFinal, fotoCheckout, id]
         );
 
-        // Adiciona notificação automática no histórico de chat do serviço
         const resultMsg = await pool.query(`SELECT mensagens FROM servicos WHERE id = $1`, [id]);
         let mensagens = resultMsg.rows[0]?.mensagens || [];
         mensagens.push({ 
@@ -360,6 +451,7 @@ app.post('/api/servicos/:id/chat', async (req, res) => {
     }
 });
 
+// Aprovação de Pagamento
 app.post('/api/servicos/:id/aprovar', async (req, res) => {
     const id = req.params.id;
     try {
@@ -371,13 +463,9 @@ app.post('/api/servicos/:id/aprovar', async (req, res) => {
 
         await pool.query(`UPDATE servicos SET status = 'aprovado' WHERE id = $1`, [id]);
 
-        const valorTotal = parseFloat(servico.valor.replace(',', '.')) || 0;
-        const taxaPlataforma = valorTotal * 0.10; 
-        const repassePrestador = valorTotal - taxaPlataforma;
-
-        await registrarLedger(id, servico.prestador_email, 'REPASSE_PRESTADOR', repassePrestador);
-        await registrarLedger(id, 'admin@grupors.com', 'TAXA_PLATAFORMA', taxaPlataforma);
-        await registrarAuditoria(servico.empresa_email, 'APROVAR_PAGAMENTO', `Pagamento do serviço #${id} aprovado. Repasse: R$ ${repassePrestador}`);
+        await registrarLedger(id, servico.prestador_email, 'REPASSE_PRESTADOR', servico.valor_liquido);
+        await registrarLedger(id, 'admin@grupors.com', 'TAXA_PLATAFORMA', (servico.valor_diaria - servico.valor_liquido));
+        await registrarAuditoria(servico.empresa_email, 'APROVAR_PAGAMENTO', `Pagamento do serviço #${id} aprovado. Repasse: R$ ${servico.valor_liquido}`);
 
         io.emit('atualizar_servicos');
         res.json({ sucesso: true });
@@ -386,7 +474,7 @@ app.post('/api/servicos/:id/aprovar', async (req, res) => {
     }
 });
 
-// Rota para excluir/remover serviço incorreto ou duplicado
+// Excluir Serviço
 app.delete('/api/servicos/:id', async (req, res) => {
     const id = req.params.id;
     try {
@@ -408,8 +496,7 @@ app.get('/', (req, res) => {
     res.status(200).sendFile(path.join(__dirname, 'index.html'));
 });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
     console.log(`Servidor rodando na porta ${PORT}`);
 });
-// retrigger deploy
