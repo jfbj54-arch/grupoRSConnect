@@ -1121,17 +1121,25 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                         ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
                             <div class="contrato-box">
                                 <strong>📜 Termos e Condições do Contrato Digital:</strong>
-                                <p style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #fde68a; margin: 6px 0; font-size: 12px; line-height: 1.4;">${s.contrato || 'Contrato padrão.'}</p>
+                                <p id="texto-contrato-${s.id}" style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #fde68a; margin: 6px 0; font-size: 12px; line-height: 1.4;">${s.contrato || 'Contrato padrão.'}</p>
                                 
                                 <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 10px;">
-                                    <h4 style="margin: 0 0 6px 0; color: #1e40af; font-size: 12px;">🔐 Assinatura Eletrônica e Autenticação gov.br</h4>
-                                    <p style="margin: 0 0 8px 0; font-size: 11px; color: #1e3a8a;">Para formalizar a aceitação com validade jurídica perante a legislação vigente (Lei 14.063/2020), confirme seus dados e autentique o vínculo.</p>
-                                    <a href="https://sso.acesso.gov.br/" target="_blank" style="display:inline-block; background:#1d4ed8; color:white; padding:6px 12px; border-radius:6px; font-size:11px; text-decoration:none; font-weight:bold; margin-bottom:8px;">🔗 Autenticar / Assinar Digitalmente via gov.br</a>
+                                    <h4 style="margin: 0 0 6px 0; color: #1e40af; font-size: 12px;">🔐 Passo a Passo para Assinatura gov.br</h4>
+                                    <ol style="margin: 0 0 10px 0; padding-left: 15px; font-size: 11px; color: #1e3a8a; line-height: 1.5;">
+                                        <li>Clique no botão abaixo para <b>Baixar o Contrato em PDF</b>.</li>
+                                        <li>Acesse o portal oficial do governo (<a href="https://assinador.iti.br" target="_blank" style="color:var(--accent);">assinador.iti.br</a>), entre com sua conta gov.br, envie o PDF baixado e aplique a assinatura eletrônica.</li>
+                                        <li>Faça o upload do PDF assinado pelo gov.br no campo abaixo.</li>
+                                    </ol>
+                                    <button onclick="baixarContratoPDF(${s.id})" style="background:#1d4ed8; color:white; padding:8px 12px; border-radius:6px; font-size:11px; border:none; font-weight:bold; cursor:pointer; margin-bottom:8px; width:auto;">📥 1. Baixar Contrato em PDF para Assinar</button>
                                 </div>
 
-                                <label style="font-size:11px; margin-top: 10px; display:block;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li, compreendi e aceito irrevogavelmente os termos, sanções por desistência e obrigatoriedade de assinatura digital gov.br.</label>
-                                <input type="text" id="assinatura-${s.id}" placeholder="Digite seu Nome Completo e CPF para assinar" style="margin:8px 0; background:white;">
-                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px;" disabled>✍️ ${!s.prestador_email ? 'Assinar e Assumir Vaga Titular' : 'Assinar e Entrar na Fila de Reserva (Emergência)'}</button>
+                                <div style="margin-top: 10px;">
+                                    <label style="font-size:11px; margin-bottom:4px; display:block;">📁 2. Enviar PDF Assinado via gov.br:</label>
+                                    <input type="file" id="input-pdf-assinado-${s.id}" accept=".pdf" style="background:white; font-size:12px; margin-bottom:8px;" onchange="verificarUploadAssinado(${s.id})">
+                                </div>
+
+                                <label style="font-size:11px; margin-top: 6px; display:block;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li, compreendi e aceito irrevogavelmente os termos e sanções por desistência.</label>
+                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px; margin-top:8px;" disabled>✍️ ${!s.prestador_email ? 'Enviar Assinatura e Assumir Vaga Titular' : 'Enviar Assinatura e Entrar na Fila de Reserva (Emergência)'}</button>
                             </div>
                         ` : ''}
 
@@ -1178,37 +1186,80 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
             } catch (err) { console.error("Erro ao carregar serviços:", err); }
         }
 
+        function baixarContratoPDF(id) {
+            const textoContrato = document.getElementById(`texto-contrato-${id}`).innerText;
+            const janelaPrint = window.open('', '_blank');
+            janelaPrint.document.write(`
+                <html>
+                <head>
+                    <title>Contrato de Prestação de Serviços - RS Connect</title>
+                    <style>
+                        body { font-family: Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
+                        h2 { color: #0b1329; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
+                        .box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; margin-top: 20px; }
+                    </style>
+                </head>
+                <body>
+                    <h2>🔵 GRUPO RS CONNECT - TERMO DE COMPROMISSO</h2>
+                    <p><b>Profissional:</b> ${usuarioLogado.nome} (CPF: ${usuarioLogado.doc})</p>
+                    <div class="box">
+                        <p>${textoContrato.replace(/\n/g, '<br>')}</p>
+                    </div>
+                    <p style="margin-top: 40px; font-size: 12px; color: #664;">Documento gerado eletronicamente para fins de assinatura digital no portal gov.br.</p>
+                </body>
+                </html>
+            `);
+            janelaPrint.document.close();
+            janelaPrint.focus();
+            setTimeout(() => { janelaPrint.print(); }, 500);
+        }
+
+        function verificarUploadAssinado(id) {
+            const inputPDF = document.getElementById(`input-pdf-assinado-${id}`);
+            const checkbox = document.getElementById(`check-termo-${id}`);
+            if (inputPDF.files && inputPDF.files.length > 0 && checkbox.checked) {
+                document.getElementById(`btn-aceitar-${id}`).disabled = false;
+            }
+        }
+
         function toggleAceiteContrato(id) {
             const marcado = document.getElementById(`check-termo-${id}`).checked;
-            document.getElementById(`btn-aceitar-${id}`).disabled = !marcado;
+            const inputPDF = document.getElementById(`input-pdf-assinado-${id}`);
+            const temArquivo = inputPDF && inputPDF.files && inputPDF.files.length > 0;
+            document.getElementById(`btn-aceitar-${id}`).disabled = !(marcado && temArquivo);
         }
 
         async function inscreverVaga(id) {
-            const assinatura = document.getElementById(`assinatura-${id}`).value;
-            if (!assinatura || assinatura.length < 6) {
-                alert('Digite seu Nome Completo e CPF para assinar o contrato.');
+            const inputPDF = document.getElementById(`input-pdf-assinado-${id}`);
+            if (!inputPDF.files || inputPDF.files.length === 0) {
+                alert('Por favor, faça o upload do PDF assinado pelo gov.br antes de prosseguir.');
                 return;
             }
-            if (!confirm('Deseja confirmar sua inscrição na vaga (Titular ou Fila de Reserva) com validade jurídica gov.br?')) return;
 
-            try {
-                const res = await fetch(`/api/servicos/${id}/aceitar`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        prestadorEmail: usuarioLogado.email,
-                        prestadorNome: usuarioLogado.nome,
-                        prestadorWhatsapp: usuarioLogado.whatsapp || '',
-                        prestadorRgCnh: usuarioLogado.rgCnh || '',
-                        prestadorProfissao: usuarioLogado.profissao || '',
-                        prestadorPix: usuarioLogado.pix || '',
-                        contratoAssinado: `${assinatura} (Validado gov.br)`
-                    })
-                });
-                const data = await res.json();
-                if (data.sucesso) { carregarServicos(); alert(data.mensagem || 'Inscrição e assinatura digital efetuadas com sucesso!'); } 
-                else { alert(data.erro); }
-            } catch(e) { alert('Erro ao processar inscrição.'); }
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                const pdfBase64 = e.target.result;
+                try {
+                    const res = await fetch(`/api/servicos/${id}/aceitar`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            prestadorEmail: usuarioLogado.email,
+                            prestadorNome: usuarioLogado.nome,
+                            prestadorWhatsapp: usuarioLogado.whatsapp || '',
+                            prestadorRgCnh: usuarioLogado.rgCnh || '',
+                            prestadorProfissao: usuarioLogado.profissao || '',
+                            prestadorPix: usuarioLogado.pix || '',
+                            contratoAssinado: `Assinado via gov.br (PDF Validado: ${inputPDF.files[0].name})`,
+                            documentoPdfAssinado: pdfBase64
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.sucesso) { carregarServicos(); alert(data.mensagem || 'Contrato assinado via gov.br e vaga assumida com sucesso!'); } 
+                    else { alert(data.erro); }
+                } catch(e) { alert('Erro ao processar inscrição.'); }
+            };
+            reader.readAsDataURL(inputPDF.files[0]);
         }
 
         async function promoverReservaParaTitular(servicoId, reservaEmail) {
