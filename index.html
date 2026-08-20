@@ -611,7 +611,7 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                                 <th>Serviço / Local</th>
                                 <th>Empresa</th>
                                 <th>Valor</th>
-                                <th>Status / Relógio</th>
+                                <th>Status / Relógio (30-40 min)</th>
                                 <th>Ações</th>
                             </tr>
                         </thead>
@@ -893,7 +893,8 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                 empresaEmail: usuarioLogado.email,
                 empresa_nome: usuarioLogado.nome || '',
                 empresaNome: usuarioLogado.nome || '',
-                empresa_whatsapp: usuarioLogado.whatsapp || ''
+                empresa_whatsapp: usuarioLogado.whatsapp || '',
+                data_criacao_timestamp: Date.now()
             };
 
             try {
@@ -985,7 +986,7 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                     if (usuarioLogado.tipo === 'empresa') {
                         if (s.prestador_nome) {
                             const trTitular = document.createElement('tr');
-                            trTitular.setAttribute('data-horario-inicio', s.horario || '08:00');
+                            trTitular.setAttribute('data-criacao', s.data_criacao_timestamp || Date.now());
                             trTitular.setAttribute('data-titular-id', s.prestador_email || s.id);
                             trTitular.innerHTML = `
                                 <td><strong>${s.prestador_nome}</strong><br><small style="color:var(--text-light);">Aceite: ${s.data_aceite || 'Registrado'}</small></td>
@@ -993,7 +994,7 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                                 <td>${s.titulo} (${s.local})</td>
                                 <td>${s.empresa_nome || usuarioLogado.nome}</td>
                                 <td>R$ ${s.valor}</td>
-                                <td class="status-relogio">${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge" style="background:#fef3c7; color:#d97706;">⏳ Aguardando</span>'}</td>
+                                <td class="status-relogio">${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge relogio-regressivo" style="background:#fef3c7; color:#d97706;">Calculando...</span>'}</td>
                                 <td>
                                     <button class="btn-view" style="padding:6px 10px; font-size:11px; margin-bottom:4px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
                                     <button class="btn-success" style="padding:6px 10px; font-size:11px;" onclick='gerarNotaFiscal(${JSON.stringify(s)})'>📄 Recibo Interno</button>
@@ -1192,61 +1193,53 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                     container.appendChild(card);
                 });
 
-                // Inicia os cronômetros regressivos na tabela de gestão após renderizar os dados
                 iniciarContadorRegressivo();
 
             } catch (err) { console.error("Erro ao carregar serviços:", err); }
         }
 
-        // Função para iniciar os cronômetros na tabela de Gestão de Titular
         function iniciarContadorRegressivo() {
-            const linhas = document.querySelectorAll('#tabela-gestao-titular tr, #workerTableBodyGestor tr');
+            const linhas = document.querySelectorAll('#workerTableBodyGestor tr');
 
             linhas.forEach(linha => {
-                const horarioInicioStr = linha.getAttribute('data-horario-inicio');
+                const tempoCriacao = parseInt(linha.getAttribute('data-criacao')) || Date.now();
                 const statusElemento = linha.querySelector('.status-relogio');
-                const inputTitular = linha.getAttribute('data-titular-id');
+                const titularId = linha.getAttribute('data-titular-id');
                 
-                if (!horarioInicioStr || !statusElemento) return;
+                if (!statusElemento) return;
+                if (statusElemento.classList.contains('confirmed')) return;
 
-                const [horas, minutos] = horarioInicioStr.split(':').map(Number);
-                const dataInicio = new Date();
-                dataInicio.setHours(horas, minutos, 0, 0);
-
-                const tempoLimite = new Date(dataInicio.getTime() - (40 * 60 * 1000));
+                const duracaoLimiteMs = 30 * 60 * 1000; 
+                const tempoExpiracao = tempoCriacao + duracaoLimiteMs;
 
                 const intervalo = setInterval(() => {
-                    const agora = new Date();
-                    const diferenca = tempoLimite - agora;
+                    const agora = Date.now();
+                    const diferenca = tempoExpiracao - agora;
 
                     if (diferenca > 0) {
                         const minutosRestantes = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
                         const segundosRestantes = Math.floor((diferenca % (1000 * 60)) / 1000);
 
-                        statusElemento.innerText = `Confirme em: ${minutosRestantes}m ${segundosRestantes}s`;
+                        statusElemento.innerHTML = `<span class="badge" style="background:#fef3c7; color:#d97706;">Aceite: ${minutosRestantes}m ${segundosRestantes}s</span>`;
                     } else {
                         clearInterval(intervalo);
-                        statusElemento.innerText = "Tempo expirado! Substituindo...";
-                        
-                        substituirPrestadorEmergencia(inputTitular, linha);
+                        statusElemento.innerHTML = `<span class="badge" style="background:#fce8e6; color:#dc2626;">Expirado (30m)</span>`;
+                        substituirPrestadorEmergencia(titularId, linha);
                     }
                 }, 1000);
             });
         }
 
-        // Função que chama o backend para efetivar a troca
         function substituirPrestadorEmergencia(titularId, linhaElemento) {
             fetch('/api/substituir-prestador', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ titularAtualId: titularId })
             })
             .then(response => response.json())
             .then(data => {
                 if (data.sucesso) {
-                    alert("O titular não confirmou a tempo. O sistema promoveu o primeiro reserva da fila de emergência.");
+                    alert("O prestador não aceitou dentro do prazo de 30 minutos. O sistema promoveu o próximo reserva da fila.");
                     location.reload();
                 } else {
                     console.error("Erro ao substituir prestador:", data.mensagem);
@@ -1498,7 +1491,7 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ remetente: usuarioLogado.nome, email: usuarioLogado.email, texto: txt })
                 });
-                document.getElementById(`chat-txt-${id}`).value = '';
+                document.getElementById(`chat-txt-${id}`).value = ``;
                 carregarServicos();
             } catch(e) { alert('Erro ao enviar mensagem.'); }
         }
