@@ -79,6 +79,8 @@ async function criarTabelas() {
                 contrato_texto TEXT,
                 empresa_email TEXT,
                 empresa_whatsapp TEXT,
+                recorrencia TEXT DEFAULT 'unico',
+                valor_total NUMERIC(10,2) DEFAULT 0,
                 status TEXT DEFAULT 'ativo',
                 motivo_cancelamento TEXT,
                 prestador_email TEXT,
@@ -120,7 +122,7 @@ async function criarTabelas() {
             );
         `);
 
-        // Garante todas as colunas caso a tabela já exista sem elas
+        // Garante todas as colunas necessárias caso a tabela já exista
         const colunasGarantir = [
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS categoria TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_diaria NUMERIC(10,2) DEFAULT 0;",
@@ -130,6 +132,8 @@ async function criarTabelas() {
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_texto TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_email TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_whatsapp TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'unico';",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_total NUMERIC(10,2) DEFAULT 0;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;",
@@ -220,15 +224,24 @@ app.get('/api/servicos', async (req, res) => {
 app.post('/api/servicos', async (req, res) => {
     const s = req.body;
     try {
-        const valorNumerico = parseFloat(String(s.valor).replace(',', '.')) || 0;
-        const taxaPlataforma = valorNumerico * 0.10;
-        const valorLiquido = valorNumerico - taxaPlataforma;
+        const valorUnitario = parseFloat(String(s.valor).replace(',', '.')) || 0;
+        const tipoRecorrencia = s.recorrencia || 'unico';
+
+        // Cálculo do valor total baseado na recorrência escolhida
+        let valorTotalGarantia = valorUnitario;
+        if (tipoRecorrencia === 'semanal') valorTotalGarantia = valorUnitario * 4;
+        else if (tipoRecorrencia === 'quinzenal') valorTotalGarantia = valorUnitario * 2;
+        else if (tipoRecorrencia === 'mensal') valorTotalGarantia = valorUnitario; // Assume valor mensal fixo
+
+        const taxaPlataforma = valorTotalGarantia * 0.10;
+        const valorLiquido = valorTotalGarantia - taxaPlataforma;
 
         const query = `
             INSERT INTO servicos (
                 titulo, categoria, local, endereco, valor, valor_diaria, valor_liquido, 
-                data_horario, forma_pgto, descricao, contrato_texto, empresa_email, empresa_whatsapp, status
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'ativo') RETURNING id
+                data_horario, forma_pgto, descricao, contrato_texto, empresa_email, empresa_whatsapp, 
+                recorrencia, valor_total, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, 'ativo') RETURNING id
         `;
         
         const params = [
@@ -237,21 +250,23 @@ app.post('/api/servicos', async (req, res) => {
             s.local, 
             s.endereco, 
             String(s.valor), 
-            valorNumerico, 
+            valorUnitario, 
             valorLiquido, 
             s.dataHorario || 'A combinar', 
             s.formaPgto || 'Pix', 
             s.descricao, 
             s.contratoTexto || '', 
             s.empresaEmail || '', 
-            s.empresaWhatsapp || ''
+            s.empresaWhatsapp || '',
+            tipoRecorrencia,
+            valorTotalGarantia
         ];
 
         const result = await pool.query(query, params);
         const servicoId = result.rows[0].id;
         
-        await registrarLedger(servicoId, s.empresaEmail, 'RETENCAO_GARANTIA', valorNumerico);
-        await registrarAuditoria(s.empresaEmail, 'PUBLICAR_SERVICO', `Serviço #${servicoId} publicado com garantia financeira retida de R$ ${s.valor}`);
+        await registrarLedger(servicoId, s.empresaEmail, 'RETENCAO_GARANTIA', valorTotalGarantia);
+        await registrarAuditoria(s.empresaEmail, 'PUBLICAR_SERVICO', `Serviço #${servicoId} (${tipoRecorrencia}) publicado com garantia de R$ ${valorTotalGarantia}`);
 
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, id: servicoId });
