@@ -959,17 +959,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     if (usuarioLogado.tipo === 'empresa' && empresaEmailServico !== usuarioEmailAtual) return;
 
                     const reservas = s.reservas || [];
-                    const souTitular = usuarioLogado.tipo === 'prestador' && s.prestador_email === usuarioLogado.email;
-                    const reservaObj = reservas.find(r => r.email === usuarioLogado.email);
-                    const souReserva = !!reservaObj;
-                    const jaCadastrado = souTitular || souReserva;
-
-                    // REGRA DE PRIVACIDADE: Se for prestador, oculta vagas que pertencem a outro titular e nas quais ele não está na reserva
-                    const vagaTemOutroDono = s.prestador_email && s.prestador_email !== usuarioEmailAtual && !souReserva;
-                    if (usuarioLogado.tipo === 'prestador' && vagaTemOutroDono) {
-                        return;
-                    }
-
                     const totalInscritos = (s.prestador_email ? 1 : 0) + reservas.length;
                     const vagaLotada = totalInscritos >= 3;
 
@@ -1019,6 +1008,11 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     const card = document.createElement('div');
                     card.className = 'card-chamado';
                     
+                    const souTitular = usuarioLogado.tipo === 'prestador' && s.prestador_email === usuarioLogado.email;
+                    const reservaObj = reservas.find(r => r.email === usuarioLogado.email);
+                    const souReserva = !!reservaObj;
+                    const jaCadastrado = souTitular || souReserva;
+
                     const linkGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.endereco || s.local)}`;
 
                     let infoValorHTML = '';
@@ -1077,7 +1071,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
                         ${blocoNotaOficialHTML}
 
-                        <!-- Área para Enviar Nota Fiscal Oficial (MEI/Prefeitura) -->
                         ${(souTitular || usuarioLogado.tipo === 'empresa') ? `
                             <div style="background:#f8fafc; border:1px dashed var(--border); padding:12px; border-radius:8px; margin-top:12px;">
                                 <label style="font-size:11px; margin-bottom:4px; display:block;">📑 Enviar Nota Fiscal Oficial (MEI / Prefeitura - PDF ou Imagem):</label>
@@ -1141,7 +1134,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                             </div>
                         ` : ''}
 
-                        <!-- CHAT INTERNO -->
+                        <!-- CHAT INTERNO ISOLADO -->
                         <div class="chat-container">
                             <div class="chat-mensagens" id="chat-msgs-${s.id}">
                                 ${s.mensagens && s.mensagens.length > 0 ? s.mensagens.map(m => `<div class="chat-msg-item"><b>${m.remetente}:</b> ${m.texto}</div>`).join('') : '<i style="color:#94a3b8; padding:5px;">Nenhuma mensagem no chat ainda.</i>'}
@@ -1347,6 +1340,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             reader.readAsDataURL(inputFoto.files[0]);
         }
 
+        // Função corrigida para enviar mensagem associando remetente e identificador do usuário
         async function enviarMensagem(id) {
             const txt = document.getElementById(`chat-txt-${id}`).value;
             if (!txt) return;
@@ -1354,7 +1348,11 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 await fetch(`/api/servicos/${id}/chat`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ remetente: usuarioLogado.nome, texto: txt })
+                    body: JSON.stringify({ 
+                        remetente: usuarioLogado.nome, 
+                        emailRemetente: usuarioLogado.email, 
+                        texto: txt 
+                    })
                 });
                 document.getElementById(`chat-txt-${id}`).value = '';
                 carregarServicos();
