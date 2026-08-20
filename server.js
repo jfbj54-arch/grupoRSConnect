@@ -216,7 +216,7 @@ app.post('/api/servicos/:id/aceitar', async (req, res) => {
         const servico = resultServico.rows[0];
         let reservas = servico.reservas || [];
 
-        // Se não tiene titular, assume como titular
+        // Se não tem titular, assume como titular
         if (!servico.prestador_email) {
             const query = `UPDATE servicos SET status = 'em_andamento', prestador_email = $1, prestador_nome = $2, prestador_pix = $3, prestador_whatsapp = $4 WHERE id = $5`;
             await pool.query(query, [prestadorEmail, prestadorNome, prestadorPix, prestadorWhatsapp, id]);
@@ -309,7 +309,7 @@ app.post('/api/servicos/:id/ponto', async (req, res) => {
     }
 });
 
-// Check-out / Finalização com Foto de Conclusão e Mensagem no Chat (Atualizado para aceitar arquivo via multer)
+// Check-out / Finalização com Foto de Conclusão e Mensagem no Chat
 app.post('/api/servicos/:id/checkout', upload.single('fotoCheckout'), async (req, res) => {
     const id = req.params.id;
     try {
@@ -401,6 +401,11 @@ app.delete('/api/servicos/:id', async (req, res) => {
 
 io.on('connection', (socket) => {
     console.log('Novo cliente conectado via WebSocket:', socket.id);
+});
+
+// Rota Raiz (Essencial para responder ao Render e evitar o erro 503)
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
