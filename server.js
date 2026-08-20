@@ -1,5 +1,5 @@
 const express = require('express');
-const http = http = require('http');
+const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
 const { Pool } = require('pg');
@@ -203,7 +203,6 @@ app.get('/api/servicos', async (req, res) => {
     }
 });
 
-// CORREÇÃO DA ROTA DE PUBLICAÇÃO DE SERVIÇOS
 app.post('/api/servicos', async (req, res) => {
     const s = req.body;
     try {
