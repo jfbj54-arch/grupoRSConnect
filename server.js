@@ -120,18 +120,32 @@ async function criarTabelas() {
             );
         `);
 
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS categoria TEXT;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS documento_comprovante TEXT;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS status_checkin TEXT DEFAULT 'pendente';`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_hora TEXT;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_hora TEXT;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento BOOLEAN DEFAULT FALSE;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT;`);
-        await pool.query(`ALTER TABLE servicos ADD COLUMN IF NOT EXISTS motivo_cancelamento TEXT;`);
+        // Garante todas as colunas caso a tabela já exista sem elas
+        const colunasGarantir = [
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS categoria TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_diaria NUMERIC(10,2) DEFAULT 0;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_liquido NUMERIC(10,2) DEFAULT 0;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS data_horario TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS forma_pgto TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_texto TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_email TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_whatsapp TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS documento_comprovante TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS status_checkin TEXT DEFAULT 'pendente';",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_hora TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_hora TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento BOOLEAN DEFAULT FALSE;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS motivo_cancelamento TEXT;"
+        ];
+
+        for (let sqlCol of colunasGarantir) {
+            await pool.query(sqlCol).catch(() => {});
+        }
 
         console.log('Tabelas e colunas verificadas/criadas com sucesso no PostgreSQL.');
     } catch (err) {
@@ -210,21 +224,27 @@ app.post('/api/servicos', async (req, res) => {
         const taxaPlataforma = valorNumerico * 0.10;
         const valorLiquido = valorNumerico - taxaPlataforma;
 
-        const query = `INSERT INTO servicos (titulo, categoria, local, endereco, valor, valor_diaria, valor_liquido, data_horario, forma_pgto, descricao, contrato_texto, empresa_email, empresa_whatsapp, status) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'ativo') RETURNING id`;
+        const query = `
+            INSERT INTO servicos (
+                titulo, categoria, local, endereco, valor, valor_diaria, valor_liquido, 
+                data_horario, forma_pgto, descricao, contrato_texto, empresa_email, empresa_whatsapp, status
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, 'ativo') RETURNING id
+        `;
+        
         const params = [
             s.titulo, 
             s.categoria || 'Geral', 
             s.local, 
             s.endereco, 
-            s.valor, 
+            String(s.valor), 
             valorNumerico, 
             valorLiquido, 
-            s.dataHorario, 
-            s.formaPgto, 
+            s.dataHorario || 'A combinar', 
+            s.formaPgto || 'Pix', 
             s.descricao, 
-            s.contratoTexto, 
-            s.empresaEmail, 
-            s.empresaWhatsapp
+            s.contratoTexto || '', 
+            s.empresaEmail || '', 
+            s.empresaWhatsapp || ''
         ];
 
         const result = await pool.query(query, params);
@@ -236,8 +256,8 @@ app.post('/api/servicos', async (req, res) => {
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, id: servicoId });
     } catch (err) {
-        console.error('Erro ao publicar serviço:', err);
-        res.json({ sucesso: false, erro: 'Erro ao publicar serviço.' });
+        console.error('Erro detalhado ao publicar serviço:', err);
+        res.json({ sucesso: false, erro: 'Erro ao publicar serviço: ' + err.message });
     }
 });
 
