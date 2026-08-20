@@ -236,7 +236,6 @@
         .btn-danger { background: var(--danger); box-shadow: 0 4px 12px rgba(220, 38, 38, 0.2); }
         .btn-danger:hover { background: #b91c1c; }
 
-        /* Estilos dos botões de contrato customizados */
         .btn-download { background: var(--accent); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: 600; font-size: 13px; margin-bottom: 10px; text-align: center; }
         .btn-download:hover { background: var(--accent-hover); }
         .btn-assinar { background: var(--primary); color: white; padding: 10px 16px; border-radius: 8px; text-decoration: none; display: inline-block; font-weight: 600; font-size: 13px; margin-bottom: 15px; text-align: center; }
@@ -553,14 +552,20 @@
                             <input type="text" id="srv-valor" required placeholder="300,00">
                         </div>
                     </div>
-                    <div class="form-group">
-                        <label>Recorrência do Serviço</label>
-                        <select id="srv-recorrencia">
-                            <option value="Único">Único (Pontual)</option>
-                            <option value="Semanal">Semanal</option>
-                            <option value="Quinzenal">Quinzenal</option>
-                            <option value="Mensal">Mensal</option>
-                        </select>
+                    <div class="grid-duplo">
+                        <div class="form-group">
+                            <label>Horário de Início (Ex: 07:30)</label>
+                            <input type="text" id="srv-horario-inicio" required placeholder="HH:MM">
+                        </div>
+                        <div class="form-group">
+                            <label>Recorrência do Serviço</label>
+                            <select id="srv-recorrencia">
+                                <option value="Único">Único (Pontual)</option>
+                                <option value="Semanal">Semanal</option>
+                                <option value="Quinzenal">Quinzenal</option>
+                                <option value="Mensal">Mensal</option>
+                            </select>
+                        </div>
                     </div>
                     <div class="form-group">
                         <label>Endereço Completo</label>
@@ -879,6 +884,7 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                 local: document.getElementById('srv-local').value.trim(),
                 endereco: document.getElementById('srv-endereco').value.trim(),
                 valor: document.getElementById('srv-valor').value.trim(),
+                horario: document.getElementById('srv-horario-inicio').value.trim(),
                 recorrencia: document.getElementById('srv-recorrencia').value,
                 pagamento: document.getElementById('srv-pagamento').value,
                 descricao: document.getElementById('srv-descricao').value.trim(),
@@ -903,6 +909,7 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                     document.getElementById('srv-local').value = '';
                     document.getElementById('srv-endereco').value = '';
                     document.getElementById('srv-valor').value = '';
+                    document.getElementById('srv-horario-inicio').value = '';
                     document.getElementById('srv-descricao').value = '';
                     carregarServicos();
                 } else {
@@ -978,13 +985,15 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                     if (usuarioLogado.tipo === 'empresa') {
                         if (s.prestador_nome) {
                             const trTitular = document.createElement('tr');
+                            trTitular.setAttribute('data-horario-inicio', s.horario || '08:00');
+                            trTitular.setAttribute('data-titular-id', s.prestador_email || s.id);
                             trTitular.innerHTML = `
                                 <td><strong>${s.prestador_nome}</strong><br><small style="color:var(--text-light);">Aceite: ${s.data_aceite || 'Registrado'}</small></td>
                                 <td><span class="badge titular">⭐ Vaga Principal (Titular)[cite: 1]</span></td>
                                 <td>${s.titulo} (${s.local})</td>
                                 <td>${s.empresa_nome || usuarioLogado.nome}</td>
                                 <td>R$ ${s.valor}</td>
-                                <td>${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge" style="background:#fef3c7; color:#d97706;">⏳ Aguardando</span>'}</td>
+                                <td class="status-relogio">${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge" style="background:#fef3c7; color:#d97706;">⏳ Aguardando</span>'}</td>
                                 <td>
                                     <button class="btn-view" style="padding:6px 10px; font-size:11px; margin-bottom:4px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
                                     <button class="btn-success" style="padding:6px 10px; font-size:11px;" onclick='gerarNotaFiscal(${JSON.stringify(s)})'>📄 Recibo Interno</button>
@@ -1126,17 +1135,12 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
 
                         ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
                             <div class="contrato-box">
-                                <!-- Seção de Gestão de Contratos Integrada -->
                                 <h2>Gestão de Contratos</h2>
                                 <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">Baixe seu contrato, assine utilizando o portal oficial do governo e envie o arquivo assinado abaixo.</p>
                                     
-                                <!-- Link para o contrato -->
                                 <a href="javascript:void(0)" onclick="baixarContratoPDF(${s.id})" class="btn-download">Baixar Contrato</a>
-                                    
-                                <!-- Link para o assinador oficial -->
                                 <a href="https://assinador.iti.br/" target="_blank" class="btn-assinar">Assinar no Gov.br</a>
                                     
-                                <!-- Formulário de retorno -->
                                 <div style="margin-top: 10px;">
                                     <label for="contratoAssinado-${s.id}">Enviar contrato assinado:</label>
                                     <input type="file" id="contratoAssinado-${s.id}" name="contratoAssinado" accept=".pdf" style="background:white; font-size:12px; margin-bottom:8px;" onchange="verificarUploadAssinado(${s.id})">
@@ -1187,13 +1191,71 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
                     `;
                     container.appendChild(card);
                 });
+
+                // Inicia os cronômetros regressivos na tabela de gestão após renderizar os dados
+                iniciarContadorRegressivo();
+
             } catch (err) { console.error("Erro ao carregar serviços:", err); }
         }
 
+        // Função para iniciar os cronômetros na tabela de Gestão de Titular
+        function iniciarContadorRegressivo() {
+            const linhas = document.querySelectorAll('#tabela-gestao-titular tr, #workerTableBodyGestor tr');
+
+            linhas.forEach(linha => {
+                const horarioInicioStr = linha.getAttribute('data-horario-inicio');
+                const statusElemento = linha.querySelector('.status-relogio');
+                const inputTitular = linha.getAttribute('data-titular-id');
+                
+                if (!horarioInicioStr || !statusElemento) return;
+
+                const [horas, minutos] = horarioInicioStr.split(':').map(Number);
+                const dataInicio = new Date();
+                dataInicio.setHours(horas, minutos, 0, 0);
+
+                const tempoLimite = new Date(dataInicio.getTime() - (40 * 60 * 1000));
+
+                const intervalo = setInterval(() => {
+                    const agora = new Date();
+                    const diferenca = tempoLimite - agora;
+
+                    if (diferenca > 0) {
+                        const minutosRestantes = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
+                        const segundosRestantes = Math.floor((diferenca % (1000 * 60)) / 1000);
+
+                        statusElemento.innerText = `Confirme em: ${minutosRestantes}m ${segundosRestantes}s`;
+                    } else {
+                        clearInterval(intervalo);
+                        statusElemento.innerText = "Tempo expirado! Substituindo...";
+                        
+                        substituirPrestadorEmergencia(inputTitular, linha);
+                    }
+                }, 1000);
+            });
+        }
+
+        // Função que chama o backend para efetivar a troca
+        function substituirPrestadorEmergencia(titularId, linhaElemento) {
+            fetch('/api/substituir-prestador', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ titularAtualId: titularId })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.sucesso) {
+                    alert("O titular não confirmou a tempo. O sistema promoveu o primeiro reserva da fila de emergência.");
+                    location.reload();
+                } else {
+                    console.error("Erro ao substituir prestador:", data.mensagem);
+                }
+            })
+            .catch(error => console.error('Erro na requisição:', error));
+        }
+
         function baixarContratoPDF(id) {
-            const servicos = []; // Utiliza o texto do contrato exibido na caixa de termos do card específico se houver
-            const textoContratoEl = document.querySelector(`#lista-servicos .card-chamado:nth-child(n)`); 
-            // Como alternativa robusta, geramos a folha de impressão baseada no modelo padrão ou conteúdo dinâmico
             const janelaPrint = window.open('', '_blank');
             janelaPrint.document.write(`
                 <html>
