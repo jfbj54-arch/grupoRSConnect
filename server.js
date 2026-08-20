@@ -403,9 +403,9 @@ io.on('connection', (socket) => {
     console.log('Novo cliente conectado via WebSocket:', socket.id);
 });
 
-// Rota Raiz (Essencial para responder ao Render e evitar o erro 503)
+// Rota Raiz com status 200 explícito para o Render
 app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'index.html'));
+    res.status(200).sendFile(path.join(__dirname, 'index.html'));
 });
 
 const PORT = process.env.PORT || 3000;
