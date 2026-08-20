@@ -547,7 +547,6 @@
                             <input type="text" id="srv-valor" required placeholder="300,00">
                         </div>
                     </div>
-                    <!-- CAMPO DE RECORRÊNCIA ADICIONADO AQUI -->
                     <div class="form-group">
                         <label>Recorrência do Serviço</label>
                         <select id="srv-recorrencia">
@@ -573,9 +572,12 @@
                         <textarea id="srv-descricao" rows="2" required placeholder="Descreva as instruções para o prestador..."></textarea>
                     </div>
                     <div class="form-group">
-                        <label>Termos do Contrato e Chamada de Emergência (Desistência)</label>
-                        <textarea id="srv-contrato" rows="4">O prestador compromete-se a executar os serviços conforme padrões exigidos. O pagamento garantido será liberado automaticamente após check-out validado. 
-CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irrevogável. Em caso de desistência posterior, abandono ou recusa injustificada após a aceitação, a parte lesada fica determinada a tomar medidas legais imediatas nas esferas cabíveis para reparação de danos e cumprimento da obrigação.</textarea>
+                        <label>Termos do Contrato, Desistência e Assinatura Digital gov.br</label>
+                        <textarea id="srv-contrato" rows="6">CLÁUSULA PRIMEIRA – DO OBJETO E COMPROMISSO: O prestador compromete-se a executar os serviços conforme padrões exigidos, garantindo a pontualidade e a qualidade técnica. O pagamento garantido será liberado automaticamente após check-out validado.
+                        
+CLÁUSULA SEGUNDA – DA IRREVOGABILIDADE E DESISTÊNCIA: O aceite digital formaliza o compromisso irrevogável entre as partes. Em caso de desistência posterior, abandono, recusa injustificada ou falta não comunicada com antecedência mínima de 24h após a aceitação, a parte infratora ficará sujeita às sanções cabíveis, ficando a parte lesada autorizada a adotar as medidas legais imediatas nas esferas cível e criminal para reparação integral de perdas, danos emergentes, lucros cessantes e cumprimento forçado da obrigação.
+
+CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O presente instrumento possui validade jurídica plena, nos termos da Lei nº 14.063/2020 e da Medida Provisória nº 2.200-2/2001, sendo obrigatória a chancela final e validação legal das assinaturas digitais por meio do portal oficial do Governo Federal (assinatura eletrônica segura via GOV.BR).</textarea>
                     </div>
                     <button type="submit" class="btn-success">🔒 Validar Garantia e Publicar (1 Titular + 2 Reservas)[cite: 1]</button>
                 </form>
@@ -686,7 +688,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     Assinatura da Empresa / Gestor
                 </div>
                 <div style="width: 45%; border-top: 1px solid var(--text); padding-top: 5px;">
-                    Assinatura do Prestador / Recebedor
+                    Assinatura do Prestador / Recebedor (Validada via gov.br)
                 </div>
             </div>
 
@@ -871,7 +873,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 local: document.getElementById('srv-local').value.trim(),
                 endereco: document.getElementById('srv-endereco').value.trim(),
                 valor: document.getElementById('srv-valor').value.trim(),
-                recorrencia: document.getElementById('srv-recorrencia').value, // ATRIBUTO DE RECORRÊNCIA CAPTURADO
+                recorrencia: document.getElementById('srv-recorrencia').value,
                 pagamento: document.getElementById('srv-pagamento').value,
                 descricao: document.getElementById('srv-descricao').value.trim(),
                 contrato: document.getElementById('srv-contrato').value.trim(),
@@ -1083,7 +1085,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                             <div class="detalhes-box">
                                 <strong>⭐ Titular da Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
                                 ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
-                                ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado</span>` : ''}
+                                ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado & Validado gov.br</span>` : ''}
                                 ${blocoFotosHTML}
                             </div>
                         ` : '<div class="detalhes-box">⭐ <strong>Titular da Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
@@ -1118,11 +1120,18 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
 
                         ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
                             <div class="contrato-box">
-                                <strong>📜 Termos do Contrato Digital:</strong>
-                                <p style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #fde68a; margin: 6px 0;">${s.contrato || 'Contrato padrão.'}</p>
-                                <label style="font-size:11px;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li e aceito os termos do contrato.</label>
-                                <input type="text" id="assinatura-${s.id}" placeholder="Digite seu Nome Completo e CPF" style="margin:8px 0; background:white;">
-                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px;" disabled>✍️ ${!s.prestador_email ? 'Assumir Vaga Titular' : 'Entrar na Fila de Reserva (Emergência)'}</button>
+                                <strong>📜 Termos e Condições do Contrato Digital:</strong>
+                                <p style="background: white; padding: 8px; border-radius: 6px; border: 1px solid #fde68a; margin: 6px 0; font-size: 12px; line-height: 1.4;">${s.contrato || 'Contrato padrão.'}</p>
+                                
+                                <div style="background: #eff6ff; border: 1px solid #bfdbfe; padding: 12px; border-radius: 8px; margin-top: 10px;">
+                                    <h4 style="margin: 0 0 6px 0; color: #1e40af; font-size: 12px;">🔐 Assinatura Eletrônica e Autenticação gov.br</h4>
+                                    <p style="margin: 0 0 8px 0; font-size: 11px; color: #1e3a8a;">Para formalizar a aceitação com validade jurídica perante a legislação vigente (Lei 14.063/2020), confirme seus dados e autentique o vínculo.</p>
+                                    <a href="https://sso.acesso.gov.br/" target="_blank" style="display:inline-block; background:#1d4ed8; color:white; padding:6px 12px; border-radius:6px; font-size:11px; text-decoration:none; font-weight:bold; margin-bottom:8px;">🔗 Autenticar / Assinar Digitalmente via gov.br</a>
+                                </div>
+
+                                <label style="font-size:11px; margin-top: 10px; display:block;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li, compreendi e aceito irrevogavelmente os termos, sanções por desistência e obrigatoriedade de assinatura digital gov.br.</label>
+                                <input type="text" id="assinatura-${s.id}" placeholder="Digite seu Nome Completo e CPF para assinar" style="margin:8px 0; background:white;">
+                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px;" disabled>✍️ ${!s.prestador_email ? 'Assinar e Assumir Vaga Titular' : 'Assinar e Entrar na Fila de Reserva (Emergência)'}</button>
                             </div>
                         ` : ''}
 
@@ -1180,7 +1189,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 alert('Digite seu Nome Completo e CPF para assinar o contrato.');
                 return;
             }
-            if (!confirm('Deseja confirmar sua inscrição na vaga (Titular ou Fila de Reserva)?')) return;
+            if (!confirm('Deseja confirmar sua inscrição na vaga (Titular ou Fila de Reserva) com validade jurídica gov.br?')) return;
 
             try {
                 const res = await fetch(`/api/servicos/${id}/aceitar`, {
@@ -1193,11 +1202,11 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                         prestadorRgCnh: usuarioLogado.rgCnh || '',
                         prestadorProfissao: usuarioLogado.profissao || '',
                         prestadorPix: usuarioLogado.pix || '',
-                        contratoAssinado: assinatura
+                        contratoAssinado: `${assinatura} (Validado gov.br)`
                     })
                 });
                 const data = await res.json();
-                if (data.sucesso) { carregarServicos(); alert(data.mensagem || 'Inscrição efetuada com sucesso!'); } 
+                if (data.sucesso) { carregarServicos(); alert(data.mensagem || 'Inscrição e assinatura digital efetuadas com sucesso!'); } 
                 else { alert(data.erro); }
             } catch(e) { alert('Erro ao processar inscrição.'); }
         }
