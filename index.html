@@ -642,39 +642,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
         </div>
     </div>
 
-    <!-- MODAL OBRIGATÓRIO DE INFORMAÇÕES DE PAGAMENTO NO CHECK-OUT -->
-    <div id="modal-pagamento-obrigatorio" class="rs-modal no-print" style="display:none;">
-        <div class="rs-modal-content" style="max-width: 500px;">
-            <span class="close-modal" onclick="fecharModalPagamentoObrigatorio()">&times;</span>
-            <h3 style="color: var(--danger); margin-top:0; font-size:16px;">⚠️ OBRIGATÓRIO: Informar Dados de Pagamento</h3>
-            <p style="font-size:12px; color:var(--text-light); margin-bottom:15px;">Para concluir o check-out e finalizar o serviço, você é obrigado a registrar as informações de recebimento para a empresa.</p>
-            
-            <input type="hidden" id="checkout-servico-id">
-
-            <div class="form-group">
-                <label>Forma de Pagamento / Recebimento Utilizada</label>
-                <select id="checkout-tipo-pg" onchange="alternarCamposPagamentoModal()">
-                    <option value="pix">PIX</option>
-                    <option value="dinheiro">Dinheiro</option>
-                    <option value="cartao">Cartão de Crédito / Débito</option>
-                    <option value="nota_fiscal">Nota Fiscal / Faturamento Bancário</option>
-                </select>
-            </div>
-
-            <div class="form-group">
-                <label id="label-detalhe-pg">Chave PIX / Comprovante / Detalhes</label>
-                <input type="text" id="checkout-detalhe-pg" required placeholder="Informe a chave PIX ou dados da transação">
-            </div>
-
-            <div class="form-group">
-                <label>Observação de Pagamento para a Empresa</label>
-                <textarea id="checkout-obs-pg" rows="2" placeholder="Ex: Valor recebido integralmente pelo cliente..."></textarea>
-            </div>
-
-            <button type="button" onclick="executarCheckoutFinalComPagamento()" class="btn-success" style="margin-top:10px;">🔒 Confirmar Pagamento e Finalizar Check-out</button>
-        </div>
-    </div>
-
     <!-- TELA DE IMPRESSÃO DO RECIBO / COMPROVANTE INTERNO -->
     <div id="nota-fiscal-impressao" style="display:none;">
         <div class="nf-container">
@@ -707,13 +674,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                 <p style="margin: 2px 0;"><b>Serviço:</b> <span id="nf-servico-titulo">-</span></p>
                 <p style="margin: 2px 0;"><b>Endereço de Execução:</b> <span id="nf-servico-endereco">-</span></p>
                 <p style="margin: 2px 0;"><b>Check-in (Chegada):</b> <span id="nf-checkin">-</span> | <b>Check-out (Conclusão):</b> <span id="nf-checkout">-</span></p>
-            </div>
-
-            <div style="margin-bottom: 15px; font-size: 12px; background: #f8fafc; padding: 12px; border-radius: 8px; border: 1px solid var(--border);">
-                <h4 style="margin: 0 0 6px 0; color: var(--primary); font-size: 13px;">💳 Informações de Pagamento Registradas</h4>
-                <p style="margin: 2px 0;"><b>Forma de Pagamento:</b> <span id="nf-pg-tipo">-</span></p>
-                <p style="margin: 2px 0;"><b>Detalhes / Comprovante:</b> <span id="nf-pg-detalhe">-</span></p>
-                <p style="margin: 2px 0;"><b>Observação:</b> <span id="nf-pg-obs">-</span></p>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; background: #e6f4ea; padding: 15px; border-radius: 8px; border: 1px solid #137333; margin-bottom: 25px;">
@@ -999,6 +959,17 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     if (usuarioLogado.tipo === 'empresa' && empresaEmailServico !== usuarioEmailAtual) return;
 
                     const reservas = s.reservas || [];
+                    const souTitular = usuarioLogado.tipo === 'prestador' && s.prestador_email === usuarioLogado.email;
+                    const reservaObj = reservas.find(r => r.email === usuarioLogado.email);
+                    const souReserva = !!reservaObj;
+                    const jaCadastrado = souTitular || souReserva;
+
+                    // REGRA DE PRIVACIDADE: Se for prestador, oculta vagas que pertencem a outro titular e nas quais ele não está na reserva
+                    const vagaTemOutroDono = s.prestador_email && s.prestador_email !== usuarioEmailAtual && !souReserva;
+                    if (usuarioLogado.tipo === 'prestador' && vagaTemOutroDono) {
+                        return;
+                    }
+
                     const totalInscritos = (s.prestador_email ? 1 : 0) + reservas.length;
                     const vagaLotada = totalInscritos >= 3;
 
@@ -1048,11 +1019,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                     const card = document.createElement('div');
                     card.className = 'card-chamado';
                     
-                    const souTitular = usuarioLogado.tipo === 'prestador' && s.prestador_email === usuarioLogado.email;
-                    const reservaObj = reservas.find(r => r.email === usuarioLogado.email);
-                    const souReserva = !!reservaObj;
-                    const jaCadastrado = souTitular || souReserva;
-
                     const linkGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.endereco || s.local)}`;
 
                     let infoValorHTML = '';
@@ -1071,18 +1037,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                         blocoFotosHTML += `<div style="margin-top:6px; font-size:12px;">✅ <strong>Check-out / Comprovante:</strong><br><img src="${s.foto_checkout || s.documento_comprovante}" style="max-width:100px; border-radius:6px; margin-top:4px; border:1px solid var(--border);"></div>`;
                     }
 
-                    let blocoPagamentoInfoHTML = '';
-                    if (s.pagamento_info_tipo) {
-                        blocoPagamentoInfoHTML = `
-                            <div style="background:#eff6ff; border:1px solid #dbeafe; padding:10px; border-radius:8px; margin-top:8px; font-size:12px;">
-                                💳 <strong>Informações de Pagamento Informadas:</strong><br>
-                                <b>Tipo:</b> ${s.pagamento_info_tipo.toUpperCase()} | <b>Detalhes:</b> ${s.pagamento_info_detalhe || 'N/A'}<br>
-                                ${s.pagamento_info_obs ? `<b>Obs:</b> ${s.pagamento_info_obs}` : ''}
-                            </div>
-                        `;
-                    }
-
-                    // Seção de Nota Fiscal Oficial (MEI/Prefeitura) enviada
                     let blocoNotaOficialHTML = '';
                     if (s.nota_fiscal_oficial) {
                         blocoNotaOficialHTML = `
@@ -1109,7 +1063,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                                 ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
                                 ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado</span>` : ''}
                                 ${blocoFotosHTML}
-                                ${blocoPagamentoInfoHTML}
                             </div>
                         ` : '<div class="detalhes-box">⭐ <strong>Titular da Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
 
@@ -1183,7 +1136,7 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
                                 <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
                                     <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Conclusão (Check-out)</label>
                                     <input type="file" id="foto-checkout-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
-                                    <button onclick="abrirModalPagamentoObrigatorio(${s.id})" class="btn-success" style="padding:10px; width:100%; font-size:13px;">✅ Finalizar Check-out (Requer Dados de Pagamento)</button>
+                                    <button onclick="realizarCheckout(${s.id})" class="btn-success" style="padding:10px; width:100%; font-size:13px;">✅ Finalizar Check-out</button>
                                 </div>
                             </div>
                         ` : ''}
@@ -1357,75 +1310,33 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             alert(`Check-in registrado! GPS: ${gps}`);
         }
 
-        // Funções do Modal Obrigatório de Pagamento
-        function abrirModalPagamentoObrigatorio(id) {
+        async function realizarCheckout(id) {
             const inputFoto = document.getElementById(`foto-checkout-${id}`);
             if (!inputFoto.files || inputFoto.files.length === 0) {
-                alert('Por favor, selecione ou tire a foto de conclusão (check-out) antes de continuar!');
-                return;
-            }
-            document.getElementById('checkout-servico-id').value = id;
-            document.getElementById('checkout-detalhe-pg').value = '';
-            document.getElementById('checkout-obs-pg').value = '';
-            document.getElementById('modal-pagamento-obrigatorio').style.display = 'flex';
-        }
-
-        function fecharModalPagamentoObrigatorio() {
-            document.getElementById('modal-pagamento-obrigatorio').style.display = 'none';
-        }
-
-        function alternarCamposPagamentoModal() {
-            const tipo = document.getElementById('checkout-tipo-pg').value;
-            const label = document.getElementById('label-detalhe-pg');
-            const campo = document.getElementById('checkout-detalhe-pg');
-            if (tipo === 'pix') {
-                label.innerText = 'Chave PIX de Recebimento ou ID da Transação';
-                campo.placeholder = 'Ex: Chave PIX ou comprovante';
-            } else if (tipo === 'dinheiro') {
-                label.innerText = 'Detalhes do Recebimento em Espécie';
-                campo.placeholder = 'Ex: Recebido em espécie diretamente';
-            } else if (tipo === 'cartao') {
-                label.innerText = 'Comprovante / ID da Maquininha ou Transação Cartão';
-                campo.placeholder = 'Ex: Comprovante de cartão';
-            } else {
-                label.innerText = 'Número da Nota Fiscal ou Faturamento';
-                campo.placeholder = 'Ex: NF nº 1234';
-            }
-        }
-
-        async function executarCheckoutFinalComPagamento() {
-            const id = document.getElementById('checkout-servico-id').value;
-            const tipoPg = document.getElementById('checkout-tipo-pg').value;
-            const detalhePg = document.getElementById('checkout-detalhe-pg').value.trim();
-            const obsPg = document.getElementById('checkout-obs-pg').value.trim();
-
-            if (!detalhePg) {
-                alert('Por favor, preencha obrigatoriamente as informações de pagamento!');
+                alert('Por favor, selecione ou tire a foto de conclusão (check-out) antes de finalizar!');
                 return;
             }
 
-            const inputFoto = document.getElementById(`foto-checkout-${id}`);
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const fotoCheckoutBase64 = e.target.result;
+                const fotoBase64 = e.target.result;
                 try {
+                    await fetch(`/api/servicos/${id}/ponto`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ foto: fotoBase64, email: usuarioLogado.email })
+                    });
+
                     const res = await fetch(`/api/servicos/${id}/checkout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            hora: new Date().toLocaleTimeString(),
-                            fotoCheckout: fotoCheckoutBase64,
-                            pagamentoInfoTipo: tipoPg,
-                            pagamentoInfoDetalhe: detalhePg,
-                            pagamentoInfoObs: obsPg
-                        })
+                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
                     });
                     const data = await res.json();
                     
                     if (res.ok && data.sucesso !== false) {
-                        fecharModalPagamentoObrigatorio();
                         carregarServicos();
-                        alert('✅ Informações de pagamento registradas e check-out finalizado com sucesso!');
+                        alert('✅ Check-out realizado com sucesso! Serviço finalizado.');
                     } else { 
                         alert(data.erro || 'Erro ao realizar check-out.'); 
                     }
@@ -1508,10 +1419,6 @@ CLÁUSULA DE DESISTÊNCIA E MEDIDAS LEGAIS: O aceite formaliza o compromisso irr
             document.getElementById("nf-checkin").innerText = s.checkin_hora || 'Não registrado';
             document.getElementById("nf-checkout").innerText = s.checkout_hora || 'Não registrado';
             document.getElementById("nf-valor").innerText = `R$ ${s.valor}`;
-
-            document.getElementById("nf-pg-tipo").innerText = s.pagamento_info_tipo ? s.pagamento_info_tipo.toUpperCase() : 'Não informado';
-            document.getElementById("nf-pg-detalhe").innerText = s.pagamento_info_detalhe || 'N/A';
-            document.getElementById("nf-pg-obs").innerText = s.pagamento_info_obs || 'Nenhuma';
 
             document.getElementById("secao-sistema").classList.add("hidden");
             document.getElementById("nota-fiscal-impressao").style.display = "block";
