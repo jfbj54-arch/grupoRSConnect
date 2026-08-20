@@ -134,6 +134,11 @@ async function criarTabelas() {
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_whatsapp TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'unico';",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_total NUMERIC(10,2) DEFAULT 0;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_id INTEGER;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_email TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_nome TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_pix TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_whatsapp TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;",
@@ -227,11 +232,10 @@ app.post('/api/servicos', async (req, res) => {
         const valorUnitario = parseFloat(String(s.valor).replace(',', '.')) || 0;
         const tipoRecorrencia = s.recorrencia || 'unico';
 
-        // Cálculo do valor total baseado na recorrência escolhida
         let valorTotalGarantia = valorUnitario;
         if (tipoRecorrencia === 'semanal') valorTotalGarantia = valorUnitario * 4;
         else if (tipoRecorrencia === 'quinzenal') valorTotalGarantia = valorUnitario * 2;
-        else if (tipoRecorrencia === 'mensal') valorTotalGarantia = valorUnitario; // Assume valor mensal fixo
+        else if (tipoRecorrencia === 'mensal') valorTotalGarantia = valorUnitario;
 
         const taxaPlataforma = valorTotalGarantia * 0.10;
         const valorLiquido = valorTotalGarantia - taxaPlataforma;
