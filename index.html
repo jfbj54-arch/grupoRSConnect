@@ -2,7 +2,7 @@
 <html lang="pt-BR">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Grupo RS Connect - Gestão Profissional de Serviços</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
@@ -1009,6 +1009,361 @@
             .rs-auth-shell .auth-card {
                 padding: 24px 18px;
                 border-radius: 18px;
+            }
+        }
+
+
+        /* =====================================================
+           MOBILE FIRST - RS CONNECT
+        ===================================================== */
+        html, body {
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+
+        img, video, canvas {
+            max-width: 100%;
+            height: auto;
+        }
+
+        button, input, select, textarea {
+            max-width: 100%;
+        }
+
+        @media (max-width: 768px) {
+            body {
+                font-size: 14px;
+            }
+
+            header {
+                padding: 12px 14px !important;
+                min-height: 62px;
+            }
+
+            header .logo,
+            header h1,
+            header .brand {
+                font-size: 17px !important;
+            }
+
+            nav {
+                gap: 10px !important;
+            }
+
+            nav a {
+                font-size: 11px !important;
+            }
+
+            #secao-auth.rs-auth-2026 {
+                display: block !important;
+                min-height: auto;
+                padding: 18px 14px 35px !important;
+            }
+
+            .rs-hero-2026 {
+                padding: 8px 2px 22px !important;
+                text-align: left;
+            }
+
+            .rs-eyebrow {
+                font-size: 9px;
+                padding: 7px 10px;
+                margin-bottom: 14px;
+            }
+
+            .rs-hero-2026 h1 {
+                font-size: 34px !important;
+                line-height: 1.05 !important;
+                letter-spacing: -1.4px !important;
+                margin-bottom: 14px !important;
+            }
+
+            .rs-hero-lead {
+                font-size: 14px !important;
+                line-height: 1.6 !important;
+                margin-bottom: 18px !important;
+            }
+
+            .rs-trust-row {
+                justify-content: flex-start !important;
+                gap: 7px !important;
+                margin-bottom: 20px !important;
+            }
+
+            .rs-trust-pill {
+                font-size: 9px !important;
+                padding: 7px 9px !important;
+            }
+
+            .rs-feature-grid-2026 {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+                gap: 8px !important;
+            }
+
+            .rs-feature-card-2026 {
+                padding: 12px !important;
+                border-radius: 13px !important;
+                gap: 9px !important;
+            }
+
+            .rs-feature-card-2026 .rs-fi {
+                width: 34px !important;
+                height: 34px !important;
+                flex-basis: 34px !important;
+                font-size: 15px !important;
+                border-radius: 10px !important;
+            }
+
+            .rs-feature-card-2026 h4 {
+                font-size: 11px !important;
+            }
+
+            .rs-feature-card-2026 p {
+                font-size: 9px !important;
+                line-height: 1.35 !important;
+            }
+
+            .rs-auth-shell {
+                margin-top: 4px;
+            }
+
+            .rs-auth-shell::before {
+                inset: -7px !important;
+                border-radius: 23px !important;
+            }
+
+            .rs-auth-shell .auth-card {
+                padding: 22px 16px !important;
+                border-radius: 18px !important;
+            }
+
+            .rs-auth-brand {
+                margin-bottom: 19px !important;
+            }
+
+            .rs-auth-brand-mark {
+                width: 39px !important;
+                height: 39px !important;
+                border-radius: 11px !important;
+            }
+
+            .rs-auth-shell .auth-card h2 {
+                font-size: 23px !important;
+            }
+
+            .auth-tabs {
+                display: grid !important;
+                grid-template-columns: 1fr 1fr !important;
+            }
+
+            .grid-duplo,
+            .grid-triplo,
+            .form-row,
+            .dashboard-grid,
+            .cards-grid,
+            .stats-grid,
+            .rs-jornada-detalhada,
+            .rs-fechamento-grid {
+                grid-template-columns: 1fr !important;
+            }
+
+            input,
+            select,
+            textarea,
+            button {
+                font-size: 16px !important;
+            }
+
+            input,
+            select,
+            textarea {
+                min-height: 46px;
+            }
+
+            textarea {
+                min-height: 100px;
+            }
+
+            button {
+                min-height: 44px;
+            }
+
+            .container,
+            .main-container,
+            .content,
+            .painel,
+            .dashboard,
+            #secao-sistema {
+                width: 100% !important;
+                max-width: 100% !important;
+                padding-left: 12px !important;
+                padding-right: 12px !important;
+            }
+
+            .servico-card,
+            .card,
+            .rs-presenca-painel,
+            .contrato-box,
+            .detalhes-box {
+                border-radius: 12px !important;
+                padding: 13px !important;
+            }
+
+            .servico-card {
+                margin-bottom: 14px !important;
+            }
+
+            .servico-card h3,
+            .servico-card h2 {
+                font-size: 17px !important;
+                line-height: 1.25 !important;
+            }
+
+            .rs-colaborador-linha {
+                grid-template-columns: 1fr !important;
+                gap: 7px !important;
+            }
+
+            .rs-jornada-detalhada {
+                gap: 8px !important;
+            }
+
+            .rs-jornada-campo {
+                min-height: auto !important;
+                padding: 10px !important;
+            }
+
+            .rs-jornada-campo strong {
+                font-size: 13px !important;
+            }
+
+            .rs-jornada-acoes {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+
+            .rs-jornada-acoes button,
+            .rs-report-btn {
+                width: 100% !important;
+            }
+
+            .rs-report-actions {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+
+            .rs-historico-relatorio {
+                flex-direction: column !important;
+                align-items: stretch !important;
+            }
+
+            .rs-evidencias {
+                flex-direction: column !important;
+            }
+
+            .rs-evidencia {
+                width: 100% !important;
+                min-width: 0 !important;
+            }
+
+            .rs-evidencia img {
+                max-height: 260px !important;
+                object-fit: cover !important;
+            }
+
+            table {
+                display: block;
+                width: 100%;
+                overflow-x: auto;
+                -webkit-overflow-scrolling: touch;
+            }
+
+            .btn-download,
+            .btn-assinar,
+            .btn-success,
+            .btn-danger,
+            .btn-secondary {
+                display: block !important;
+                width: 100% !important;
+                margin: 7px 0 !important;
+                text-align: center !important;
+            }
+
+            .chat-container,
+            .chat-box {
+                max-height: 320px !important;
+            }
+
+            .chat-input-row {
+                display: grid !important;
+                grid-template-columns: 1fr auto !important;
+                gap: 6px !important;
+            }
+
+            .chat-input-row button {
+                width: auto !important;
+                padding-left: 15px !important;
+                padding-right: 15px !important;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header nav {
+                display: none !important;
+            }
+
+            #secao-auth.rs-auth-2026 {
+                padding-top: 12px !important;
+            }
+
+            .rs-hero-2026 h1 {
+                font-size: 30px !important;
+            }
+
+            .rs-feature-grid-2026 {
+                grid-template-columns: 1fr !important;
+            }
+
+            .rs-feature-card-2026 {
+                min-height: auto !important;
+            }
+
+            .rs-auth-shell .auth-card {
+                padding: 20px 14px !important;
+            }
+
+            .rs-presenca-cabecalho {
+                align-items: flex-start !important;
+            }
+
+            .rs-status {
+                font-size: 9px !important;
+                white-space: normal !important;
+            }
+
+            .rs-historico-item {
+                font-size: 11px !important;
+                line-height: 1.55 !important;
+            }
+
+            .rs-colaborador-nome {
+                font-size: 13px !important;
+            }
+
+            .rs-colaborador-funcao {
+                font-size: 10px !important;
+            }
+        }
+
+        /* Evita zoom automático do iPhone ao tocar nos campos */
+        @supports (-webkit-touch-callout: none) {
+            @media (max-width: 768px) {
+                input,
+                select,
+                textarea {
+                    font-size: 16px !important;
+                }
             }
         }
 
