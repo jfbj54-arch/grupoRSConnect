@@ -10,8 +10,8 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
     cors: {
-        origin: "*",
-        methods: ["GET", "POST"]
+        origin: '*',
+        methods: ['GET', 'POST']
     }
 });
 
@@ -23,8 +23,8 @@ const upload = multer({
 
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({
-    limit: '50mb',
-    extended: true
+    extended: true,
+    limit: '50mb'
 }));
 
 app.use(express.static(path.join(__dirname)));
@@ -38,29 +38,19 @@ const pool = new Pool({
 
 pool.connect((err, client, release) => {
     if (err) {
-        console.error(
-            'Erro ao conectar ao PostgreSQL:',
-            err.stack
-        );
+        console.error('Erro ao conectar ao PostgreSQL:', err.stack);
     } else {
-        console.log(
-            'Conectado com sucesso ao banco PostgreSQL.'
-        );
-
+        console.log('Conectado ao PostgreSQL.');
         release();
         criarTabelas();
     }
 });
 
-
 async function criarTabelas() {
-
     try {
 
         await pool.query(`
-
             CREATE TABLE IF NOT EXISTS usuarios (
-
                 id SERIAL PRIMARY KEY,
                 tipo TEXT,
                 nome TEXT,
@@ -77,22 +67,16 @@ async function criarTabelas() {
                 banco TEXT,
                 conta TEXT,
                 experiencia TEXT
-
             );
 
-
             CREATE TABLE IF NOT EXISTS prestadores (
-
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE,
                 reputacao NUMERIC(3,2) DEFAULT 5.0,
                 advertencias INTEGER DEFAULT 0
-
             );
 
-
             CREATE TABLE IF NOT EXISTS servicos (
-
                 id SERIAL PRIMARY KEY,
 
                 titulo TEXT,
@@ -126,6 +110,8 @@ async function criarTabelas() {
                 prestador_pix TEXT,
                 prestador_whatsapp TEXT,
 
+                data_aceite TIMESTAMPTZ,
+
                 foto_ponto TEXT,
                 foto_checkin TEXT,
                 foto_checkout TEXT,
@@ -154,341 +140,199 @@ async function criarTabelas() {
                 comprovante_pagamento BOOLEAN DEFAULT FALSE,
 
                 nota_oficial TEXT,
+                nota_nome TEXT,
+                nota_tipo TEXT,
+                nota_remetente TEXT,
+                nota_enviada_em TIMESTAMP,
 
                 validado_empresa BOOLEAN DEFAULT FALSE,
                 validado_em TIMESTAMP
-
             );
 
-
             CREATE TABLE IF NOT EXISTS ledger_transacoes (
-
                 id SERIAL PRIMARY KEY,
                 servico_id INTEGER,
                 usuario_email TEXT,
                 usuario_id INTEGER,
-
                 tipo TEXT,
                 tipo_movimento TEXT,
-
                 valor NUMERIC(10,2) NOT NULL,
-
                 status TEXT NOT NULL DEFAULT 'PROCESSADO',
-
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
             );
-
 
             CREATE TABLE IF NOT EXISTS auditoria_sistema (
-
                 id SERIAL PRIMARY KEY,
                 usuario_email TEXT,
-
                 acao TEXT NOT NULL,
                 detalhes TEXT,
-
                 criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-
             );
-
         `);
 
-
         const colunasGarantir = [
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS categoria TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_diaria NUMERIC(10,2) DEFAULT 0;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_liquido NUMERIC(10,2) DEFAULT 0;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS data_horario TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS forma_pgto TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_texto TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_email TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_whatsapp TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_nome TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'unico';",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_total NUMERIC(10,2) DEFAULT 0;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS documento_comprovante TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS status_checkin TEXT DEFAULT 'pendente';",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_hora TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_hora TEXT;",
-
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkin TEXT;",
-
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkout TEXT;",
-
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_gps TEXT;",
-
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_gps TEXT;",
-
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_inicio TEXT;",
-
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_retorno TEXT;",
-
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS total_horas TEXT;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento BOOLEAN DEFAULT FALSE;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT;",
-
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_nome TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_tipo TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_remetente TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_enviada_em TIMESTAMP;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS motivo_cancelamento TEXT;",
-
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS data_aceite TIMESTAMPTZ;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkin TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkout TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_gps TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_gps TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_inicio TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_retorno TEXT;",
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS total_horas TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS validado_empresa BOOLEAN DEFAULT FALSE;",
-
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS validado_em TIMESTAMP;"
-
         ];
 
-
-        for (const sqlCol of colunasGarantir) {
-
-            await pool
-                .query(sqlCol)
-                .catch(() => {});
-
+        for (const sql of colunasGarantir) {
+            await pool.query(sql).catch(() => {});
         }
 
+        await pool.query(`
+            UPDATE servicos
+            SET data_aceite = CURRENT_TIMESTAMP
+            WHERE prestador_email IS NOT NULL
+            AND data_aceite IS NULL
+        `).catch(() => {});
 
-        console.log(
-            'Tabelas e colunas verificadas/criadas com sucesso no PostgreSQL.'
-        );
-
-    } catch (err) {
-
-        console.error(
-            'Erro ao criar tabelas:',
-            err
-        );
-
-    }
-
-}
-
-
-async function registrarLedger(
-    servicoId,
-    email,
-    tipoMovimento,
-    valor
-) {
-
-    try {
-
-        await pool.query(
-
-            `
-            INSERT INTO ledger_transacoes
-            (
-                servico_id,
-                usuario_email,
-                tipo_movimento,
-                valor
-            )
-            VALUES ($1, $2, $3, $4)
-            `,
-
-            [
-                servicoId,
-                email,
-                tipoMovimento,
-                valor
-            ]
-
-        );
+        console.log('Banco atualizado com sucesso.');
 
     } catch (err) {
-
-        console.error(
-            'Erro ao registrar ledger:',
-            err
-        );
-
+        console.error('Erro ao criar tabelas:', err);
     }
-
 }
 
-
-async function registrarAuditoria(
-    email,
-    acao,
-    detalhes
-) {
-
+async function registrarAuditoria(email, acao, detalhes) {
     try {
-
         await pool.query(
-
             `
             INSERT INTO auditoria_sistema
-            (
-                usuario_email,
-                acao,
-                detalhes
-            )
+            (usuario_email, acao, detalhes)
             VALUES ($1, $2, $3)
             `,
-
             [
                 email || 'sistema',
                 acao,
                 detalhes
             ]
-
         );
-
     } catch (err) {
-
-        console.error(
-            'Erro ao registrar auditoria:',
-            err
-        );
-
+        console.error('Erro auditoria:', err);
     }
-
 }
 
-
-async function adicionarMensagemSistema(
-    servicoId,
-    texto
-) {
-
+async function registrarLedger(servicoId, email, tipo, valor) {
     try {
+        await pool.query(
+            `
+            INSERT INTO ledger_transacoes
+            (servico_id, usuario_email, tipo_movimento, valor)
+            VALUES ($1, $2, $3, $4)
+            `,
+            [
+                servicoId,
+                email,
+                tipo,
+                valor
+            ]
+        );
+    } catch (err) {
+        console.error('Erro ledger:', err);
+    }
+}
 
-        const result =
-            await pool.query(
+async function adicionarMensagemSistema(servicoId, texto) {
+    try {
+        const result = await pool.query(
+            `SELECT mensagens FROM servicos WHERE id = $1`,
+            [servicoId]
+        );
 
-                `
-                SELECT mensagens
-                FROM servicos
-                WHERE id = $1
-                `,
+        if (!result.rows.length) return;
 
-                [servicoId]
-
-            );
-
-
-        if (!result.rows.length) {
-            return;
-        }
-
-
-        const mensagens =
-            result.rows[0].mensagens || [];
-
+        const mensagens = result.rows[0].mensagens || [];
 
         mensagens.push({
-
-            remetente:
-                'SISTEMA',
-
+            remetente: 'SISTEMA',
             texto,
-
-            data:
-                new Date()
-                    .toLocaleTimeString()
-
+            data: new Date().toLocaleTimeString()
         });
 
-
         await pool.query(
-
-            `
-            UPDATE servicos
-            SET mensagens = $1
-            WHERE id = $2
-            `,
-
+            `UPDATE servicos SET mensagens = $1 WHERE id = $2`,
             [
                 JSON.stringify(mensagens),
                 servicoId
             ]
-
         );
 
     } catch (err) {
-
-        console.error(
-            'Erro ao adicionar mensagem:',
-            err
-        );
-
+        console.error('Erro mensagem sistema:', err);
     }
-
 }
 
+/* =====================================================
+   CADASTRO
+===================================================== */
 
-/* =========================================================
-   AUTENTICAÇÃO
-========================================================= */
+app.post('/api/auth/registrar', async (req, res) => {
 
+    const d = req.body;
 
-app.post(
-    '/api/auth/registrar',
-    async (req, res) => {
+    try {
 
-        const d = req.body;
-
-        try {
-
-            const query = `
-
-                INSERT INTO usuarios
-                (
-                    tipo,
-                    nome,
-                    doc,
-                    responsavel,
-                    email,
-                    senha,
-                    whatsapp,
-                    endereco,
-                    rg_cnh,
-                    profissao,
-                    tipo_chave_pix,
-                    pix,
-                    banco,
-                    conta,
-                    experiencia
-                )
-
-                VALUES
-                (
-                    $1,$2,$3,$4,$5,
-                    $6,$7,$8,$9,$10,
-                    $11,$12,$13,$14,$15
-                )
-
-                RETURNING id
-
-            `;
-
-
-            const params = [
-
+        const result = await pool.query(
+            `
+            INSERT INTO usuarios (
+                tipo,
+                nome,
+                doc,
+                responsavel,
+                email,
+                senha,
+                whatsapp,
+                endereco,
+                rg_cnh,
+                profissao,
+                tipo_chave_pix,
+                pix,
+                banco,
+                conta,
+                experiencia
+            )
+            VALUES (
+                $1,$2,$3,$4,$5,
+                $6,$7,$8,$9,$10,
+                $11,$12,$13,$14,$15
+            )
+            RETURNING id
+            `,
+            [
                 d.tipo,
                 d.nome,
                 d.doc,
@@ -504,351 +348,212 @@ app.post(
                 d.banco,
                 d.conta,
                 d.experiencia
+            ]
+        );
 
-            ];
-
-
-            const result =
-                await pool.query(
-                    query,
-                    params
-                );
-
-
-            if (
-                d.tipo ===
-                'prestador'
-            ) {
-
-                await pool.query(
-
-                    `
-                    INSERT INTO prestadores
-                    (email)
-
-                    VALUES ($1)
-
-                    ON CONFLICT (email)
-                    DO NOTHING
-                    `,
-
-                    [d.email]
-
-                );
-
-            }
-
-
-            await registrarAuditoria(
-
-                d.email,
-
-                'CADASTRO_USUARIO',
-
-                `Novo usuário tipo ${d.tipo} cadastrado.`
-
+        if (d.tipo === 'prestador') {
+            await pool.query(
+                `
+                INSERT INTO prestadores (email)
+                VALUES ($1)
+                ON CONFLICT (email)
+                DO NOTHING
+                `,
+                [d.email]
             );
+        }
 
+        res.json({
+            sucesso: true,
+            id: result.rows[0].id
+        });
 
-            res.json({
+    } catch (err) {
 
-                sucesso: true,
-                id: result.rows[0].id
+        console.error('Erro cadastro:', err);
 
-            });
+        res.json({
+            sucesso: false,
+            erro: 'E-mail já cadastrado ou erro nos dados.'
+        });
+    }
+});
 
-        } catch (err) {
+/* =====================================================
+   LOGIN
+===================================================== */
 
-            console.error(
-                'Erro no cadastro:',
-                err
-            );
+app.post('/api/auth/login', async (req, res) => {
 
+    const {
+        email,
+        senha
+    } = req.body;
 
-            res.json({
+    try {
 
+        const result = await pool.query(
+            `
+            SELECT *
+            FROM usuarios
+            WHERE email = $1
+            AND senha = $2
+            `,
+            [email, senha]
+        );
+
+        if (!result.rows.length) {
+            return res.json({
                 sucesso: false,
-
-                erro:
-                    'E-mail já cadastrado ou erro nos dados.'
-
+                erro: 'E-mail ou senha incorretos.'
             });
-
         }
 
+        res.json({
+            sucesso: true,
+            usuario: result.rows[0]
+        });
+
+    } catch (err) {
+
+        console.error('Erro login:', err);
+
+        res.status(500).json({
+            sucesso: false,
+            erro: 'Erro no servidor.'
+        });
     }
-);
+});
 
+/* =====================================================
+   LISTAR SERVIÇOS
+===================================================== */
 
-app.post(
-    '/api/auth/login',
-    async (req, res) => {
+app.get('/api/servicos', async (req, res) => {
 
-        const {
-            email,
-            senha
-        } = req.body;
+    try {
 
+        const result = await pool.query(`
+            SELECT
+                s.*,
+                COALESCE(
+                    NULLIF(s.empresa_nome, ''),
+                    u.nome
+                ) AS empresa_nome_resolvido
+            FROM servicos s
+            LEFT JOIN usuarios u
+                ON LOWER(u.email) =
+                   LOWER(s.empresa_email)
+            ORDER BY s.id DESC
+        `);
 
-        try {
+        const dados = result.rows.map(s => ({
+            ...s,
 
-            const result =
-                await pool.query(
+            empresaEmail:
+                s.empresa_email,
 
-                    `
-                    SELECT *
-                    FROM usuarios
-                    WHERE email = $1
-                    AND senha = $2
-                    `,
+            empresaNome:
+                s.empresa_nome_resolvido ||
+                s.empresa_nome,
 
-                    [
-                        email,
-                        senha
-                    ]
+            forma_pagamento:
+                s.forma_pgto,
 
-                );
+            formaPagamento:
+                s.forma_pgto,
 
+            nota_fiscal_oficial:
+                s.nota_oficial || null,
 
-            if (
-                result.rows.length === 0
-            ) {
+            nota_fiscal_remetente:
+                s.nota_remetente || null,
 
-                return res.json({
+            foto_checkin:
+                s.foto_checkin ||
+                s.foto_ponto ||
+                null,
 
-                    sucesso: false,
+            fotoCheckin:
+                s.foto_checkin ||
+                s.foto_ponto ||
+                null,
 
-                    erro:
-                        'E-mail ou senha incorretos.'
+            foto_checkout:
+                s.foto_checkout ||
+                s.documento_comprovante ||
+                null,
 
-                });
+            fotoCheckout:
+                s.foto_checkout ||
+                s.documento_comprovante ||
+                null,
 
-            }
+            intervaloInicio:
+                s.intervalo_inicio,
 
+            intervaloRetorno:
+                s.intervalo_retorno,
 
-            await registrarAuditoria(
+            totalHoras:
+                s.total_horas,
 
-                email,
+            validadoEmpresa:
+                !!s.validado_empresa
+        }));
 
-                'LOGIN',
+        res.json(dados);
 
-                'Login realizado com sucesso.'
+    } catch (err) {
 
-            );
+        console.error('Erro serviços:', err);
 
+        res.status(500).json({
+            erro: 'Erro ao buscar serviços.'
+        });
+    }
+});
 
-            res.json({
+/* =====================================================
+   PUBLICAR SERVIÇO
+===================================================== */
 
-                sucesso: true,
+app.post('/api/servicos', async (req, res) => {
 
-                usuario:
-                    result.rows[0]
+    const s = req.body;
 
-            });
+    try {
 
-        } catch (err) {
+        const valorUnitario =
+            parseFloat(
+                String(s.valor)
+                    .replace(',', '.')
+            ) || 0;
 
-            console.error(
-                'Erro no login:',
-                err
-            );
+        const recorrencia =
+            s.recorrencia ||
+            'unico';
 
+        let valorTotal =
+            valorUnitario;
 
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro no servidor.'
-
-                });
-
+        if (recorrencia === 'semanal') {
+            valorTotal =
+                valorUnitario * 4;
         }
 
-    }
-);
-
-
-/* =========================================================
-   SERVIÇOS
-========================================================= */
-
-
-app.get(
-    '/api/servicos',
-    async (req, res) => {
-
-        try {
-
-            const result =
-                await pool.query(
-
-                    `
-                    SELECT *
-                    FROM servicos
-                    ORDER BY id DESC
-                    `
-
-                );
-
-
-            const servicos =
-                result.rows.map(
-                    s => ({
-
-                        ...s,
-
-                        empresaEmail:
-                            s.empresa_email,
-
-                        empresaNome:
-                            s.empresa_nome,
-
-                        forma_pagamento:
-                            s.forma_pgto,
-
-                        formaPagamento:
-                            s.forma_pgto,
-
-                        foto_checkin:
-                            s.foto_checkin ||
-                            s.foto_ponto ||
-                            null,
-
-                        fotoCheckin:
-                            s.foto_checkin ||
-                            s.foto_ponto ||
-                            null,
-
-                        foto_checkout:
-                            s.foto_checkout ||
-                            s.documento_comprovante ||
-                            null,
-
-                        fotoCheckout:
-                            s.foto_checkout ||
-                            s.documento_comprovante ||
-                            null,
-
-                        intervaloInicio:
-                            s.intervalo_inicio ||
-                            null,
-
-                        intervaloRetorno:
-                            s.intervalo_retorno ||
-                            null,
-
-                        totalHoras:
-                            s.total_horas ||
-                            null,
-
-                        validadoEmpresa:
-                            !!s.validado_empresa
-
-                    })
-                );
-
-
-            res.json(servicos);
-
-        } catch (err) {
-
-            console.error(
-                'Erro ao buscar serviços:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    erro:
-                        'Erro ao buscar serviços.'
-
-                });
-
+        if (recorrencia === 'quinzenal') {
+            valorTotal =
+                valorUnitario * 2;
         }
 
-    }
-);
+        const valorLiquido =
+            valorTotal * 0.90;
 
-
-app.post(
-    '/api/servicos',
-    async (req, res) => {
-
-        const s = req.body;
-
-
-        try {
-
-            const valorUnitario =
-                parseFloat(
-                    String(
-                        s.valor
-                    )
-                    .replace(
-                        ',',
-                        '.'
-                    )
-                ) || 0;
-
-
-            const tipoRecorrencia =
-                s.recorrencia ||
-                'unico';
-
-
-            let valorTotalGarantia =
-                valorUnitario;
-
-
-            if (
-                tipoRecorrencia ===
-                'semanal'
-            ) {
-
-                valorTotalGarantia =
-                    valorUnitario * 4;
-
-            }
-
-            else if (
-                tipoRecorrencia ===
-                'quinzenal'
-            ) {
-
-                valorTotalGarantia =
-                    valorUnitario * 2;
-
-            }
-
-            else if (
-                tipoRecorrencia ===
-                'mensal'
-            ) {
-
-                valorTotalGarantia =
-                    valorUnitario;
-
-            }
-
-
-            const taxaPlataforma =
-                valorTotalGarantia *
-                0.10;
-
-
-            const valorLiquido =
-                valorTotalGarantia -
-                taxaPlataforma;
-
-
-            const query = `
-
-                INSERT INTO servicos
-                (
+        const result =
+            await pool.query(
+                `
+                INSERT INTO servicos (
                     titulo,
                     categoria,
                     local,
@@ -867,426 +572,438 @@ app.post(
                     empresa_nome,
                     status
                 )
-
-                VALUES
-                (
+                VALUES (
                     $1,$2,$3,$4,$5,
                     $6,$7,$8,$9,$10,
                     $11,$12,$13,$14,$15,
-                    $16,
-                    'ativo'
+                    $16,'ativo'
                 )
-
                 RETURNING id
-
-            `;
-
-
-            const params = [
-
-                s.titulo,
-
-                s.categoria ||
-                    'Geral',
-
-                s.local,
-
-                s.endereco,
-
-                String(
-                    s.valor
-                ),
-
-                valorUnitario,
-
-                valorLiquido,
-
-                s.dataHorario ||
+                `,
+                [
+                    s.titulo,
+                    s.categoria || 'Geral',
+                    s.local,
+                    s.endereco,
+                    String(s.valor),
+                    valorUnitario,
+                    valorLiquido,
                     s.horario ||
-                    'A combinar',
-
-                s.formaPgto ||
-                    s.forma_pagamento ||
+                        s.dataHorario ||
+                        'A combinar',
                     s.pagamento ||
-                    'Pix',
-
-                s.descricao,
-
-                s.contratoTexto ||
+                        s.formaPgto ||
+                        'Pix',
+                    s.descricao,
                     s.contrato ||
-                    '',
-
-                s.empresaEmail ||
+                        s.contratoTexto ||
+                        '',
                     s.empresa_email ||
-                    '',
-
-                s.empresaWhatsapp ||
+                        s.empresaEmail ||
+                        '',
                     s.empresa_whatsapp ||
-                    '',
-
-                tipoRecorrencia,
-
-                valorTotalGarantia,
-
-                s.empresaNome ||
+                        s.empresaWhatsapp ||
+                        '',
+                    recorrencia,
+                    valorTotal,
                     s.empresa_nome ||
-                    ''
-
-            ];
-
-
-            const result =
-                await pool.query(
-                    query,
-                    params
-                );
-
-
-            const servicoId =
-                result.rows[0].id;
-
-
-            await registrarLedger(
-
-                servicoId,
-
-                s.empresaEmail ||
-                s.empresa_email,
-
-                'RETENCAO_GARANTIA',
-
-                valorTotalGarantia
-
+                        s.empresaNome ||
+                        ''
+                ]
             );
 
+        io.emit('atualizar_servicos');
 
-            await registrarAuditoria(
+        res.json({
+            sucesso: true,
+            id: result.rows[0].id
+        });
 
-                s.empresaEmail ||
-                s.empresa_email,
+    } catch (err) {
 
-                'PUBLICAR_SERVICO',
+        console.error('Erro publicar:', err);
 
-                `Serviço #${servicoId} publicado.`
+        res.status(500).json({
+            sucesso: false,
+            erro:
+                'Erro ao publicar serviço: ' +
+                err.message
+        });
+    }
+});
 
+/* =====================================================
+   ENTRAR NA FILA
+===================================================== */
+
+app.post('/api/servicos/:id/fila', async (req, res) => {
+
+    const id =
+        req.params.id;
+
+    const {
+        prestadorEmail,
+        prestadorNome,
+        prestadorWhatsapp,
+        prestadorPix,
+        rgCnh
+    } = req.body;
+
+    try {
+
+        const result =
+            await pool.query(
+                `
+                SELECT *
+                FROM servicos
+                WHERE id = $1
+                `,
+                [id]
             );
 
+        if (!result.rows.length) {
 
-            io.emit(
-                'atualizar_servicos'
-            );
-
-
-            res.json({
-
-                sucesso: true,
-                id: servicoId
-
+            return res.status(404).json({
+                sucesso: false,
+                erro: 'Serviço não encontrado.'
             });
-
-        } catch (err) {
-
-            console.error(
-                'Erro ao publicar serviço:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao publicar serviço: ' +
-                        err.message
-
-                });
-
         }
 
-    }
-);
-
-
-/* =========================================================
-   ACEITAR VAGA
-========================================================= */
-
-
-app.post(
-    '/api/servicos/:id/aceitar',
-    async (req, res) => {
-
-        const id =
-            req.params.id;
-
-
-        const {
-
-            prestadorEmail,
-            prestadorNome,
-            prestadorWhatsapp,
-            rgCnh
-
-        } = req.body;
-
-
-        const prestadorPix =
-
-            req.body.prestadorPix ||
-
-            req.body.prestador_pix ||
-
-            '';
-
-
-        try {
-
-            const resultServico =
-                await pool.query(
-
-                    `
-                    SELECT *
-                    FROM servicos
-                    WHERE id = $1
-                    `,
-
-                    [id]
-
-                );
-
-
-            if (
-                resultServico.rows.length ===
-                0
-            ) {
-
-                return res.json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Serviço não encontrado.'
-
-                });
-
-            }
-
-
-            const servico =
-                resultServico.rows[0];
-
-
-            let reservas =
-                servico.reservas ||
-                [];
-
-
-            const prestadorRes =
-                await pool.query(
-
-                    `
-                    SELECT id
-                    FROM usuarios
-                    WHERE email = $1
-                    `,
-
-                    [prestadorEmail]
-
-                );
-
-
-            const prestadorId =
-                prestadorRes
-                    .rows[0]
-                    ?.id ||
-                null;
-
-
-            if (
-                !servico.prestador_email
-            ) {
-
-                await pool.query(
-
-                    `
-                    UPDATE servicos
-
-                    SET
-                        status = 'em_andamento',
-                        prestador_email = $1,
-                        prestador_id = $2,
-                        prestador_nome = $3,
-                        prestador_pix = $4,
-                        prestador_whatsapp = $5
-
-                    WHERE id = $6
-                    `,
-
-                    [
-                        prestadorEmail,
-                        prestadorId,
-                        prestadorNome,
-                        prestadorPix,
-                        prestadorWhatsapp,
-                        id
-                    ]
-
-                );
-
-
-                await registrarAuditoria(
-
-                    prestadorEmail,
-
-                    'ACEITAR_SERVICO',
-
-                    `Prestador assumiu vaga #${id}`
-
-                );
-
-
-                io.emit(
-                    'atualizar_servicos'
-                );
-
-
-                return res.json({
-
-                    sucesso: true,
-
-                    mensagem:
-                        'Você assumiu a Vaga Titular!'
-
-                });
-
-            }
-
-
-            if (
-
-                servico.prestador_email ===
-                prestadorEmail
-
-                ||
-
-                reservas.some(
-                    r =>
-                        r.email ===
-                        prestadorEmail
-                )
-
-            ) {
-
-                return res.json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Você já está inscrito nesta vaga.'
-
-                });
-
-            }
-
-
-            if (
-                reservas.length >= 2
-            ) {
-
-                return res.json({
-
-                    sucesso: false,
-
-                    erro:
-                        'A fila de reservas já está lotada.'
-
-                });
-
-            }
-
-
-            reservas.push({
-
-                email:
-                    prestadorEmail,
-
-                nome:
-                    prestadorNome,
-
-                whatsapp:
-                    prestadorWhatsapp,
-
-                rgCnh,
-
-                pix:
-                    prestadorPix
-
+        const servico =
+            result.rows[0];
+
+        let fila =
+            Array.isArray(servico.reservas)
+                ? servico.reservas
+                : [];
+
+        const statusServico =
+            String(servico.status || '')
+                .toLowerCase();
+
+        const statusEncerrados = [
+            'concluido',
+            'aguardando_validacao',
+            'validado',
+            'aprovado',
+            'pago',
+            'cancelado'
+        ];
+
+        const vagaEncerrada =
+            Boolean(servico.checkout_hora) ||
+            Boolean(servico.validado_empresa) ||
+            Boolean(servico.comprovante_pagamento) ||
+            statusEncerrados.includes(
+                statusServico
+            );
+
+        if (vagaEncerrada) {
+
+            return res.status(409).json({
+                sucesso: false,
+                erro:
+                    'Esta vaga já foi encerrada.'
             });
+        }
 
+        if (
+            servico.prestador_email &&
+            servico.prestador_email !==
+            prestadorEmail
+        ) {
 
+            return res.status(409).json({
+                sucesso: false,
+                erro:
+                    'Esta vaga já foi preenchida.'
+            });
+        }
+
+        if (
+            servico.prestador_email ===
+            prestadorEmail
+        ) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'Você já é o titular desta vaga.'
+            });
+        }
+
+        if (
+            fila.some(
+                p =>
+                    p.email ===
+                    prestadorEmail
+            )
+        ) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'Você já está na fila.'
+            });
+        }
+
+        if (fila.length >= 2) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'A fila desta vaga está completa.'
+            });
+        }
+
+        fila.push({
+            email:
+                prestadorEmail,
+
+            nome:
+                prestadorNome,
+
+            whatsapp:
+                prestadorWhatsapp || '',
+
+            pix:
+                prestadorPix || '',
+
+            rgCnh:
+                rgCnh || '',
+
+            entrouEm:
+                new Date().toISOString()
+        });
+
+        await pool.query(
+            `
+            UPDATE servicos
+            SET reservas = $1
+            WHERE id = $2
+            `,
+            [
+                JSON.stringify(fila),
+                id
+            ]
+        );
+
+        io.emit('atualizar_servicos');
+
+        res.json({
+            sucesso: true,
+
+            mensagem:
+                `Você entrou na fila na posição ${fila.length}.`,
+
+            posicao:
+                fila.length
+        });
+
+    } catch (err) {
+
+        console.error(
+            'Erro ao entrar na fila:',
+            err
+        );
+
+        res.status(500).json({
+            sucesso: false,
+            erro: 'Erro ao entrar na fila.'
+        });
+    }
+});
+
+/* =====================================================
+   ACEITAR VAGA
+===================================================== */
+
+app.post('/api/servicos/:id/aceitar', async (req, res) => {
+
+    const id =
+        req.params.id;
+
+    const {
+        prestadorEmail,
+        prestadorNome,
+        prestadorPix,
+        prestadorWhatsapp
+    } = req.body;
+
+    try {
+
+        const result =
             await pool.query(
+                `
+                SELECT *
+                FROM servicos
+                WHERE id = $1
+                `,
+                [id]
+            );
 
+        if (!result.rows.length) {
+
+            return res.status(404).json({
+                sucesso: false,
+                erro: 'Serviço não encontrado.'
+            });
+        }
+
+        const servico =
+            result.rows[0];
+
+        const fila =
+            Array.isArray(servico.reservas)
+                ? servico.reservas
+                : [];
+
+        const indice =
+            fila.findIndex(
+                p =>
+                    p.email ===
+                    prestadorEmail
+            );
+
+        if (indice === -1) {
+
+            return res.status(403).json({
+                sucesso: false,
+                erro:
+                    'Você não está na fila desta vaga.'
+            });
+        }
+
+        if (
+            servico.prestador_email
+        ) {
+
+            return res.status(409).json({
+                sucesso: false,
+                erro:
+                    'Esta vaga já possui titular.'
+            });
+        }
+
+        if (indice !== 0) {
+
+            return res.status(403).json({
+                sucesso: false,
+                erro:
+                    `Você está na posição ${indice + 1}. Apenas o primeiro da fila pode assumir.`
+            });
+        }
+
+        const dadosFila =
+            fila[indice];
+
+        const prestadorResult =
+            await pool.query(
+                `
+                SELECT id
+                FROM usuarios
+                WHERE email = $1
+                `,
+                [prestadorEmail]
+            );
+
+        const prestadorId =
+            prestadorResult.rows[0]?.id ||
+            null;
+
+        const novaFila =
+            fila.filter(
+                p =>
+                    p.email !==
+                    prestadorEmail
+            );
+
+        const aceite =
+            await pool.query(
                 `
                 UPDATE servicos
-                SET reservas = $1
-                WHERE id = $2
-                `,
+                SET
+                    status =
+                        'em_andamento',
 
+                    prestador_email = $1,
+
+                    prestador_id = $2,
+
+                    prestador_nome = $3,
+
+                    prestador_pix = $4,
+
+                    prestador_whatsapp = $5,
+
+                    reservas = $6,
+
+                    data_aceite =
+                        CURRENT_TIMESTAMP
+
+                WHERE id = $7
+
+                RETURNING data_aceite
+                `,
                 [
+                    prestadorEmail,
+
+                    prestadorId,
+
+                    prestadorNome ||
+                    dadosFila.nome,
+
+                    prestadorPix ||
+                    dadosFila.pix ||
+                    '',
+
+                    prestadorWhatsapp ||
+                    dadosFila.whatsapp ||
+                    '',
+
                     JSON.stringify(
-                        reservas
+                        novaFila
                     ),
 
                     id
                 ]
-
             );
 
+        await adicionarMensagemSistema(
+            id,
+            `${prestadorNome} assumiu a vaga titular.`
+        );
 
-            io.emit(
-                'atualizar_servicos'
-            );
+        io.emit('atualizar_servicos');
 
+        res.json({
+            sucesso: true,
 
-            res.json({
+            mensagem:
+                'Vaga assumida com sucesso!',
 
-                sucesso: true,
+            data_aceite:
+                aceite.rows[0]
+                    ?.data_aceite
+        });
 
-                mensagem:
-                    'Você entrou na fila de reserva!'
+    } catch (err) {
 
-            });
+        console.error(
+            'Erro ao aceitar:',
+            err
+        );
 
-        } catch (err) {
-
-            console.error(
-                'Erro ao aceitar vaga:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao aceitar vaga.'
-
-                });
-
-        }
-
+        res.status(500).json({
+            sucesso: false,
+            erro: 'Erro ao aceitar serviço.'
+        });
     }
-);
+});
 
-
-/* =========================================================
-   CONFIRMAÇÃO DE PRESENÇA
-========================================================= */
-
+/* =====================================================
+   CONFIRMAR PRESENÇA
+===================================================== */
 
 app.post(
     '/api/servicos/:id/confirmar-presenca',
@@ -1295,379 +1012,170 @@ app.post(
         const id =
             req.params.id;
 
-
-        const {
-
-            selfie,
-            documentoComprovante
-
-        } = req.body;
-
+        const selfie =
+            req.body.selfie;
 
         try {
 
             await pool.query(
-
                 `
                 UPDATE servicos
-
                 SET
-                    selfie_confirmacao =
-                        COALESCE(
-                            $1,
-                            selfie_confirmacao
-                        ),
-
-                    documento_comprovante =
-                        COALESCE(
-                            $2,
-                            documento_comprovante
-                        ),
-
-                    presenca_confirmada =
-                        TRUE
-
-                WHERE id = $3
+                    selfie_confirmacao = $1,
+                    presenca_confirmada = TRUE
+                WHERE id = $2
                 `,
-
                 [
                     selfie,
-                    documentoComprovante,
                     id
                 ]
-
             );
-
-
-            await registrarAuditoria(
-
-                'sistema',
-
-                'CONFIRMAR_PRESENCA',
-
-                `Presença confirmada no serviço #${id}`
-
-            );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
-                sucesso: true,
-
-                mensagem:
-                    'Presença confirmada com sucesso!'
-
-            });
-
-        } catch (err) {
-
-            console.error(
-                'Erro ao confirmar presença:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao confirmar presença.'
-
-                });
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-   CHECK-IN
-========================================================= */
-
-
-app.post(
-    '/api/servicos/:id/checkin',
-    async (req, res) => {
-
-        const id =
-            req.params.id;
-
-
-        const foto =
-
-            req.body.foto ||
-
-            req.body.foto_checkin ||
-
-            req.body.fotoCheckin;
-
-
-        const hora =
-
-            req.body.hora ||
-
-            req.body.checkin_hora ||
-
-            new Date()
-                .toLocaleTimeString();
-
-
-        const gps =
-
-            req.body.gps ||
-
-            req.body.checkin_gps ||
-
-            req.body.gps_checkin ||
-
-            null;
-
-
-        try {
-
-            if (!foto) {
-
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'A foto do check-in é obrigatória.'
-
-                    });
-
-            }
-
-
-            const result =
-                await pool.query(
-
-                    `
-                    UPDATE servicos
-
-                    SET
-                        foto_ponto = $1,
-                        foto_checkin = $1,
-
-                        checkin_hora = $2,
-                        checkin_gps = $3,
-
-                        status_checkin =
-                            'realizado',
-
-                        status =
-                            'em_andamento'
-
-                    WHERE id = $4
-
-                    RETURNING id
-                    `,
-
-                    [
-                        foto,
-                        hora,
-                        gps,
-                        id
-                    ]
-
-                );
-
-
-            if (
-                !result.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Serviço não encontrado.'
-
-                    });
-
-            }
-
-
-            await adicionarMensagemSistema(
-
-                id,
-
-                `Check-in realizado às ${hora}. Foto e localização registradas.`
-
-            );
-
-
-            await registrarAuditoria(
-
-                req.body
-                    .prestadorEmail ||
-                'sistema',
-
-                'CHECKIN',
-
-                `Serviço #${id} - GPS: ${gps || 'não informado'}`
-
-            );
-
-
-            io.emit(
-                'atualizar_servicos'
-            );
-
-
-            res.json({
-
-                sucesso: true,
-
-                mensagem:
-                    'Check-in realizado com sucesso!',
-
-                checkin_hora:
-                    hora,
-
-                checkin_gps:
-                    gps
-
-            });
-
-        } catch (err) {
-
-            console.error(
-                'Erro no check-in:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao registrar check-in: ' +
-                        err.message
-
-                });
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-   COMPATIBILIDADE COM /PONTO
-========================================================= */
-
-
-app.post(
-    '/api/servicos/:id/ponto',
-    async (req, res) => {
-
-        const id =
-            req.params.id;
-
-
-        const {
-
-            foto,
-            hora,
-            gps
-
-        } = req.body;
-
-
-        try {
-
-            await pool.query(
-
-                `
-                UPDATE servicos
-
-                SET
-                    foto_ponto = $1,
-                    foto_checkin = $1,
-
-                    checkin_hora = $2,
-                    checkin_gps = $3,
-
-                    status_checkin =
-                        'realizado',
-
-                    status =
-                        'em_andamento'
-
-                WHERE id = $4
-                `,
-
-                [
-                    foto,
-
-                    hora ||
-                    new Date()
-                        .toLocaleTimeString(),
-
-                    gps ||
-                    null,
-
-                    id
-                ]
-
-            );
-
-
-            io.emit(
-                'atualizar_servicos'
-            );
-
-
-            res.json({
-
                 sucesso: true
-
             });
 
         } catch (err) {
 
-            console.error(
-                'Erro no ponto:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao registrar ponto.'
-
-                });
-
+            res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao confirmar presença.'
+            });
         }
-
     }
 );
 
+/* =====================================================
+   CHECK-IN
+===================================================== */
 
-/* =========================================================
+app.post('/api/servicos/:id/checkin', async (req, res) => {
+
+    const id =
+        req.params.id;
+
+    const foto =
+        req.body.foto ||
+        req.body.foto_checkin ||
+        req.body.fotoCheckin;
+
+    const hora =
+        req.body.hora ||
+        new Date()
+            .toLocaleTimeString();
+
+    const gps =
+        req.body.gps ||
+        req.body.checkin_gps ||
+        null;
+
+    try {
+
+        const atual =
+            await pool.query(
+                `
+                SELECT
+                    checkin_hora,
+                    checkout_hora
+                FROM servicos
+                WHERE id = $1
+                `,
+                [id]
+            );
+
+        if (!atual.rows.length) {
+
+            return res.status(404).json({
+                sucesso: false,
+                erro:
+                    'Serviço não encontrado.'
+            });
+        }
+
+        if (
+            atual.rows[0].checkin_hora
+        ) {
+
+            return res.status(409).json({
+                sucesso: false,
+
+                erro:
+                    `Check-in já realizado às ${atual.rows[0].checkin_hora}.`
+            });
+        }
+
+        if (!foto) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'A foto do check-in é obrigatória.'
+            });
+        }
+
+        await pool.query(
+            `
+            UPDATE servicos
+            SET
+                foto_ponto = $1,
+                foto_checkin = $1,
+                checkin_hora = $2,
+                checkin_gps = $3,
+                status_checkin =
+                    'realizado',
+                status =
+                    'em_andamento'
+            WHERE id = $4
+            `,
+            [
+                foto,
+                hora,
+                gps,
+                id
+            ]
+        );
+
+        io.emit(
+            'atualizar_servicos'
+        );
+
+        res.json({
+            sucesso: true,
+
+            mensagem:
+                'Check-in realizado com sucesso!',
+
+            checkin_hora:
+                hora,
+
+            checkin_gps:
+                gps
+        });
+
+    } catch (err) {
+
+        console.error(
+            'Erro check-in:',
+            err
+        );
+
+        res.status(500).json({
+            sucesso: false,
+
+            erro:
+                'Erro ao registrar check-in.'
+        });
+    }
+});
+
+/* =====================================================
    INTERVALO
-========================================================= */
-
+===================================================== */
 
 app.post(
     '/api/servicos/:id/intervalo/iniciar',
@@ -1676,153 +1184,78 @@ app.post(
         const id =
             req.params.id;
 
-
         const hora =
             req.body.hora ||
             new Date()
                 .toLocaleTimeString();
 
-
         try {
 
             const result =
                 await pool.query(
-
                     `
                     SELECT *
                     FROM servicos
                     WHERE id = $1
                     `,
-
                     [id]
-
                 );
 
+            if (!result.rows.length) {
 
-            if (
-                !result.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Serviço não encontrado.'
-
-                    });
-
+                return res.status(404).json({
+                    sucesso: false,
+                    erro:
+                        'Serviço não encontrado.'
+                });
             }
 
-
-            const servico =
-                result.rows[0];
-
-
             if (
-                !servico.checkin_hora
+                !result.rows[0]
+                    .checkin_hora
             ) {
 
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Faça o check-in primeiro.'
-
-                    });
-
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Faça o check-in primeiro.'
+                });
             }
-
-
-            if (
-                servico.checkout_hora
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'O serviço já foi finalizado.'
-
-                    });
-
-            }
-
 
             await pool.query(
-
                 `
                 UPDATE servicos
-
                 SET
                     intervalo_inicio = $1,
                     intervalo_retorno = NULL
-
                 WHERE id = $2
                 `,
-
                 [
                     hora,
                     id
                 ]
-
             );
-
-
-            await adicionarMensagemSistema(
-
-                id,
-
-                `Intervalo iniciado às ${hora}.`
-
-            );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
                 sucesso: true,
-
                 intervalo_inicio:
                     hora
-
             });
 
         } catch (err) {
 
-            console.error(
-                'Erro ao iniciar intervalo:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao iniciar intervalo.'
-
-                });
-
+            res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao iniciar intervalo.'
+            });
         }
-
     }
 );
-
 
 app.post(
     '/api/servicos/:id/intervalo/retornar',
@@ -1831,139 +1264,81 @@ app.post(
         const id =
             req.params.id;
 
-
         const hora =
             req.body.hora ||
             new Date()
                 .toLocaleTimeString();
 
-
         try {
 
             const result =
                 await pool.query(
-
                     `
                     SELECT *
                     FROM servicos
                     WHERE id = $1
                     `,
-
                     [id]
-
                 );
 
+            if (!result.rows.length) {
 
-            if (
-                !result.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Serviço não encontrado.'
-
-                    });
-
+                return res.status(404).json({
+                    sucesso: false,
+                    erro:
+                        'Serviço não encontrado.'
+                });
             }
 
-
-            const servico =
-                result.rows[0];
-
-
             if (
-                !servico.intervalo_inicio
+                !result.rows[0]
+                    .intervalo_inicio
             ) {
 
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Nenhum intervalo foi iniciado.'
-
-                    });
-
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Nenhum intervalo iniciado.'
+                });
             }
-
 
             await pool.query(
-
                 `
                 UPDATE servicos
-
                 SET
                     intervalo_retorno = $1
-
                 WHERE id = $2
                 `,
-
                 [
                     hora,
                     id
                 ]
-
             );
-
-
-            await adicionarMensagemSistema(
-
-                id,
-
-                `Retorno do intervalo às ${hora}.`
-
-            );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
                 sucesso: true,
-
                 intervalo_retorno:
                     hora
-
             });
 
         } catch (err) {
 
-            console.error(
-                'Erro ao retornar do intervalo:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao retornar do intervalo.'
-
-                });
-
+            res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao retornar.'
+            });
         }
-
     }
 );
 
-
-/* =========================================================
+/* =====================================================
    CHECK-OUT
-========================================================= */
-
+===================================================== */
 
 app.post(
     '/api/servicos/:id/checkout',
@@ -1973,138 +1348,100 @@ app.post(
         const id =
             req.params.id;
 
-
         try {
 
             const arquivo =
                 req.file;
 
-
             const foto =
-
-                req.body.fotoCheckout ||
-
-                req.body.foto_checkout ||
-
                 req.body.foto ||
-
+                req.body.foto_checkout ||
+                req.body.fotoCheckout ||
                 (
                     arquivo
-                    ?
-
-                    `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
-
-                    :
-
-                    null
+                        ? `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
+                        : null
                 );
 
-
             const hora =
-
                 req.body.hora ||
-
-                req.body.checkout_hora ||
-
                 new Date()
                     .toLocaleTimeString();
 
-
             const gps =
-
                 req.body.gps ||
-
                 req.body.checkout_gps ||
-
-                req.body.gps_checkout ||
-
                 null;
 
-
-            const total =
-
+            const totalHoras =
                 req.body.total_horas ||
-
-                req.body.totalHoras ||
-
                 '';
 
-
             const pix =
-
                 req.body.prestador_pix ||
-
                 req.body.prestadorPix ||
-
                 null;
 
-
-            const formaPagamento =
-
+            const forma =
                 req.body.forma_pagamento ||
-
                 req.body.formaPagamento ||
-
                 null;
 
-
-            if (!foto) {
-
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'A foto do check-out é obrigatória.'
-
-                    });
-
-            }
-
-
-            const result =
+            const atual =
                 await pool.query(
-
                     `
                     SELECT *
                     FROM servicos
                     WHERE id = $1
                     `,
-
                     [id]
-
                 );
 
+            if (!atual.rows.length) {
 
-            if (
-                !result.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Serviço não encontrado.'
-
-                    });
-
+                return res.status(404).json({
+                    sucesso: false,
+                    erro:
+                        'Serviço não encontrado.'
+                });
             }
 
+            if (
+                !atual.rows[0]
+                    .checkin_hora
+            ) {
 
-            const servico =
-                result.rows[0];
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Faça o check-in primeiro.'
+                });
+            }
 
+            if (
+                atual.rows[0]
+                    .checkout_hora
+            ) {
+
+                return res.status(409).json({
+                    sucesso: false,
+                    erro:
+                        `Check-out já realizado às ${atual.rows[0].checkout_hora}.`
+                });
+            }
+
+            if (!foto) {
+
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'A foto do check-out é obrigatória.'
+                });
+            }
 
             await pool.query(
-
                 `
                 UPDATE servicos
-
                 SET
                     status =
                         'aguardando_validacao',
@@ -2142,48 +1479,22 @@ app.post(
 
                 WHERE id = $7
                 `,
-
                 [
                     hora,
                     foto,
                     gps,
-                    total,
+                    totalHoras,
                     pix,
-                    formaPagamento,
+                    forma,
                     id
                 ]
-
             );
-
-
-            await adicionarMensagemSistema(
-
-                id,
-
-                `Serviço finalizado às ${hora}. Foto, GPS e dados para pagamento enviados à empresa.`
-
-            );
-
-
-            await registrarAuditoria(
-
-                servico.prestador_email ||
-                'sistema',
-
-                'CHECKOUT',
-
-                `Serviço #${id} finalizado.`
-
-            );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
                 sucesso: true,
 
                 mensagem:
@@ -2196,50 +1507,119 @@ app.post(
                     gps,
 
                 total_horas:
-                    total,
-
-                prestador_pix:
-                    pix ||
-                    servico.prestador_pix,
-
-                forma_pagamento:
-                    formaPagamento ||
-                    servico.forma_pgto,
-
-                valor:
-                    servico.valor
-
+                    totalHoras
             });
 
         } catch (err) {
 
             console.error(
-                'Erro no checkout:',
+                'Erro checkout:',
                 err
             );
 
+            res.status(500).json({
+                sucesso: false,
 
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao realizar check-out: ' +
-                        err.message
-
-                });
-
+                erro:
+                    'Erro ao fazer check-out.'
+            });
         }
-
     }
 );
 
+/* =====================================================
+   NOTA FISCAL
+===================================================== */
 
-/* =========================================================
-   VALIDAÇÃO DA EMPRESA
-========================================================= */
+app.post(
+    '/api/servicos/:id/nota-oficial',
+    upload.single('notaFiscal'),
+    async (req, res) => {
 
+        const id =
+            req.params.id;
+
+        try {
+
+            const arquivo =
+                req.file;
+
+            const nota =
+                arquivo
+                    ? `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
+                    : (
+                        req.body.notaFiscal ||
+                        req.body.nota_fiscal_oficial ||
+                        null
+                    );
+
+            if (!nota) {
+
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Nenhum arquivo de Nota Fiscal recebido.'
+                });
+            }
+
+            await pool.query(
+                `
+                UPDATE servicos
+                SET
+                    nota_oficial = $1,
+                    nota_nome = $2,
+                    nota_tipo = $3,
+                    nota_remetente = $4,
+                    nota_enviada_em =
+                        CURRENT_TIMESTAMP
+                WHERE id = $5
+                `,
+                [
+                    nota,
+
+                    arquivo?.originalname ||
+                    'nota-fiscal',
+
+                    arquivo?.mimetype ||
+                    'arquivo',
+
+                    req.body
+                        .notaFiscalRemetente ||
+                    'Usuário',
+
+                    id
+                ]
+            );
+
+            io.emit(
+                'atualizar_servicos'
+            );
+
+            res.json({
+                sucesso: true,
+                mensagem:
+                    'Nota Fiscal enviada com sucesso!'
+            });
+
+        } catch (err) {
+
+            console.error(
+                'Erro NF:',
+                err
+            );
+
+            res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao enviar Nota Fiscal.'
+            });
+        }
+    }
+);
+
+/* =====================================================
+   VALIDAR SERVIÇO
+===================================================== */
 
 app.post(
     '/api/servicos/:id/validar',
@@ -2248,68 +1628,42 @@ app.post(
         const id =
             req.params.id;
 
-
         try {
 
             const result =
                 await pool.query(
-
                     `
                     SELECT *
                     FROM servicos
                     WHERE id = $1
                     `,
-
                     [id]
-
                 );
 
+            if (!result.rows.length) {
 
-            if (
-                !result.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Serviço não encontrado.'
-
-                    });
-
+                return res.status(404).json({
+                    sucesso: false,
+                    erro:
+                        'Serviço não encontrado.'
+                });
             }
 
-
-            const servico =
-                result.rows[0];
-
-
             if (
-                !servico.checkout_hora
+                !result.rows[0]
+                    .checkout_hora
             ) {
 
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'O prestador ainda não realizou o check-out.'
-
-                    });
-
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'O prestador ainda não fez o check-out.'
+                });
             }
-
 
             await pool.query(
-
                 `
                 UPDATE servicos
-
                 SET
                     validado_empresa =
                         TRUE,
@@ -2322,76 +1676,34 @@ app.post(
 
                 WHERE id = $1
                 `,
-
                 [id]
-
             );
-
-
-            await adicionarMensagemSistema(
-
-                id,
-
-                'A empresa validou o serviço. Pagamento liberado para processamento.'
-
-            );
-
-
-            await registrarAuditoria(
-
-                req.body.usuarioEmail ||
-                servico.empresa_email ||
-                'empresa',
-
-                'VALIDAR_SERVICO',
-
-                `Serviço #${id} validado.`
-
-            );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
                 sucesso: true,
 
                 mensagem:
-                    'Serviço validado pela empresa. Pronto para pagamento.'
-
+                    'Serviço validado pela empresa.'
             });
 
         } catch (err) {
 
-            console.error(
-                'Erro ao validar serviço:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao validar serviço.'
-
-                });
-
+            res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao validar serviço.'
+            });
         }
-
     }
 );
 
-
-/* =========================================================
+/* =====================================================
    PAGAMENTO
-========================================================= */
-
+===================================================== */
 
 app.post(
     '/api/servicos/:id/aprovar',
@@ -2400,299 +1712,101 @@ app.post(
         const id =
             req.params.id;
 
-
         try {
 
             const result =
                 await pool.query(
-
                     `
                     SELECT *
                     FROM servicos
                     WHERE id = $1
                     `,
-
                     [id]
-
                 );
 
+            if (!result.rows.length) {
 
-            if (
-                !result.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Serviço não encontrado.'
-
-                    });
-
+                return res.status(404).json({
+                    sucesso: false,
+                    erro:
+                        'Serviço não encontrado.'
+                });
             }
-
 
             const servico =
                 result.rows[0];
-
 
             if (
                 !servico.validado_empresa
             ) {
 
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'A empresa precisa validar o serviço antes do pagamento.'
-
-                    });
-
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'A empresa precisa validar o serviço primeiro.'
+                });
             }
-
-
-            if (
-                servico.comprovante_pagamento
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-
-                        sucesso: false,
-
-                        erro:
-                            'Este serviço já consta como pago.'
-
-                    });
-
-            }
-
 
             await pool.query(
-
                 `
                 UPDATE servicos
-
                 SET
-                    status = 'pago',
+                    status =
+                        'pago',
 
                     comprovante_pagamento =
                         TRUE
 
                 WHERE id = $1
                 `,
-
                 [id]
-
             );
 
-
             await registrarLedger(
-
                 id,
-
                 servico.prestador_email,
-
                 'REPASSE_PRESTADOR',
-
                 servico.valor_liquido ||
                 servico.valor_diaria ||
                 0
-
             );
-
-
-            await adicionarMensagemSistema(
-
-                id,
-
-                `Pagamento aprovado. Forma: ${servico.forma_pgto || 'Pix'}. PIX: ${servico.prestador_pix || 'não informado'}.`
-
-            );
-
-
-            await registrarAuditoria(
-
-                servico.empresa_email,
-
-                'APROVAR_PAGAMENTO',
-
-                `Pagamento do serviço #${id} aprovado.`
-
-            );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
                 sucesso: true,
 
                 mensagem:
-                    'Pagamento aprovado com sucesso!',
+                    'Pagamento registrado com sucesso!',
 
                 prestador_pix:
                     servico.prestador_pix,
 
                 forma_pagamento:
-                    servico.forma_pgto,
-
-                valor_liquido:
-                    servico.valor_liquido
-
+                    servico.forma_pgto
             });
 
         } catch (err) {
 
             console.error(
-                'Erro ao aprovar pagamento:',
+                'Erro pagamento:',
                 err
             );
 
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao aprovar pagamento.'
-
-                });
-
-        }
-
-    }
-);
-
-
-/* =========================================================
-   NOTA FISCAL
-========================================================= */
-
-
-app.post(
-    '/api/servicos/:id/nota-oficial',
-    upload.single('notaFiscal'),
-    async (req, res) => {
-
-        const id =
-            req.params.id;
-
-
-        try {
-
-            const arquivo =
-                req.file;
-
-
-            const dadosNota =
-
-                req.body.notaFiscal ||
-
-                (
-                    arquivo
-                    ?
-
-                    `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
-
-                    :
-
-                    null
-                );
-
-
-            if (!dadosNota) {
-
-                return res.json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Nenhum arquivo de nota fiscal enviado.'
-
-                });
-
-            }
-
-
-            await pool.query(
-
-                `
-                UPDATE servicos
-                SET nota_oficial = $1
-                WHERE id = $2
-                `,
-
-                [
-                    dadosNota,
-                    id
-                ]
-
-            );
-
-
-            await adicionarMensagemSistema(
-
-                id,
-
-                'Nota Fiscal Oficial enviada com sucesso.'
-
-            );
-
-
-            io.emit(
-                'atualizar_servicos'
-            );
-
-
-            res.json({
-
-                sucesso: true,
-
-                mensagem:
-                    'Nota fiscal enviada com sucesso!'
-
+            res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao aprovar pagamento.'
             });
-
-        } catch (err) {
-
-            console.error(
-                'Erro ao enviar nota fiscal:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao enviar nota fiscal.'
-
-                });
-
         }
-
     }
 );
 
-
-/* =========================================================
+/* =====================================================
    CHAT
-========================================================= */
-
+===================================================== */
 
 app.post(
     '/api/servicos/:id/chat',
@@ -2701,247 +1815,161 @@ app.post(
         const id =
             req.params.id;
 
-
-        const {
-
-            remetente,
-            texto
-
-        } = req.body;
-
-
         try {
 
             const result =
                 await pool.query(
-
                     `
                     SELECT mensagens
                     FROM servicos
                     WHERE id = $1
                     `,
-
                     [id]
-
                 );
 
+            if (!result.rows.length) {
 
-            if (
-                !result.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-
-                        sucesso: false
-
-                    });
-
+                return res.status(404).json({
+                    sucesso: false
+                });
             }
-
 
             const mensagens =
                 result.rows[0]
                     .mensagens ||
                 [];
 
-
             mensagens.push({
+                remetente:
+                    req.body.remetente,
 
-                remetente,
+                email:
+                    req.body.email,
 
-                texto,
+                texto:
+                    req.body.texto,
 
                 data:
                     new Date()
                         .toLocaleTimeString()
-
             });
 
-
             await pool.query(
-
                 `
                 UPDATE servicos
                 SET mensagens = $1
                 WHERE id = $2
                 `,
-
                 [
                     JSON.stringify(
                         mensagens
                     ),
-
                     id
                 ]
-
             );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
                 sucesso: true
-
             });
 
         } catch (err) {
 
-            console.error(
-                'Erro no chat:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false
-
-                });
-
+            res.status(500).json({
+                sucesso: false
+            });
         }
-
     }
 );
 
-
-/* =========================================================
+/* =====================================================
    EXCLUIR SERVIÇO
-========================================================= */
-
+===================================================== */
 
 app.delete(
     '/api/servicos/:id',
     async (req, res) => {
 
-        const id =
-            req.params.id;
-
-
         try {
 
             await pool.query(
-
                 `
                 DELETE FROM servicos
                 WHERE id = $1
                 `,
-
-                [id]
-
+                [
+                    req.params.id
+                ]
             );
-
-
-            await registrarAuditoria(
-
-                'sistema',
-
-                'DELETAR_SERVICO',
-
-                `Serviço #${id} removido.`
-
-            );
-
 
             io.emit(
                 'atualizar_servicos'
             );
 
-
             res.json({
-
-                sucesso: true,
-
-                mensagem:
-                    'Serviço removido com sucesso!'
-
+                sucesso: true
             });
 
         } catch (err) {
 
-            console.error(
-                'Erro ao excluir:',
-                err
-            );
-
-
-            res.status(500)
-                .json({
-
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao excluir serviço.'
-
-                });
-
+            res.status(500).json({
+                sucesso: false
+            });
         }
-
     }
 );
 
-
-/* =========================================================
+/* =====================================================
    SOCKET
-========================================================= */
-
+===================================================== */
 
 io.on(
     'connection',
     socket => {
 
         console.log(
-            'Novo cliente conectado:',
+            'Cliente conectado:',
             socket.id
         );
 
     }
 );
 
-
-/* =========================================================
+/* =====================================================
    INDEX
-========================================================= */
-
+===================================================== */
 
 app.get(
     '/',
     (req, res) => {
 
-        res.status(200)
-            .sendFile(
-                path.join(
-                    __dirname,
-                    'index.html'
-                )
-            );
+        res.sendFile(
+            path.join(
+                __dirname,
+                'index.html'
+            )
+        );
 
     }
 );
 
-
-/* =========================================================
+/* =====================================================
    SERVIDOR
-========================================================= */
-
+===================================================== */
 
 const PORT =
     process.env.PORT ||
     10000;
-
 
 server.listen(
     PORT,
     () => {
 
         console.log(
-            `Servidor rodando na porta ${PORT}`
+            `RS Connect rodando na porta ${PORT}`
         );
 
     }
