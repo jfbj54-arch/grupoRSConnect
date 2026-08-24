@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grupo RS Connect - Gestão Profissional de Serviços</title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         :root {
             --primary: #0b1329;
@@ -1292,7 +1293,14 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     if (usuarioLogado.tipo === 'empresa') {
                         if (s.prestador_nome) {
                             const trTitular = document.createElement('tr');
-                            trTitular.setAttribute('data-criacao', s.data_criacao_timestamp || Date.now());
+                            const tempoAceitePersistente = s.data_aceite
+                                ? new Date(s.data_aceite).getTime()
+                                : Date.now();
+
+                            trTitular.setAttribute(
+                                'data-criacao',
+                                tempoAceitePersistente
+                            );
                             trTitular.setAttribute('data-titular-id', s.prestador_email || s.id);
                             trTitular.innerHTML = `
                                 <td><strong>${s.prestador_nome}</strong><br><small style="color:var(--text-light);">Aceite: ${s.data_aceite || 'Registrado'}</small></td>
@@ -1435,9 +1443,42 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         ` : ''}
 
                         ${usuarioLogado.tipo === 'empresa' ? `
-                            <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: flex-end;">
+                            <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: flex-end; flex-wrap:wrap;">
                                 <button onclick="gerarNotaFiscal(${JSON.stringify(s).replace(/"/g, '&quot;')})" class="btn-success" style="padding: 6px 14px; font-size: 12px; width: auto;">📄 Recibo Interno do Sistema</button>
+
+                                ${s.checkout_hora && !(s.pagamento_autorizado || s.autorizacao_pagamento_arquivo) ? `
+                                    <button
+                                        onclick="autorizarPagamento(${s.id})"
+                                        style="padding:8px 14px; font-size:12px; width:auto; background:#16a34a; color:white; border:none; border-radius:7px; font-weight:800; cursor:pointer;"
+                                    >
+                                        💳 Autorizar Pagamento
+                                    </button>
+                                ` : ''}
+
+                                ${(s.pagamento_autorizado || s.autorizacao_pagamento_arquivo) ? `
+                                    <span style="padding:8px 12px; border-radius:7px; background:#dcfce7; color:#166534; font-size:12px; font-weight:800;">
+                                        ✅ Pagamento autorizado
+                                    </span>
+                                ` : ''}
+
                                 <button onclick="excluirServico(${s.id})" class="btn-danger" style="padding: 6px 14px; font-size: 12px; width: auto;">🗑️ Excluir Serviço</button>
+                            </div>
+                        ` : ''}
+
+                        ${usuarioLogado.tipo === 'prestador' && souTitular && s.autorizacao_pagamento_arquivo ? `
+                            <div style="margin-top:12px; padding:14px; background:#ecfdf5; border:1px solid #86efac; border-radius:10px;">
+                                <strong style="color:#166534;">💳 Pagamento autorizado pela empresa</strong>
+                                <p style="font-size:12px; margin:6px 0 10px; color:#166534;">
+                                    A empresa autorizou o pagamento deste serviço. O relatório contém confirmação de presença, check-in, check-out e fotos registradas.
+                                </p>
+                                <a
+                                    href="${s.autorizacao_pagamento_arquivo}"
+                                    download="${s.autorizacao_pagamento_nome || `autorizacao-pagamento-servico-${s.id}.pdf`}"
+                                    target="_blank"
+                                    style="display:inline-block; padding:9px 14px; border-radius:7px; background:#16a34a; color:white; text-decoration:none; font-weight:800; font-size:12px;"
+                                >
+                                    📄 Abrir / Baixar PDF da Autorização
+                                </a>
                             </div>
                         ` : ''}
 
@@ -1858,6 +1899,299 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         function fecharDetalhesTrabalhador() {
             document.getElementById("workerModal").style.display = "none";
         }
+
+
+        // =====================================================
+        // AUTORIZAÇÃO DE PAGAMENTO + RELATÓRIO EM PDF
+        // =====================================================
+
+        function adicionarImagemPdf(doc, dataUrl, titulo, x, y, larguraMax = 80, alturaMax = 55) {
+            if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:image')) {
+                return y;
+            }
+
+            try {
+                doc.setFontSize(10);
+                doc.setFont(undefined, 'bold');
+                doc.text(titulo, x, y);
+                y += 4;
+
+                const props = doc.getImageProperties(dataUrl);
+                let largura = larguraMax;
+                let altura = (props.height * largura) / props.width;
+
+                if (altura > alturaMax) {
+                    altura = alturaMax;
+                    largura = (props.width * altura) / props.height;
+                }
+
+                if (y + altura > 275) {
+                    doc.addPage();
+                    y = 18;
+                    doc.setFontSize(10);
+                    doc.setFont(undefined, 'bold');
+                    doc.text(titulo, x, y);
+                    y += 4;
+                }
+
+                const formato =
+                    dataUrl.includes('image/png') ? 'PNG' : 'JPEG';
+
+                doc.addImage(
+                    dataUrl,
+                    formato,
+                    x,
+                    y,
+                    largura,
+                    altura
+                );
+
+                return y + altura + 8;
+
+            } catch (erro) {
+                console.warn('Não foi possível inserir uma imagem no PDF:', erro);
+                return y;
+            }
+        }
+
+        async function gerarPdfAutorizacaoPagamento(s) {
+            if (!window.jspdf || !window.jspdf.jsPDF) {
+                throw new Error('Biblioteca de PDF não carregada.');
+            }
+
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({
+                unit: 'mm',
+                format: 'a4'
+            });
+
+            const margem = 15;
+            let y = 18;
+
+            doc.setFontSize(18);
+            doc.setFont(undefined, 'bold');
+            doc.text('RS CONNECT', margem, y);
+
+            y += 8;
+
+            doc.setFontSize(14);
+            doc.text('AUTORIZAÇÃO DE PAGAMENTO DE SERVIÇO', margem, y);
+
+            y += 9;
+
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+
+            const linhas = [
+                `Serviço Nº: ${s.id}`,
+                `Serviço: ${s.titulo || 'Não informado'}`,
+                `Empresa: ${s.empresa_nome || s.empresaNome || usuarioLogado.nome || 'Não informado'}`,
+                `Prestador titular: ${s.prestador_nome || s.prestadorNome || 'Não informado'}`,
+                `Local: ${s.local || 'Não informado'}`,
+                `Endereço: ${s.endereco || 'Não informado'}`,
+                `Valor autorizado: R$ ${s.valor || '0,00'}`,
+                `Confirmação de presença: ${s.presenca_confirmada || s.presencaConfirmada ? 'SIM' : 'NÃO'}`,
+                `Check-in: ${s.checkin_hora || s.checkinHora || 'Não registrado'}`,
+                `GPS check-in: ${s.checkin_gps || s.checkinGps || 'Não registrado'}`,
+                `Check-out: ${s.checkout_hora || s.checkoutHora || 'Não registrado'}`,
+                `GPS check-out: ${s.checkout_gps || s.checkoutGps || 'Não registrado'}`,
+                `Autorizado em: ${new Date().toLocaleString('pt-BR')}`,
+                `Autorizado por: ${usuarioLogado.nome || usuarioLogado.email || 'Empresa'}`
+            ];
+
+            for (const linha of linhas) {
+                const quebrada = doc.splitTextToSize(linha, 180);
+                doc.text(quebrada, margem, y);
+                y += quebrada.length * 5;
+
+                if (y > 270) {
+                    doc.addPage();
+                    y = 18;
+                }
+            }
+
+            y += 3;
+            doc.setDrawColor(180);
+            doc.line(margem, y, 195, y);
+            y += 8;
+
+            y = adicionarImagemPdf(
+                doc,
+                s.selfie_confirmacao || s.selfieConfirmacao,
+                'Foto de confirmação de presença',
+                margem,
+                y
+            );
+
+            y = adicionarImagemPdf(
+                doc,
+                s.foto_checkin || s.fotoCheckin || s.foto_ponto,
+                'Foto de entrada / check-in',
+                margem,
+                y
+            );
+
+            y = adicionarImagemPdf(
+                doc,
+                s.foto_checkout || s.fotoCheckout || s.documento_comprovante,
+                'Foto de saída / check-out',
+                margem,
+                y
+            );
+
+            if (y > 255) {
+                doc.addPage();
+                y = 18;
+            }
+
+            doc.setFont(undefined, 'bold');
+            doc.setFontSize(10);
+            doc.text(
+                'AUTORIZAÇÃO:',
+                margem,
+                y
+            );
+
+            y += 6;
+
+            doc.setFont(undefined, 'normal');
+
+            const declaracao =
+                'A empresa confirma a realização do serviço acima descrito e autoriza o prosseguimento do pagamento ao prestador titular, conforme os registros de presença, entrada e saída anexados a este relatório.';
+
+            const textoDeclaracao =
+                doc.splitTextToSize(
+                    declaracao,
+                    180
+                );
+
+            doc.text(
+                textoDeclaracao,
+                margem,
+                y
+            );
+
+            const blob = doc.output('blob');
+
+            const base64 = await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+
+                reader.onloadend = () =>
+                    resolve(reader.result);
+
+                reader.onerror = reject;
+
+                reader.readAsDataURL(blob);
+            });
+
+            return {
+                base64,
+                nome:
+                    `autorizacao-pagamento-servico-${s.id}.pdf`
+            };
+        }
+
+        async function autorizarPagamento(id) {
+            if (!usuarioLogado || usuarioLogado.tipo !== 'empresa') {
+                alert('Somente a empresa pode autorizar o pagamento.');
+                return;
+            }
+
+            if (!confirm(
+                'Autorizar o pagamento deste serviço? Será gerado um PDF com os dados do serviço, selfie de confirmação, foto de entrada e foto de saída.'
+            )) {
+                return;
+            }
+
+            try {
+                const respostaServicos =
+                    await fetch('/api/servicos');
+
+                const servicos =
+                    await respostaServicos.json();
+
+                const s =
+                    Array.isArray(servicos)
+                        ? servicos.find(item => String(item.id) === String(id))
+                        : null;
+
+                if (!s) {
+                    alert('Serviço não encontrado.');
+                    return;
+                }
+
+                if (!s.checkout_hora && !s.checkoutHora) {
+                    alert('O prestador ainda não realizou o check-out. O pagamento não pode ser autorizado.');
+                    return;
+                }
+
+                const pdf =
+                    await gerarPdfAutorizacaoPagamento(s);
+
+                const res =
+                    await fetch(
+                        `/api/servicos/${id}/autorizar-pagamento`,
+                        {
+                            method: 'POST',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json'
+                            },
+
+                            body:
+                                JSON.stringify({
+                                    empresaEmail:
+                                        usuarioLogado.email,
+
+                                    empresaNome:
+                                        usuarioLogado.nome,
+
+                                    autorizacaoPagamento:
+                                        true,
+
+                                    relatorioPdf:
+                                        pdf.base64,
+
+                                    relatorioNome:
+                                        pdf.nome
+                                })
+                        }
+                    );
+
+                const data =
+                    await res.json();
+
+                if (
+                    res.ok &&
+                    data.sucesso !== false
+                ) {
+                    alert(
+                        '✅ Pagamento autorizado! O PDF da execução do serviço foi liberado para o prestador.'
+                    );
+
+                    carregarServicos();
+
+                } else {
+                    alert(
+                        data.erro ||
+                        'Não foi possível autorizar o pagamento.'
+                    );
+                }
+
+            } catch (err) {
+                console.error(
+                    'Erro ao autorizar pagamento:',
+                    err
+                );
+
+                alert(
+                    'Erro ao autorizar pagamento: ' +
+                    (err.message || 'falha de conexão')
+                );
+            }
+        }
+
 
         function gerarNotaFiscal(s) {
             document.getElementById("nf-codigo").innerText = `Nº 000${s.id || '1'} / 2026`;
