@@ -521,7 +521,6 @@ app.post('/api/servicos', async (req, res) => {
 });
 
 // Entrar na fila do serviço
-PARTE 2/3
 app.post('/api/servicos/:id/fila', async (req, res) => {
     const id = req.params.id;
 
@@ -1279,7 +1278,6 @@ app.post(
         }
     }
 );
-PARTE 3/3
 app.post('/api/servicos/:id/confirmar-presenca', async (req, res) => {
     const id =
         req.params.id;
