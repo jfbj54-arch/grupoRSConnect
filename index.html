@@ -360,6 +360,72 @@
 
 
 
+
+        /* ===== COMPROVAÇÕES E FECHAMENTO DO SERVIÇO ===== */
+        .rs-fechamento-box {
+            margin-top: 12px;
+            padding: 14px;
+            border-radius: 10px;
+            border: 1px solid #bbf7d0;
+            background: #f0fdf4;
+        }
+        .rs-fechamento-box h4 {
+            margin: 0 0 10px 0;
+            color: #166534;
+            font-size: 13px;
+        }
+        .rs-fechamento-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 8px;
+            font-size: 12px;
+        }
+        .rs-fechamento-item {
+            background: rgba(255,255,255,.75);
+            border-radius: 8px;
+            padding: 9px 10px;
+            border: 1px solid #dcfce7;
+        }
+        .rs-fechamento-item small {
+            display: block;
+            color: var(--text-light);
+            font-size: 9px;
+            text-transform: uppercase;
+            font-weight: 800;
+            margin-bottom: 3px;
+        }
+        .rs-evidencias {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+        .rs-evidencia {
+            flex: 1;
+            min-width: 130px;
+            background: #fff;
+            border: 1px solid #dcfce7;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 10px;
+        }
+        .rs-evidencia img {
+            width: 100%;
+            max-height: 180px;
+            object-fit: cover;
+            border-radius: 6px;
+            margin-top: 5px;
+        }
+        .rs-upload-status {
+            font-size: 10px;
+            color: var(--text-light);
+            margin-top: 5px;
+        }
+        @media (max-width: 520px) {
+            .rs-fechamento-grid { grid-template-columns: 1fr; }
+        }
+
+
         /* ===== CONTROLE DE PRESENÇA INTEGRADO ===== */
         .rs-presenca-painel {
             background: #fff;
@@ -1645,11 +1711,78 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     }
 
                     let blocoFotosHTML = '';
-                    if (s.foto_checkin || s.foto_ponto) {
-                        blocoFotosHTML += `<div style="margin-top:6px; font-size:12px;">📸 <strong>Check-in Realizado:</strong><br><img src="${s.foto_checkin || s.foto_ponto}" style="max-width:100px; border-radius:6px; margin-top:4px; border:1px solid var(--border);"></div>`;
+                    const fotoCheckin = s.foto_checkin || s.fotoCheckin || s.foto_ponto || '';
+                    const fotoCheckout = s.foto_checkout || s.fotoCheckout || s.documento_comprovante || '';
+                    const gpsCheckin = s.checkin_gps || s.gps_checkin || s.checkinGps || '';
+                    const gpsCheckout = s.checkout_gps || s.gps_checkout || s.checkoutGps || '';
+
+                    if (fotoCheckin || fotoCheckout) {
+                        blocoFotosHTML = `
+                            <div class="rs-evidencias">
+                                ${fotoCheckin ? `
+                                    <div class="rs-evidencia">
+                                        📸 <b>Foto da entrada</b>
+                                        <img src="${fotoCheckin}" alt="Foto do check-in">
+                                        ${gpsCheckin ? `<div>📍 ${gpsCheckin}</div>` : ''}
+                                    </div>
+                                ` : ''}
+                                ${fotoCheckout ? `
+                                    <div class="rs-evidencia">
+                                        ✅ <b>Foto da saída</b>
+                                        <img src="${fotoCheckout}" alt="Foto do check-out">
+                                        ${gpsCheckout ? `<div>📍 ${gpsCheckout}</div>` : ''}
+                                    </div>
+                                ` : ''}
+                            </div>
+                        `;
                     }
-                    if (s.foto_checkout || s.documento_comprovante) {
-                        blocoFotosHTML += `<div style="margin-top:6px; font-size:12px;">✅ <strong>Check-out / Comprovante:</strong><br><img src="${s.foto_checkout || s.documento_comprovante}" style="max-width:100px; border-radius:6px; margin-top:4px; border:1px solid var(--border);"></div>`;
+
+                    let blocoFechamentoHTML = '';
+                    if (usuarioLogado.tipo === 'empresa' && s.checkout_hora) {
+                        const pixPrestador = s.prestador_pix || s.prestadorPix || 'PIX não informado';
+                        const formaPagamento = s.forma_pagamento || s.formaPagamento || s.pagamento || 'A definir';
+                        const totalTrabalhado = s.total_horas || s.totalHoras || calcularTotalHorasRS(s);
+
+                        blocoFechamentoHTML = `
+                            <div class="rs-fechamento-box">
+                                <h4>💰 Fechamento do Serviço / Dados para Pagamento</h4>
+                                <div class="rs-fechamento-grid">
+                                    <div class="rs-fechamento-item">
+                                        <small>Prestador</small>
+                                        <b>${s.prestador_nome || 'Profissional titular'}</b>
+                                    </div>
+                                    <div class="rs-fechamento-item">
+                                        <small>PIX</small>
+                                        <b>${pixPrestador}</b>
+                                    </div>
+                                    <div class="rs-fechamento-item">
+                                        <small>Valor do serviço</small>
+                                        <b>R$ ${s.valor || '0,00'}</b>
+                                    </div>
+                                    <div class="rs-fechamento-item">
+                                        <small>Forma de pagamento</small>
+                                        <b>${formaPagamento}</b>
+                                    </div>
+                                    <div class="rs-fechamento-item">
+                                        <small>Jornada</small>
+                                        <b>${s.checkin_hora || '—'} → ${s.checkout_hora || '—'}</b>
+                                    </div>
+                                    <div class="rs-fechamento-item">
+                                        <small>Total trabalhado</small>
+                                        <b>${totalTrabalhado}</b>
+                                    </div>
+                                    <div class="rs-fechamento-item">
+                                        <small>Serviço realizado</small>
+                                        <b>${s.titulo || 'Serviço'} • ${s.descricao || ''}</b>
+                                    </div>
+                                    <div class="rs-fechamento-item">
+                                        <small>Status</small>
+                                        <b>${s.validado_empresa ? '✅ Validado pela empresa' : '⏳ Aguardando validação'}</b>
+                                    </div>
+                                </div>
+                                ${blocoFotosHTML}
+                            </div>
+                        `;
                     }
 
                     let blocoNotaOficialHTML = '';
@@ -1720,6 +1853,8 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         ` : ''}
 
                         ${blocoNotaOficialHTML}
+
+                        ${blocoFechamentoHTML}
 
                         ${(souTitular || usuarioLogado.tipo === 'empresa') ? `
                             <div style="background:#f8fafc; border:1px dashed var(--border); padding:12px; border-radius:8px; margin-top:12px;">
@@ -2041,100 +2176,247 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             } catch(e) { alert('Erro de conexão ao confirmar presença.'); }
         }
 
+
+        function comprimirImagemRS(arquivo, maxLado = 1280, qualidade = 0.72) {
+            return new Promise((resolve, reject) => {
+                if (!arquivo || !arquivo.type || !arquivo.type.startsWith('image/')) {
+                    reject(new Error('Arquivo selecionado não é uma imagem válida.'));
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onerror = () => reject(new Error('Não foi possível ler a foto.'));
+                reader.onload = () => {
+                    const img = new Image();
+                    img.onerror = () => reject(new Error('Não foi possível processar a foto.'));
+                    img.onload = () => {
+                        let largura = img.width;
+                        let altura = img.height;
+
+                        if (largura > maxLado || altura > maxLado) {
+                            const escala = Math.min(maxLado / largura, maxLado / altura);
+                            largura = Math.round(largura * escala);
+                            altura = Math.round(altura * escala);
+                        }
+
+                        const canvas = document.createElement('canvas');
+                        canvas.width = largura;
+                        canvas.height = altura;
+
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, largura, altura);
+
+                        const base64 = canvas.toDataURL('image/jpeg', qualidade);
+                        resolve(base64);
+                    };
+                    img.src = reader.result;
+                };
+                reader.readAsDataURL(arquivo);
+            });
+        }
+
+        function obterGPSRS() {
+            return new Promise(resolve => {
+                if (!navigator.geolocation) {
+                    resolve('GPS não suportado');
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        resolve(`${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`);
+                    },
+                    () => resolve('GPS Indisponível'),
+                    { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 }
+                );
+            });
+        }
+
+        async function lerRespostaRS(res) {
+            const texto = await res.text();
+            if (!texto) return {};
+            try { return JSON.parse(texto); }
+            catch (_) { return { erro: texto }; }
+        }
+
         async function realizarCheckinComGPS(id) {
             const inputFoto = document.getElementById(`foto-checkin-${id}`);
-            if (!inputFoto.files || inputFoto.files.length === 0) {
-                alert('Por favor, tire a foto da chegada usando a câmera!');
+
+            if (!inputFoto || !inputFoto.files || inputFoto.files.length === 0) {
+                alert('📸 Tire ou selecione a foto da chegada antes do check-in.');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const fotoBase64 = e.target.result;
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(async (position) => {
-                        const gpsCoords = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
-                        await enviarCheckinServidor(id, fotoBase64, gpsCoords);
-                    }, () => {
-                        enviarCheckinServidor(id, fotoBase64, "GPS Indisponível");
-                    });
-                } else {
-                    enviarCheckinServidor(id, fotoBase64, "GPS não suportado");
+            const botao = inputFoto.parentElement.querySelector('button');
+            const textoOriginal = botao ? botao.innerText : '';
+
+            try {
+                if (botao) {
+                    botao.disabled = true;
+                    botao.innerText = '⏳ Enviando foto e localização...';
                 }
-            };
-            reader.readAsDataURL(inputFoto.files[0]);
+
+                const [fotoComprimida, gps] = await Promise.all([
+                    comprimirImagemRS(inputFoto.files[0]),
+                    obterGPSRS()
+                ]);
+
+                await enviarCheckinServidor(id, fotoComprimida, gps);
+
+            } catch (err) {
+                console.error('Erro no check-in:', err);
+                alert(`❌ Não foi possível fazer o check-in: ${err.message || 'erro desconhecido'}`);
+            } finally {
+                if (botao) {
+                    botao.disabled = false;
+                    botao.innerText = textoOriginal;
+                }
+            }
         }
 
         async function enviarCheckinServidor(id, foto, gps) {
-            await fetch(`/api/servicos/${id}/checkin`, {
+            const hora = new Date().toLocaleTimeString();
+
+            const res = await fetch(`/api/servicos/${id}/checkin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto, gps })
+                body: JSON.stringify({
+                    hora,
+                    foto,
+                    gps,
+
+                    // aliases para facilitar compatibilidade com o backend
+                    checkin_hora: hora,
+                    foto_checkin: foto,
+                    fotoCheckin: foto,
+                    checkin_gps: gps,
+                    gps_checkin: gps,
+
+                    prestadorEmail: usuarioLogado?.email || '',
+                    prestadorNome: usuarioLogado?.nome || ''
+                })
             });
-            carregarServicos();
-            alert(`Check-in registrado! GPS: ${gps}`);
+
+            const data = await lerRespostaRS(res);
+
+            if (!res.ok || data.sucesso === false) {
+                throw new Error(data.erro || data.mensagem || `Servidor retornou HTTP ${res.status}`);
+            }
+
+            await carregarServicos();
+            alert(`✅ Check-in registrado com sucesso!\n📍 ${gps}\n📸 Foto enviada para a empresa.`);
         }
 
         async function realizarCheckout(id) {
             const inputFoto = document.getElementById(`foto-checkout-${id}`);
-            if (!inputFoto.files || inputFoto.files.length === 0) {
-                alert('Por favor, selecione ou tire a foto de conclusão (check-out) antes de finalizar!');
+
+            if (!inputFoto || !inputFoto.files || inputFoto.files.length === 0) {
+                alert('📸 Tire ou selecione a foto de conclusão antes de finalizar.');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const fotoBase64 = e.target.result;
+            const botao = inputFoto.parentElement.querySelector('button');
+            const textoOriginal = botao ? botao.innerText : '';
 
-                const finalizar = async (gps) => {
-                    try {
-                        const horaSaida = new Date().toLocaleTimeString();
-                        const servicoAtual = (window.rsServicosCache || []).find(s => String(s.id) === String(id));
-                        const totalHoras = servicoAtual
-                            ? calcularTotalHorasRS({ ...servicoAtual, checkout_hora: horaSaida })
-                            : '';
+            try {
+                if (botao) {
+                    botao.disabled = true;
+                    botao.innerText = '⏳ Finalizando e enviando comprovantes...';
+                }
 
-                        const res = await fetch(`/api/servicos/${id}/checkout`, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                hora: horaSaida,
-                                foto: fotoBase64,
-                                gps,
-                                total_horas: totalHoras
-                            })
-                        });
+                const [fotoComprimida, gps] = await Promise.all([
+                    comprimirImagemRS(inputFoto.files[0]),
+                    obterGPSRS()
+                ]);
 
-                        const data = await res.json();
+                const horaSaida = new Date().toLocaleTimeString();
+                const servicoAtual = (window.rsServicosCache || [])
+                    .find(s => String(s.id) === String(id));
 
-                        if (res.ok && data.sucesso !== false) {
-                            carregarServicos();
-                            alert(`✅ Check-out realizado com sucesso! GPS: ${gps}`);
-                        } else {
-                            alert(data.erro || 'Erro ao realizar check-out.');
-                        }
-                    } catch (err) {
-                        alert('Erro de conexão ao finalizar o serviço.');
-                    }
+                const totalHoras = servicoAtual
+                    ? calcularTotalHorasRS({ ...servicoAtual, checkout_hora: horaSaida })
+                    : '';
+
+                const pix = usuarioLogado?.pix ||
+                    servicoAtual?.prestador_pix ||
+                    servicoAtual?.prestadorPix ||
+                    '';
+
+                const formaPagamento =
+                    servicoAtual?.forma_pagamento ||
+                    servicoAtual?.formaPagamento ||
+                    servicoAtual?.pagamento ||
+                    'A definir';
+
+                const fechamento = {
+                    prestador_nome: usuarioLogado?.nome || servicoAtual?.prestador_nome || '',
+                    prestador_email: usuarioLogado?.email || '',
+                    prestador_pix: pix,
+                    forma_pagamento: formaPagamento,
+                    valor: servicoAtual?.valor || '',
+                    servico: servicoAtual?.titulo || '',
+                    descricao: servicoAtual?.descricao || '',
+                    empresa_nome: servicoAtual?.empresa_nome || servicoAtual?.empresaNome || '',
+                    local: servicoAtual?.local || '',
+                    entrada: servicoAtual?.checkin_hora || '',
+                    saida: horaSaida,
+                    total_horas: totalHoras
                 };
 
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(
-                        position => {
-                            const gps = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
-                            finalizar(gps);
-                        },
-                        () => finalizar('GPS Indisponível')
-                    );
-                } else {
-                    finalizar('GPS não suportado');
-                }
-            };
+                const res = await fetch(`/api/servicos/${id}/checkout`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        hora: horaSaida,
+                        foto: fotoComprimida,
+                        gps,
+                        total_horas: totalHoras,
 
-            reader.readAsDataURL(inputFoto.files[0]);
+                        // aliases para o backend salvar e devolver ao painel da empresa
+                        checkout_hora: horaSaida,
+                        foto_checkout: fotoComprimida,
+                        fotoCheckout: fotoComprimida,
+                        checkout_gps: gps,
+                        gps_checkout: gps,
+
+                        prestador_pix: pix,
+                        prestadorPix: pix,
+                        forma_pagamento: formaPagamento,
+                        formaPagamento: formaPagamento,
+
+                        fechamento
+                    })
+                });
+
+                const data = await lerRespostaRS(res);
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || data.mensagem || `Servidor retornou HTTP ${res.status}`);
+                }
+
+                await carregarServicos();
+
+                alert(
+                    `✅ Serviço finalizado!\n` +
+                    `📸 Foto enviada para a empresa.\n` +
+                    `📍 GPS: ${gps}\n` +
+                    `💳 PIX: ${pix || 'não informado'}\n` +
+                    `💰 Forma de pagamento: ${formaPagamento}\n` +
+                    `⏱️ ${totalHoras || 'Jornada registrada'}`
+                );
+
+            } catch (err) {
+                console.error('Erro no check-out:', err);
+                alert(`❌ Não foi possível finalizar o serviço: ${err.message || 'erro desconhecido'}`);
+            } finally {
+                if (botao) {
+                    botao.disabled = false;
+                    botao.innerText = textoOriginal;
+                }
+            }
         }
 
-        async function enviarMensagem(id) {
+        async function enviarMensagem        async function enviarMensagem(id) {
             const txt = document.getElementById(`chat-txt-${id}`).value;
             if (!txt) return;
             try {
