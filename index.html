@@ -1367,6 +1367,74 @@
             }
         }
 
+
+        /* ===== PAGAMENTO E CONTRATO DA EMPRESA ===== */
+        .rs-doc-flow-box {
+            margin-top: 12px;
+            border: 1px solid #dbeafe;
+            background: #f8fbff;
+            border-radius: 12px;
+            padding: 13px;
+        }
+
+        .rs-doc-flow-box h4 {
+            margin: 0 0 9px;
+            color: #1e3a8a;
+            font-size: 12px;
+        }
+
+        .rs-doc-flow-grid {
+            display: grid;
+            grid-template-columns: 1fr auto;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .rs-doc-flow-box input[type="file"] {
+            margin: 0;
+            background: #fff;
+        }
+
+        .rs-doc-link {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: #fff;
+            border: 1px solid #cbd5e1;
+            font-size: 11px;
+            font-weight: 700;
+            color: #1d4ed8;
+            text-decoration: none;
+        }
+
+        .rs-confirmado-pagamento {
+            background: #dcfce7;
+            color: #166534;
+            border: 1px solid #bbf7d0;
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 11px;
+            font-weight: 800;
+            margin-top: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .rs-doc-flow-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .rs-doc-flow-grid button {
+                width: 100% !important;
+            }
+
+            .rs-doc-link {
+                width: 100%;
+                justify-content: center;
+            }
+        }
+
 </style>
 </head>
 <body>
@@ -2409,6 +2477,114 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         }
 
 
+
+        async function enviarComprovantePagamentoRS(id) {
+            const input = document.getElementById(`comprovante-pagamento-${id}`);
+
+            if (!input || !input.files || input.files.length === 0) {
+                alert('Selecione o comprovante de pagamento.');
+                return;
+            }
+
+            const arquivo = input.files[0];
+
+            if (arquivo.size > 15 * 1024 * 1024) {
+                alert('O comprovante deve ter no máximo 15 MB.');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('comprovantePagamento', arquivo);
+                formData.append('usuarioEmail', usuarioLogado?.email || '');
+
+                const res = await fetch(`/api/servicos/${id}/comprovante-pagamento`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || 'Erro ao enviar comprovante.');
+                }
+
+                alert('✅ Comprovante enviado ao prestador.');
+                await carregarServicos();
+
+            } catch (err) {
+                alert(`❌ ${err.message || 'Erro ao enviar comprovante.'}`);
+            }
+        }
+
+        async function confirmarRecebimentoPagamentoRS(id) {
+            const confirmar = confirm('Você confirma que recebeu este pagamento?');
+
+            if (!confirmar) return;
+
+            try {
+                const res = await fetch(`/api/servicos/${id}/confirmar-recebimento`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prestadorEmail: usuarioLogado?.email || '',
+                        prestadorNome: usuarioLogado?.nome || ''
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || 'Erro ao confirmar recebimento.');
+                }
+
+                alert('✅ Recebimento confirmado.');
+                await carregarServicos();
+
+            } catch (err) {
+                alert(`❌ ${err.message || 'Erro ao confirmar recebimento.'}`);
+            }
+        }
+
+        async function enviarContratoEmpresaRS(id) {
+            const input = document.getElementById(`contrato-empresa-${id}`);
+
+            if (!input || !input.files || input.files.length === 0) {
+                alert('Selecione o contrato da empresa.');
+                return;
+            }
+
+            const arquivo = input.files[0];
+
+            if (arquivo.size > 15 * 1024 * 1024) {
+                alert('O contrato deve ter no máximo 15 MB.');
+                return;
+            }
+
+            try {
+                const formData = new FormData();
+                formData.append('contratoEmpresa', arquivo);
+                formData.append('usuarioEmail', usuarioLogado?.email || '');
+
+                const res = await fetch(`/api/servicos/${id}/contrato-empresa`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || 'Erro ao enviar contrato.');
+                }
+
+                alert('✅ Contrato enviado ao prestador.');
+                await carregarServicos();
+
+            } catch (err) {
+                alert(`❌ ${err.message || 'Erro ao enviar contrato.'}`);
+            }
+        }
+
         function escaparHTMLRelatorio(valor) {
             return String(valor ?? '')
                 .replace(/&/g, '&amp;')
@@ -3050,6 +3226,101 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         ${blocoNotaOficialHTML}
 
                         ${blocoFechamentoHTML}
+
+                        ${usuarioLogado.tipo === 'empresa' ? `
+                            <div class="rs-doc-flow-box">
+                                <h4>📄 Contrato da Empresa</h4>
+                                ${s.contrato_empresa_arquivo || s.contratoEmpresaArquivo ? `
+                                    <a class="rs-doc-link"
+                                       href="${s.contrato_empresa_arquivo || s.contratoEmpresaArquivo}"
+                                       target="_blank">
+                                        📎 Visualizar contrato enviado
+                                    </a>
+                                ` : `
+                                    <div class="rs-doc-flow-grid">
+                                        <input type="file"
+                                               id="contrato-empresa-${s.id}"
+                                               accept=".pdf,image/*">
+                                        <button type="button"
+                                                onclick="enviarContratoEmpresaRS(${s.id})"
+                                                style="width:auto;padding:9px 12px;">
+                                            Enviar contrato
+                                        </button>
+                                    </div>
+                                `}
+                            </div>
+                        ` : ''}
+
+                        ${souTitular && (s.contrato_empresa_arquivo || s.contratoEmpresaArquivo) ? `
+                            <div class="rs-doc-flow-box">
+                                <h4>📄 Contrato enviado pela empresa</h4>
+                                <a class="rs-doc-link"
+                                   href="${s.contrato_empresa_arquivo || s.contratoEmpresaArquivo}"
+                                   target="_blank">
+                                    📎 Visualizar / baixar contrato
+                                </a>
+                            </div>
+                        ` : ''}
+
+                        ${usuarioLogado.tipo === 'empresa' && (s.validado_empresa || s.validadoEmpresa) ? `
+                            <div class="rs-doc-flow-box">
+                                <h4>💳 Comprovante de Pagamento</h4>
+                                ${s.comprovante_pagamento_arquivo || s.comprovantePagamentoArquivo ? `
+                                    <a class="rs-doc-link"
+                                       href="${s.comprovante_pagamento_arquivo || s.comprovantePagamentoArquivo}"
+                                       target="_blank">
+                                        🧾 Visualizar comprovante enviado
+                                    </a>
+
+                                    ${(s.pagamento_recebido_confirmado || s.pagamentoRecebidoConfirmado) ? `
+                                        <div class="rs-confirmado-pagamento">
+                                            ✅ Prestador confirmou que recebeu o pagamento.
+                                        </div>
+                                    ` : `
+                                        <div style="font-size:10px;color:var(--text-light);margin-top:7px;">
+                                            ⏳ Aguardando o prestador confirmar o recebimento.
+                                        </div>
+                                    `}
+                                ` : `
+                                    <div class="rs-doc-flow-grid">
+                                        <input type="file"
+                                               id="comprovante-pagamento-${s.id}"
+                                               accept=".pdf,image/*">
+                                        <button type="button"
+                                                onclick="enviarComprovantePagamentoRS(${s.id})"
+                                                class="btn-success"
+                                                style="width:auto;padding:9px 12px;">
+                                            Enviar comprovante
+                                        </button>
+                                    </div>
+                                `}
+                            </div>
+                        ` : ''}
+
+                        ${souTitular && (s.comprovante_pagamento_arquivo || s.comprovantePagamentoArquivo) ? `
+                            <div class="rs-doc-flow-box">
+                                <h4>💰 Pagamento do Serviço</h4>
+
+                                <a class="rs-doc-link"
+                                   href="${s.comprovante_pagamento_arquivo || s.comprovantePagamentoArquivo}"
+                                   target="_blank">
+                                    🧾 Visualizar comprovante da empresa
+                                </a>
+
+                                ${(s.pagamento_recebido_confirmado || s.pagamentoRecebidoConfirmado) ? `
+                                    <div class="rs-confirmado-pagamento">
+                                        ✅ Você confirmou o recebimento deste pagamento.
+                                    </div>
+                                ` : `
+                                    <button type="button"
+                                            onclick="confirmarRecebimentoPagamentoRS(${s.id})"
+                                            class="btn-success"
+                                            style="margin-top:9px;">
+                                        ✅ Confirmo que recebi o pagamento
+                                    </button>
+                                `}
+                            </div>
+                        ` : ''}
 
                         ${(souTitular || usuarioLogado.tipo === 'empresa') ? `
                             <div style="background:#f8fafc; border:1px dashed var(--border); padding:12px; border-radius:8px; margin-top:12px;">
