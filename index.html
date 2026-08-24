@@ -1422,7 +1422,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             if (s.checkin_hora) {
                 return { classe: 'rs-status-presente', texto: '🟢 Presente' };
             }
-            return { classe: 'rs-status-ausente', texto: '🔴 Não compareceu / aguardando' };
+            return { classe: 'rs-status-intervalo', texto: '🟡 Aguardando check-in' };
         }
 
         function atualizarResumoRS(servicos) {
@@ -1491,70 +1491,165 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 equipeHojePainel?.classList.add('hidden');
                 resumoJornada?.classList.remove('hidden');
 
-                const meus = (servicos || []).filter(s => s.prestador_email === usuarioLogado.email);
-                const atual = meus.find(s => !s.checkout_hora) || meus[0];
+                const meus = (servicos || []).filter(
+                    s => (s.prestador_email || '').trim().toLowerCase() ===
+                         (usuarioLogado.email || '').trim().toLowerCase()
+                );
+
+                const statusFinalizados = [
+                    'concluido',
+                    'concluido_com_sucesso',
+                    'aguardando_validacao',
+                    'validado',
+                    'aprovado',
+                    'pago',
+                    'cancelado',
+                    'cancelado_ausencia_prestador'
+                ];
+
+                const estaFinalizado = s =>
+                    Boolean(s.checkout_hora) ||
+                    Boolean(s.validado_empresa || s.validadoEmpresa) ||
+                    Boolean(s.comprovante_pagamento) ||
+                    statusFinalizados.includes(String(s.status || '').toLowerCase());
+
+                // Jornada atual = somente serviço ainda aberto.
+                const atuais = meus.filter(s => !estaFinalizado(s));
+                const atual = atuais[0] || null;
 
                 const statusEl = document.getElementById('rs-jornada-status');
 
                 if (!atual) {
-                    document.getElementById('rs-jornada-empresa').innerText = 'Não informada';
-                    document.getElementById('rs-jornada-servico').innerText = 'Nenhum serviço titular';
-                    document.getElementById('rs-jornada-local').innerText = 'Não informado';
+                    document.getElementById('rs-jornada-empresa').innerText = '—';
+                    document.getElementById('rs-jornada-servico').innerText = 'Nenhum serviço em andamento';
+                    document.getElementById('rs-jornada-local').innerText = '—';
                     document.getElementById('rs-jornada-valor').innerText = 'R$ 0,00';
-                    document.getElementById('rs-jornada-entrada').innerText = 'Pendente';
-                    document.getElementById('rs-jornada-intervalo').innerText = 'Pendente';
-                    document.getElementById('rs-jornada-retorno').innerText = 'Pendente';
-                    document.getElementById('rs-jornada-saida').innerText = 'Pendente';
-                    document.getElementById('rs-jornada-total').innerText = '0h trabalhadas';
-                    statusEl.className = 'rs-status rs-status-ausente';
-                    statusEl.innerText = 'Aguardando escala';
+                    document.getElementById('rs-jornada-entrada').innerText = '—';
+                    document.getElementById('rs-jornada-intervalo').innerText = '—';
+                    document.getElementById('rs-jornada-retorno').innerText = '—';
+                    document.getElementById('rs-jornada-saida').innerText = '—';
+                    document.getElementById('rs-jornada-total').innerText = 'Nenhuma jornada ativa';
+
+                    statusEl.className = 'rs-status rs-status-finalizado';
+                    statusEl.innerText = '⚪ Sem jornada ativa';
                 } else {
                     const status = montarStatusPresencaRS(atual);
                     statusEl.className = `rs-status ${status.classe}`;
                     statusEl.innerText = status.texto;
 
-                    document.getElementById('rs-jornada-empresa').innerText =
-                        atual.empresa_nome || atual.empresaNome || 'Empresa cliente';
+                    const empresaNome =
+                        atual.empresa_nome ||
+                        atual.empresaNome ||
+                        atual.empresa_nome_resolvido ||
+                        'Empresa não identificada';
+
+                    document.getElementById('rs-jornada-empresa').innerText = empresaNome;
+
                     document.getElementById('rs-jornada-servico').innerText =
-                        `${atual.titulo || 'Serviço'}${atual.categoria ? ' • ' + atual.categoria : ''}`;
+                        atual.categoria && atual.categoria !== atual.titulo
+                            ? `${atual.titulo || 'Serviço'} • ${atual.categoria}`
+                            : (atual.titulo || atual.categoria || 'Serviço');
+
                     document.getElementById('rs-jornada-local').innerText =
-                        `${atual.local || 'Não informado'}${atual.endereco ? ' • ' + atual.endereco : ''}`;
+                        [atual.local, atual.endereco].filter(Boolean).join(' • ') || 'Não informado';
+
                     document.getElementById('rs-jornada-valor').innerText =
                         `R$ ${atual.valor || '0,00'}`;
+
                     document.getElementById('rs-jornada-entrada').innerText =
-                        atual.checkin_hora || 'Pendente';
+                        atual.checkin_hora || 'Aguardando check-in';
+
                     document.getElementById('rs-jornada-intervalo').innerText =
-                        obterCampoJornada(atual, ['intervalo_inicio', 'intervaloInicio'], 'Pendente');
+                        obterCampoJornada(atual, ['intervalo_inicio', 'intervaloInicio'], 'Não iniciado');
+
                     document.getElementById('rs-jornada-retorno').innerText =
-                        obterCampoJornada(atual, ['intervalo_retorno', 'intervaloRetorno', 'retorno_intervalo'], 'Pendente');
+                        obterCampoJornada(atual, ['intervalo_retorno', 'intervaloRetorno', 'retorno_intervalo'], 'Não registrado');
+
                     document.getElementById('rs-jornada-saida').innerText =
-                        atual.checkout_hora || 'Pendente';
+                        atual.checkout_hora || 'Em andamento';
+
                     document.getElementById('rs-jornada-total').innerText =
-                        calcularTotalHorasRS(atual);
+                        atual.checkin_hora
+                            ? calcularTotalHorasRS(atual)
+                            : 'Jornada não iniciada';
                 }
 
                 const historicoServicos = document.getElementById('rs-historico-servicos');
                 const historicoPagamentos = document.getElementById('rs-historico-pagamentos');
 
-                const recentes = [...meus].slice(-5).reverse();
-                historicoServicos.innerHTML = recentes.length
-                    ? recentes.map(s => `
-                        <div class="rs-historico-item">
-                            <b>${s.titulo || 'Serviço'}</b> • ${s.empresa_nome || s.empresaNome || 'Empresa'} •
-                            ${s.checkin_hora || 'sem entrada'} → ${s.checkout_hora || 'em andamento'} •
-                            ${calcularTotalHorasRS(s)}
-                        </div>
-                    `).join('')
-                    : '<div class="rs-historico-item">Nenhum histórico disponível.</div>';
+                // Histórico mostra somente serviços encerrados/concluídos.
+                const concluidos = meus
+                    .filter(estaFinalizado)
+                    .sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
+                    .slice(0, 5);
 
-                const pagos = meus.filter(s => s.comprovante_pagamento || s.pagamento_status === 'pago' || s.status_pagamento === 'pago');
+                historicoServicos.innerHTML = concluidos.length
+                    ? concluidos.map(s => {
+                        const empresaNome =
+                            s.empresa_nome ||
+                            s.empresaNome ||
+                            s.empresa_nome_resolvido ||
+                            'Empresa';
+
+                        const total =
+                            s.checkin_hora && s.checkout_hora
+                                ? calcularTotalHorasRS(s)
+                                : 'Jornada não registrada';
+
+                        return `
+                            <div class="rs-historico-item" style="padding:10px 0;">
+                                <div style="font-weight:800;color:var(--primary);margin-bottom:3px;">
+                                    ${s.titulo || 'Serviço'}
+                                </div>
+                                <div>
+                                    🏢 ${empresaNome}
+                                    &nbsp;•&nbsp;
+                                    ⏱️ ${s.checkin_hora || '—'} → ${s.checkout_hora || '—'}
+                                </div>
+                                <div style="margin-top:3px;">
+                                    ${total}
+                                    &nbsp;•&nbsp;
+                                    💰 R$ ${s.valor || '0,00'}
+                                </div>
+                            </div>
+                        `;
+                    }).join('')
+                    : '<div class="rs-historico-item">Nenhum serviço concluído ainda.</div>';
+
+                const pagos = meus
+                    .filter(s =>
+                        Boolean(s.comprovante_pagamento) ||
+                        String(s.status || '').toLowerCase() === 'pago' ||
+                        s.pagamento_status === 'pago' ||
+                        s.status_pagamento === 'pago'
+                    )
+                    .sort((a, b) => Number(b.id || 0) - Number(a.id || 0))
+                    .slice(0, 5);
+
                 historicoPagamentos.innerHTML = pagos.length
-                    ? pagos.slice(-5).reverse().map(s => `
-                        <div class="rs-historico-item">
-                            <b>${s.titulo || 'Serviço'}</b> • R$ ${s.valor || '0,00'} • Pagamento registrado
-                        </div>
-                    `).join('')
-                    : '<div class="rs-historico-item">Nenhum pagamento registrado.</div>';
+                    ? pagos.map(s => {
+                        const empresaNome =
+                            s.empresa_nome ||
+                            s.empresaNome ||
+                            s.empresa_nome_resolvido ||
+                            'Empresa';
+
+                        return `
+                            <div class="rs-historico-item" style="padding:10px 0;">
+                                <div style="font-weight:800;color:var(--primary);">
+                                    ${s.titulo || 'Serviço'}
+                                </div>
+                                <div style="margin-top:3px;">
+                                    🏢 ${empresaNome}
+                                    &nbsp;•&nbsp;
+                                    💰 R$ ${s.valor || '0,00'}
+                                    &nbsp;•&nbsp;
+                                    <span style="color:var(--success);font-weight:800;">✅ Pago</span>
+                                </div>
+                            </div>
+                        `;
+                    }).join('')
+                    : '<div class="rs-historico-item">Nenhum pagamento recebido ainda.</div>';
             }
         }
 
