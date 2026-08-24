@@ -929,7 +929,17 @@ app.post('/api/servicos', async (req, res) => {
    ENTRAR NA FILA
 ===================================================== */
 
+/* =====================================================
+   FILA DA VAGA
+   REGRA:
+   - 1 TITULAR
+   - 2 RESERVAS DE EMERGÊNCIA
+   - MESMO COM TITULAR, A VAGA CONTINUA ACEITANDO
+     ATÉ 2 RESERVAS
+===================================================== */
+
 app.post('/api/servicos/:id/fila', async (req, res) => {
+
     const id = req.params.id;
 
     const {
@@ -940,14 +950,23 @@ app.post('/api/servicos/:id/fila', async (req, res) => {
         rgCnh
     } = req.body;
 
+    if (!prestadorEmail) {
+        return res.status(400).json({
+            sucesso: false,
+            erro: 'Prestador não identificado.'
+        });
+    }
+
     try {
-        const result =
-            await pool.query(
-                `SELECT *
-                 FROM servicos
-                 WHERE id = $1`,
-                [id]
-            );
+
+        const result = await pool.query(
+            `
+            SELECT *
+            FROM servicos
+            WHERE id = $1
+            `,
+            [id]
+        );
 
         if (!result.rows.length) {
             return res.status(404).json({
@@ -956,18 +975,19 @@ app.post('/api/servicos/:id/fila', async (req, res) => {
             });
         }
 
-        const servico =
-            result.rows[0];
+        const servico = result.rows[0];
 
-        const fila =
-            Array.isArray(servico.reservas)
-                ? servico.reservas
-                : [];
+        let fila = Array.isArray(servico.reservas)
+            ? servico.reservas
+            : [];
 
-        const statusServico =
-            String(
-                servico.status || ''
-            ).toLowerCase();
+        const statusServico = String(
+            servico.status || ''
+        ).toLowerCase();
+
+        /* ============================================
+           BLOQUEIA SOMENTE SERVIÇO REALMENTE ENCERRADO
+        ============================================ */
 
         const statusEncerrados = [
             'concluido',
@@ -984,66 +1004,256 @@ app.post('/api/servicos/:id/fila', async (req, res) => {
             Boolean(servico.checkout_hora) ||
             Boolean(servico.validado_empresa) ||
             Boolean(servico.comprovante_pagamento) ||
-            statusEncerrados.includes(
-                statusServico
-            );
+            statusEncerrados.includes(statusServico);
 
         if (vagaEncerrada) {
+
             return res.status(409).json({
                 sucesso: false,
                 erro:
                     'Esta vaga já foi encerrada. Novas candidaturas estão bloqueadas.'
             });
+
         }
+
+        /* ============================================
+           TITULAR NÃO PODE ENTRAR NOVAMENTE
+        ============================================ */
 
         if (
             servico.prestador_email &&
-            servico.prestador_email !==
-                prestadorEmail
+            String(servico.prestador_email)
+                .trim()
+                .toLowerCase() ===
+            String(prestadorEmail)
+                .trim()
+                .toLowerCase()
         ) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'Você já é o titular desta vaga.'
+            });
+
+        }
+
+        /* ============================================
+           VERIFICA SE JÁ ESTÁ NAS RESERVAS
+        ============================================ */
+
+        const jaEstaNaFila = fila.some(p =>
+
+            String(p.email || '')
+                .trim()
+                .toLowerCase() ===
+
+            String(prestadorEmail)
+                .trim()
+                .toLowerCase()
+
+        );
+
+        if (jaEstaNaFila) {
+
+            const posicao = fila.findIndex(p =>
+
+                String(p.email || '')
+                    .trim()
+                    .toLowerCase() ===
+
+                String(prestadorEmail)
+                    .trim()
+                    .toLowerCase()
+
+            ) + 1;
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    `Você já está cadastrado nesta vaga como Reserva ${posicao}.`,
+                posicao
+            });
+
+        }
+
+        /* ============================================
+           CAPACIDADE DA FILA
+
+           SEM TITULAR:
+           pode haver até 3 candidatos.
+           O primeiro depois assume como titular.
+
+           COM TITULAR:
+           podem existir até 2 reservas.
+        ============================================ */
+
+        const existeTitular =
+            Boolean(servico.prestador_email);
+
+        const limiteFila =
+            existeTitular ? 2 : 3;
+
+        if (fila.length >= limiteFila) {
+
+            if (existeTitular) {
+
+                return res.status(409).json({
+                    sucesso: false,
+                    erro:
+                        'Equipe completa. Esta vaga já possui 1 titular e 2 reservas de emergência.'
+                });
+
+            }
+
             return res.status(409).json({
                 sucesso: false,
                 erro:
-                    'Esta vaga já foi preenchida por um titular. Novos candidatos não podem entrar na fila.'
+                    'A fila já possui 3 candidatos. Aguarde a definição do titular.'
             });
+
         }
 
-        if (
-            servico.prestador_email ===
-            prestadorEmail
-        ) {
-            return res.status(400).json({
-                sucesso: false,
-                erro:
-                    'Você já é o titular deste serviço.'
-            });
-        }
-
-        if (
-            fila.some(
-                p =>
-                    p.email ===
-                    prestadorEmail
-            )
-        ) {
-            return res.status(400).json({
-                sucesso: false,
-                erro:
-                    'Você já está na fila desta vaga.'
-            });
-        }
-
-        if (fila.length >= 2) {
-            return res.status(400).json({
-                sucesso: false,
-                erro:
-                    'A fila de espera já está completa.'
-            });
-        }
+        /* ============================================
+           ADICIONA PRESTADOR À FILA
+        ============================================ */
 
         fila.push({
+
             email:
                 prestadorEmail,
+
+            nome:
+                prestadorNome ||
+                prestadorEmail,
+
+            whatsapp:
+                prestadorWhatsapp ||
+                '',
+
+            pix:
+                prestadorPix ||
+                '',
+
+            rgCnh:
+                rgCnh ||
+                '',
+
+            entrouEm:
+                new Date()
+                    .toISOString()
+
+        });
+
+        /* ============================================
+           SALVA NO BANCO
+        ============================================ */
+
+        await pool.query(
+            `
+            UPDATE servicos
+            SET reservas = $1::jsonb
+            WHERE id = $2
+            `,
+            [
+                JSON.stringify(fila),
+                id
+            ]
+        );
+
+        /* ============================================
+           AUDITORIA
+        ============================================ */
+
+        await registrarAuditoria(
+
+            prestadorEmail,
+
+            existeTitular
+                ? 'ENTRAR_COMO_RESERVA'
+                : 'ENTRAR_FILA',
+
+            existeTitular
+                ? `Prestador entrou como Reserva ${fila.length} do serviço #${id}.`
+                : `Prestador entrou na fila do serviço #${id} na posição ${fila.length}.`
+
+        );
+
+        /* ============================================
+           ATUALIZA TODOS OS USUÁRIOS
+        ============================================ */
+
+        io.emit(
+            'atualizar_servicos'
+        );
+
+        /* ============================================
+           RESPOSTA
+        ============================================ */
+
+        if (existeTitular) {
+
+            return res.json({
+
+                sucesso: true,
+
+                mensagem:
+                    `Você entrou como Reserva de Emergência ${fila.length}.`,
+
+                posicao:
+                    fila.length,
+
+                tipoEntrada:
+                    'reserva',
+
+                titular:
+                    servico.prestador_nome,
+
+                reservas:
+                    fila
+
+            });
+
+        }
+
+        return res.json({
+
+            sucesso: true,
+
+            mensagem:
+                `Você entrou na fila na posição ${fila.length}.`,
+
+            posicao:
+                fila.length,
+
+            tipoEntrada:
+                'fila',
+
+            reservas:
+                fila
+
+        });
+
+    } catch (err) {
+
+        console.error(
+            'Erro ao entrar na fila:',
+            err
+        );
+
+        return res.status(500).json({
+
+            sucesso: false,
+
+            erro:
+                'Erro ao entrar na fila: ' +
+                err.message
+
+        });
+
+    }
+
+});
 
             nome:
                 prestadorNome,
