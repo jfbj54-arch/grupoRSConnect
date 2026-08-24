@@ -1548,6 +1548,116 @@
             }
         }
 
+
+        /* =====================================================
+           MODO LOGADO - TELA INTEIRA NO CELULAR
+        ===================================================== */
+        body.rs-logged-in #secao-auth {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            overflow: hidden !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        body.rs-logged-in .main-wrapper {
+            display: block !important;
+            width: 100% !important;
+            max-width: none !important;
+            flex: 1 1 auto !important;
+            margin: 0 !important;
+            box-sizing: border-box !important;
+        }
+
+        body.rs-logged-in #secao-sistema {
+            display: block !important;
+            width: min(1180px, 100%) !important;
+            max-width: 1180px !important;
+            margin: 0 auto !important;
+            box-sizing: border-box !important;
+        }
+
+        @media (max-width: 768px) {
+            body.rs-logged-in {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                overflow-x: hidden !important;
+            }
+
+            body.rs-logged-in header {
+                width: 100% !important;
+                max-width: 100% !important;
+                box-sizing: border-box !important;
+                padding: 11px 12px !important;
+            }
+
+            body.rs-logged-in .main-wrapper {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow: visible !important;
+            }
+
+            body.rs-logged-in #secao-sistema {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                margin: 0 !important;
+                padding: 14px 10px 40px !important;
+                overflow-x: hidden !important;
+            }
+
+            body.rs-logged-in #secao-sistema *,
+            body.rs-logged-in #secao-sistema *::before,
+            body.rs-logged-in #secao-sistema *::after {
+                box-sizing: border-box;
+            }
+
+            body.rs-logged-in #secao-sistema .info-card-empresa,
+            body.rs-logged-in #secao-sistema .wallet-card,
+            body.rs-logged-in #secao-sistema .rs-presenca-painel,
+            body.rs-logged-in #secao-sistema .servico-card,
+            body.rs-logged-in #secao-sistema .service-card,
+            body.rs-logged-in #secao-sistema .vaga-card,
+            body.rs-logged-in #secao-sistema .contrato-box,
+            body.rs-logged-in #secao-sistema .detalhes-box,
+            body.rs-logged-in #secao-sistema .rs-doc-flow-box,
+            body.rs-logged-in #secao-sistema .chat-container {
+                width: 100% !important;
+                max-width: 100% !important;
+                min-width: 0 !important;
+                margin-left: 0 !important;
+                margin-right: 0 !important;
+            }
+
+            body.rs-logged-in #secao-sistema [style*="width: 45%"] {
+                width: 100% !important;
+            }
+
+            body.rs-logged-in #secao-sistema [style*="text-align: right"] {
+                text-align: left !important;
+            }
+
+            body.rs-logged-in #secao-sistema .rs-fechamento-grid,
+            body.rs-logged-in #secao-sistema .rs-jornada-grid,
+            body.rs-logged-in #secao-sistema .rs-resumo,
+            body.rs-logged-in #secao-sistema .rs-feature-grid,
+            body.rs-logged-in #secao-sistema .grid-duplo,
+            body.rs-logged-in #secao-sistema .grid-triplo {
+                grid-template-columns: 1fr !important;
+            }
+
+            body.rs-logged-in #secao-sistema img {
+                max-width: 100% !important;
+                height: auto !important;
+            }
+        }
+
 </style>
 </head>
 <body>
@@ -2198,8 +2308,11 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             const painelGestorTrabalhadores = document.getElementById('painel-gestor-trabalhadores');
 
             if (usuarioLogado) {
+                document.body.classList.add('rs-logged-in');
                 secaoAuth.classList.add('hidden');
+                secaoAuth.style.display = 'none';
                 secaoSistema.classList.remove('hidden');
+                secaoSistema.style.display = 'block';
                 painelTopo.classList.remove('hidden');
                 txtUsuario.innerText = `${usuarioLogado.nome} (${usuarioLogado.tipo.toUpperCase()})`;
                 
@@ -2224,8 +2337,11 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     document.getElementById('titulo-radar').innerText = "📡 Vagas Disponíveis e Meu Serviço Atual";
                 }
             } else {
+                document.body.classList.remove('rs-logged-in');
                 secaoAuth.classList.remove('hidden');
+                secaoAuth.style.display = '';
                 secaoSistema.classList.add('hidden');
+                secaoSistema.style.display = '';
                 painelTopo.classList.add('hidden');
             }
         }
