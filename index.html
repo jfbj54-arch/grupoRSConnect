@@ -359,6 +359,156 @@
         }
 
 
+
+        /* ===== CONTROLE DE PRESENÇA INTEGRADO ===== */
+        .rs-presenca-painel {
+            background: #fff;
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 22px;
+            box-shadow: 0 4px 15px rgba(0,0,0,.03);
+        }
+
+        .rs-presenca-cabecalho {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 14px;
+        }
+
+        .rs-presenca-cabecalho h3 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 16px;
+        }
+
+        .rs-equipe-lista {
+            display: grid;
+            gap: 10px;
+        }
+
+        .rs-colaborador-linha {
+            display: grid;
+            grid-template-columns: minmax(170px, 1.4fr) minmax(120px, .8fr) minmax(120px, .8fr) minmax(130px, 1fr);
+            gap: 10px;
+            align-items: center;
+            padding: 12px;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 12px;
+        }
+
+        .rs-colaborador-nome {
+            font-weight: 800;
+            color: var(--primary);
+        }
+
+        .rs-colaborador-funcao {
+            color: var(--text-light);
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .rs-status {
+            display: inline-flex;
+            align-items: center;
+            width: fit-content;
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 10px;
+            font-weight: 800;
+        }
+
+        .rs-status-presente { background:#dcfce7; color:#166534; }
+        .rs-status-intervalo { background:#fef3c7; color:#92400e; }
+        .rs-status-ausente { background:#fee2e2; color:#991b1b; }
+        .rs-status-finalizado { background:#e2e8f0; color:#475569; }
+
+        .rs-jornada-detalhada {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .rs-jornada-campo {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 10px;
+            padding: 11px;
+            min-height: 58px;
+        }
+
+        .rs-jornada-campo small {
+            display: block;
+            color: var(--text-light);
+            font-size: 10px;
+            text-transform: uppercase;
+            font-weight: 800;
+            margin-bottom: 5px;
+        }
+
+        .rs-jornada-campo strong {
+            color: var(--primary);
+            font-size: 12px;
+            word-break: break-word;
+        }
+
+        .rs-jornada-acoes {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-top: 12px;
+        }
+
+        .rs-jornada-acoes button {
+            width: auto;
+            padding: 9px 12px;
+            font-size: 11px;
+            box-shadow: none;
+        }
+
+        .rs-historico {
+            margin-top: 14px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 12px;
+        }
+
+        .rs-historico h4 {
+            margin: 0 0 8px;
+            font-size: 12px;
+            color: var(--primary);
+        }
+
+        .rs-historico-item {
+            font-size: 11px;
+            color: var(--text-light);
+            padding: 7px 0;
+            border-bottom: 1px dashed #e2e8f0;
+        }
+
+        @media (max-width: 850px) {
+            .rs-colaborador-linha {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .rs-jornada-detalhada {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
+
+        @media (max-width: 520px) {
+            .rs-colaborador-linha,
+            .rs-jornada-detalhada {
+                grid-template-columns: 1fr;
+            }
+        }
+
+
         /* ===== PAINÉIS COMPACTOS RS CONNECT ===== */
         .rs-resumo {
             display: grid;
@@ -638,25 +788,74 @@
                 </div>
             </div>
 
-            <!-- JORNADA COMPACTA PARA PRESTADOR -->
-            <div id="resumo-jornada-rs" class="rs-jornada-box hidden no-print">
-                <div class="rs-jornada-topo">
-                    <h3>🕒 Minha Jornada</h3>
-                    <span id="rs-jornada-status" class="rs-status-pill rs-status-wait">Aguardando serviço</span>
+            <!-- JORNADA COMPLETA DO COLABORADOR -->
+            <div id="resumo-jornada-rs" class="rs-presenca-painel hidden no-print">
+                <div class="rs-presenca-cabecalho">
+                    <h3>👷 Minha Jornada de Trabalho</h3>
+                    <span id="rs-jornada-status" class="rs-status rs-status-ausente">Aguardando escala</span>
                 </div>
-                <div class="rs-jornada-grid">
-                    <div class="rs-jornada-info">
-                        <b>Serviço atual</b>
-                        <span id="rs-jornada-servico">Nenhum serviço titular</span>
+
+                <div class="rs-jornada-detalhada">
+                    <div class="rs-jornada-campo">
+                        <small>Empresa</small>
+                        <strong id="rs-jornada-empresa">Não informada</strong>
                     </div>
-                    <div class="rs-jornada-info">
-                        <b>Entrada</b>
-                        <span id="rs-jornada-entrada">Pendente</span>
+                    <div class="rs-jornada-campo">
+                        <small>Serviço / Função</small>
+                        <strong id="rs-jornada-servico">Nenhum serviço titular</strong>
                     </div>
-                    <div class="rs-jornada-info">
-                        <b>Saída</b>
-                        <span id="rs-jornada-saida">Pendente</span>
+                    <div class="rs-jornada-campo">
+                        <small>Local</small>
+                        <strong id="rs-jornada-local">Não informado</strong>
                     </div>
+                    <div class="rs-jornada-campo">
+                        <small>Valor a receber</small>
+                        <strong id="rs-jornada-valor">R$ 0,00</strong>
+                    </div>
+
+                    <div class="rs-jornada-campo">
+                        <small>Entrada</small>
+                        <strong id="rs-jornada-entrada">Pendente</strong>
+                    </div>
+                    <div class="rs-jornada-campo">
+                        <small>Início do intervalo</small>
+                        <strong id="rs-jornada-intervalo">Pendente</strong>
+                    </div>
+                    <div class="rs-jornada-campo">
+                        <small>Retorno</small>
+                        <strong id="rs-jornada-retorno">Pendente</strong>
+                    </div>
+                    <div class="rs-jornada-campo">
+                        <small>Saída / Total</small>
+                        <strong><span id="rs-jornada-saida">Pendente</span><br><span id="rs-jornada-total">0h trabalhadas</span></strong>
+                    </div>
+                </div>
+
+                <div class="rs-historico">
+                    <h4>📚 Histórico recente de serviços</h4>
+                    <div id="rs-historico-servicos">
+                        <div class="rs-historico-item">Nenhum histórico disponível.</div>
+                    </div>
+                </div>
+
+                <div class="rs-historico">
+                    <h4>💳 Histórico de pagamentos</h4>
+                    <div id="rs-historico-pagamentos">
+                        <div class="rs-historico-item">Nenhum pagamento registrado.</div>
+                    </div>
+                </div>
+            </div>
+
+
+
+            <!-- EQUIPE DE HOJE - VISÃO DA EMPRESA -->
+            <div id="rs-equipe-hoje-painel" class="rs-presenca-painel hidden no-print">
+                <div class="rs-presenca-cabecalho">
+                    <h3>👥 Equipe de Hoje</h3>
+                    <span class="rs-status rs-status-presente">● Acompanhamento ativo</span>
+                </div>
+                <div id="rs-equipe-hoje" class="rs-equipe-lista">
+                    <div class="rs-historico-item">Nenhum colaborador escalado no momento.</div>
                 </div>
             </div>
 
@@ -735,7 +934,7 @@
                         <label>Termos e Condições Contratuais</label>
                         <textarea id="srv-contrato" rows="12">CLÁUSULA PRIMEIRA – DO OBJETO E DO COMPROMISSO: O PRESTADOR compromete-se a executar os serviços contratados por meio do aplicativo, observando integralmente as especificações, condições, horários previamente acordados, padrões de qualidade, segurança e demais requisitos informados no momento do aceite. O PRESTADOR declara possuir capacidade técnica e condições necessárias para a execução do serviço, responsabilizando-se pela correta realização das atividades assumidas. O pagamento correspondente ao serviço será liberado após a conclusão da atividade e a validação do respectivo check-out pelo aplicativo, observadas as condições previamente informadas e aceitas pelas partes.
 
-CLÁUSULA SEGUNDA – DA AUTONOMIA E DA NATUREZA DA CONTRATAÇÃO: A presente contratação tiene por objeto a prestação de serviço específico, mediante aceite eletrônico realizado pelo PRESTADOR no aplicativo. Quando juridicamente aplicável, o PRESTADOR atuará com autonomia técnica e operacional, sem subordinação jurídica, podendo organizar a execução do serviço de acordo com as condições previamente estabelecidas para cada atendimento. O aceite de uma oportunidade de serviço não implica, isoladamente, constituição de vínculo empregatício, devendo a relação ser interpretada de acordo com a realidade da prestação e com a legislação aplicável.
+CLÁUSULA SEGUNDA – DA AUTONOMIA E DA NATUREZA DA CONTRATAÇÃO: A presente contratação tem por objeto a prestação de serviço específico, mediante aceite eletrônico realizado pelo PRESTADOR no aplicativo. Quando juridicamente aplicável, o PRESTADOR atuará com autonomia técnica e operacional, sem subordinação jurídica, podendo organizar a execução do serviço de acordo com as condições previamente estabelecidas para cada atendimento. O aceite de uma oportunidade de serviço não implica, isoladamente, constituição de vínculo empregatício, devendo a relação ser interpretada de acordo com a realidade da prestação e com a legislação aplicável.
 
 CLÁUSULA TERCEIRA – DO VALOR E DOS ENCARGOS: O valor apresentado e aceito pelo PRESTADOR corresponde à remuneração total ajustada para a execução do serviço, incluindo, quando juridicamente cabível e conforme a natureza da contratação, os custos, tributos, contribuições, despesas e demais encargos de responsabilidade do próprio PRESTADOR. Quando houver obrigação legal de responsabilidade do CONTRATANTE, esta será observada na forma determinada pela legislação vigente. Caso a contratação seja realizada em regime que gere efetiva relação de emprego, os direitos e encargos trabalhistas legalmente exigíveis, incluindo FGTS, férias acrescidas do terço constitucional, 13º salário, contribuições previdenciárias e demais verbas previstas em lei, deverão ser tratados conforme o regime jurídico efetivamente aplicável, não podendo esta cláusula ser utilizada para afastar direito trabalhista indisponível.
 
@@ -1101,15 +1300,76 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         }
 
 
+
+        function obterCampoJornada(s, nomes, padrao = '') {
+            for (const nome of nomes) {
+                if (s && s[nome] !== undefined && s[nome] !== null && String(s[nome]).trim() !== '') {
+                    return s[nome];
+                }
+            }
+            return padrao;
+        }
+
+        function horarioParaMinutos(valor) {
+            if (!valor) return null;
+            const texto = String(valor).trim();
+            const match = texto.match(/(\d{1,2}):(\d{2})/);
+            if (!match) return null;
+            return Number(match[1]) * 60 + Number(match[2]);
+        }
+
+        function calcularTotalHorasRS(s) {
+            const entrada = horarioParaMinutos(obterCampoJornada(s, ['checkin_hora', 'hora_entrada', 'entrada']));
+            const saida = horarioParaMinutos(obterCampoJornada(s, ['checkout_hora', 'hora_saida', 'saida']));
+            if (entrada === null || saida === null) return '0h trabalhadas';
+
+            let minutos = saida - entrada;
+            if (minutos < 0) minutos += 24 * 60;
+
+            const iniIntervalo = horarioParaMinutos(obterCampoJornada(s, ['intervalo_inicio', 'intervaloInicio']));
+            const fimIntervalo = horarioParaMinutos(obterCampoJornada(s, ['intervalo_retorno', 'intervaloRetorno', 'retorno_intervalo']));
+
+            if (iniIntervalo !== null && fimIntervalo !== null) {
+                let pausa = fimIntervalo - iniIntervalo;
+                if (pausa < 0) pausa += 24 * 60;
+                minutos = Math.max(0, minutos - pausa);
+            }
+
+            const horas = Math.floor(minutos / 60);
+            const mins = minutos % 60;
+            return mins ? `${horas}h ${mins}min trabalhadas` : `${horas}h trabalhadas`;
+        }
+
+        function estaEmIntervaloRS(s) {
+            const inicio = obterCampoJornada(s, ['intervalo_inicio', 'intervaloInicio']);
+            const retorno = obterCampoJornada(s, ['intervalo_retorno', 'intervaloRetorno', 'retorno_intervalo']);
+            return Boolean(inicio && !retorno && !s.checkout_hora);
+        }
+
+        function montarStatusPresencaRS(s) {
+            if (s.checkout_hora) {
+                return { classe: 'rs-status-finalizado', texto: '⚪ Finalizado' };
+            }
+            if (estaEmIntervaloRS(s)) {
+                return { classe: 'rs-status-intervalo', texto: '🟡 Em intervalo' };
+            }
+            if (s.checkin_hora) {
+                return { classe: 'rs-status-presente', texto: '🟢 Presente' };
+            }
+            return { classe: 'rs-status-ausente', texto: '🔴 Não compareceu / aguardando' };
+        }
+
         function atualizarResumoRS(servicos) {
             if (!usuarioLogado) return;
 
             const resumoEquipe = document.getElementById('resumo-equipe-rs');
             const resumoJornada = document.getElementById('resumo-jornada-rs');
+            const equipeHojePainel = document.getElementById('rs-equipe-hoje-painel');
 
             if (usuarioLogado.tipo === 'empresa') {
-                resumoEquipe.classList.remove('hidden');
-                resumoJornada.classList.add('hidden');
+                resumoEquipe?.classList.remove('hidden');
+                resumoJornada?.classList.add('hidden');
+                equipeHojePainel?.classList.remove('hidden');
 
                 const email = (usuarioLogado.email || '').trim().toLowerCase();
                 const meus = (servicos || []).filter(s =>
@@ -1117,63 +1377,174 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 );
 
                 const titulares = meus.filter(s => s.prestador_email);
-                const presentes = meus.filter(s =>
-                    s.checkin_hora ||
-                    s.presenca_confirmada ||
-                    s.presencaConfirmada ||
-                    s.confirmado ||
-                    (s.selfie_confirmacao && s.selfie_confirmacao.length > 10)
-                );
+                const presentes = meus.filter(s => s.checkin_hora && !s.checkout_hora);
                 const finalizados = meus.filter(s => s.checkout_hora);
 
                 document.getElementById('rs-total-servicos').innerText = meus.length;
                 document.getElementById('rs-total-titulares').innerText = titulares.length;
                 document.getElementById('rs-total-presentes').innerText = presentes.length;
                 document.getElementById('rs-total-finalizados').innerText = finalizados.length;
-            } else {
-                resumoEquipe.classList.add('hidden');
-                resumoJornada.classList.remove('hidden');
 
-                const atual = (servicos || []).find(s =>
-                    s.prestador_email === usuarioLogado.email && !s.checkout_hora
-                ) || (servicos || []).find(s =>
-                    s.prestador_email === usuarioLogado.email
-                );
+                const lista = document.getElementById('rs-equipe-hoje');
+                if (!lista) return;
 
-                const status = document.getElementById('rs-jornada-status');
-
-                if (!atual) {
-                    document.getElementById('rs-jornada-servico').innerText = 'Nenhum serviço titular';
-                    document.getElementById('rs-jornada-entrada').innerText = 'Pendente';
-                    document.getElementById('rs-jornada-saida').innerText = 'Pendente';
-                    status.className = 'rs-status-pill rs-status-wait';
-                    status.innerText = 'Aguardando serviço';
+                const comColaborador = meus.filter(s => s.prestador_nome || s.prestador_email);
+                if (!comColaborador.length) {
+                    lista.innerHTML = '<div class="rs-historico-item">Nenhum colaborador escalado no momento.</div>';
                     return;
                 }
 
-                document.getElementById('rs-jornada-servico').innerText =
-                    `${atual.titulo || 'Serviço'} • ${atual.local || 'Local não informado'}`;
-                document.getElementById('rs-jornada-entrada').innerText = atual.checkin_hora || 'Pendente';
-                document.getElementById('rs-jornada-saida').innerText = atual.checkout_hora || 'Pendente';
+                lista.innerHTML = comColaborador.map(s => {
+                    const status = montarStatusPresencaRS(s);
+                    const funcao = s.prestador_profissao || s.categoria || s.titulo || 'Serviço';
+                    const intervaloInicio = obterCampoJornada(s, ['intervalo_inicio', 'intervaloInicio']);
+                    const intervaloRetorno = obterCampoJornada(s, ['intervalo_retorno', 'intervaloRetorno', 'retorno_intervalo']);
+                    const horarioLinha = s.checkout_hora
+                        ? `Entrada ${s.checkin_hora || '—'} • Saída ${s.checkout_hora}`
+                        : estaEmIntervaloRS(s)
+                            ? `Intervalo desde ${intervaloInicio}`
+                            : `Entrada ${s.checkin_hora || 'Pendente'}`;
 
-                if (atual.checkout_hora) {
-                    status.className = 'rs-status-pill rs-status-off';
-                    status.innerText = 'Finalizado';
-                } else if (atual.checkin_hora) {
-                    status.className = 'rs-status-pill rs-status-ok';
-                    status.innerText = 'Em serviço';
+                    return `
+                        <div class="rs-colaborador-linha">
+                            <div>
+                                <div class="rs-colaborador-nome">${s.prestador_nome || 'Colaborador'}</div>
+                                <div class="rs-colaborador-funcao">${funcao}</div>
+                            </div>
+                            <div><span class="rs-status ${status.classe}">${status.texto}</span></div>
+                            <div>${horarioLinha}${intervaloRetorno ? `<br><small>Retorno ${intervaloRetorno}</small>` : ''}</div>
+                            <div>
+                                <small style="color:var(--text-light);">📍 ${s.local || 'Local não informado'}</small>
+                                ${s.checkin_gps ? `<br><small style="color:var(--success);">Local confirmado</small>` : ''}
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                resumoEquipe?.classList.add('hidden');
+                equipeHojePainel?.classList.add('hidden');
+                resumoJornada?.classList.remove('hidden');
+
+                const meus = (servicos || []).filter(s => s.prestador_email === usuarioLogado.email);
+                const atual = meus.find(s => !s.checkout_hora) || meus[0];
+
+                const statusEl = document.getElementById('rs-jornada-status');
+
+                if (!atual) {
+                    document.getElementById('rs-jornada-empresa').innerText = 'Não informada';
+                    document.getElementById('rs-jornada-servico').innerText = 'Nenhum serviço titular';
+                    document.getElementById('rs-jornada-local').innerText = 'Não informado';
+                    document.getElementById('rs-jornada-valor').innerText = 'R$ 0,00';
+                    document.getElementById('rs-jornada-entrada').innerText = 'Pendente';
+                    document.getElementById('rs-jornada-intervalo').innerText = 'Pendente';
+                    document.getElementById('rs-jornada-retorno').innerText = 'Pendente';
+                    document.getElementById('rs-jornada-saida').innerText = 'Pendente';
+                    document.getElementById('rs-jornada-total').innerText = '0h trabalhadas';
+                    statusEl.className = 'rs-status rs-status-ausente';
+                    statusEl.innerText = 'Aguardando escala';
                 } else {
-                    status.className = 'rs-status-pill rs-status-wait';
-                    status.innerText = 'Aguardando check-in';
+                    const status = montarStatusPresencaRS(atual);
+                    statusEl.className = `rs-status ${status.classe}`;
+                    statusEl.innerText = status.texto;
+
+                    document.getElementById('rs-jornada-empresa').innerText =
+                        atual.empresa_nome || atual.empresaNome || 'Empresa cliente';
+                    document.getElementById('rs-jornada-servico').innerText =
+                        `${atual.titulo || 'Serviço'}${atual.categoria ? ' • ' + atual.categoria : ''}`;
+                    document.getElementById('rs-jornada-local').innerText =
+                        `${atual.local || 'Não informado'}${atual.endereco ? ' • ' + atual.endereco : ''}`;
+                    document.getElementById('rs-jornada-valor').innerText =
+                        `R$ ${atual.valor || '0,00'}`;
+                    document.getElementById('rs-jornada-entrada').innerText =
+                        atual.checkin_hora || 'Pendente';
+                    document.getElementById('rs-jornada-intervalo').innerText =
+                        obterCampoJornada(atual, ['intervalo_inicio', 'intervaloInicio'], 'Pendente');
+                    document.getElementById('rs-jornada-retorno').innerText =
+                        obterCampoJornada(atual, ['intervalo_retorno', 'intervaloRetorno', 'retorno_intervalo'], 'Pendente');
+                    document.getElementById('rs-jornada-saida').innerText =
+                        atual.checkout_hora || 'Pendente';
+                    document.getElementById('rs-jornada-total').innerText =
+                        calcularTotalHorasRS(atual);
                 }
+
+                const historicoServicos = document.getElementById('rs-historico-servicos');
+                const historicoPagamentos = document.getElementById('rs-historico-pagamentos');
+
+                const recentes = [...meus].slice(-5).reverse();
+                historicoServicos.innerHTML = recentes.length
+                    ? recentes.map(s => `
+                        <div class="rs-historico-item">
+                            <b>${s.titulo || 'Serviço'}</b> • ${s.empresa_nome || s.empresaNome || 'Empresa'} •
+                            ${s.checkin_hora || 'sem entrada'} → ${s.checkout_hora || 'em andamento'} •
+                            ${calcularTotalHorasRS(s)}
+                        </div>
+                    `).join('')
+                    : '<div class="rs-historico-item">Nenhum histórico disponível.</div>';
+
+                const pagos = meus.filter(s => s.comprovante_pagamento || s.pagamento_status === 'pago' || s.status_pagamento === 'pago');
+                historicoPagamentos.innerHTML = pagos.length
+                    ? pagos.slice(-5).reverse().map(s => `
+                        <div class="rs-historico-item">
+                            <b>${s.titulo || 'Serviço'}</b> • R$ ${s.valor || '0,00'} • Pagamento registrado
+                        </div>
+                    `).join('')
+                    : '<div class="rs-historico-item">Nenhum pagamento registrado.</div>';
             }
+        }
+
+        async function registrarAcaoJornadaRS(id, acao) {
+            const rotas = {
+                iniciar: `/api/servicos/${id}/intervalo/iniciar`,
+                retornar: `/api/servicos/${id}/intervalo/retornar`,
+                validar: `/api/servicos/${id}/validar`
+            };
+
+            try {
+                const res = await fetch(rotas[acao], {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        hora: new Date().toLocaleTimeString(),
+                        usuarioEmail: usuarioLogado?.email || '',
+                        usuarioNome: usuarioLogado?.nome || ''
+                    })
+                });
+
+                let data = {};
+                try { data = await res.json(); } catch (_) {}
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || data.mensagem || 'A API ainda não possui esta operação.');
+                }
+
+                carregarServicos();
+
+                if (acao === 'iniciar') alert('☕ Intervalo iniciado e horário registrado.');
+                if (acao === 'retornar') alert('▶️ Retorno do intervalo registrado.');
+                if (acao === 'validar') alert('✅ Serviço validado pela empresa.');
+            } catch (err) {
+                alert(`Não foi possível registrar esta ação no servidor. ${err.message || ''}`.trim());
+            }
+        }
+
+        function iniciarIntervaloRS(id) {
+            registrarAcaoJornadaRS(id, 'iniciar');
+        }
+
+        function retornarIntervaloRS(id) {
+            registrarAcaoJornadaRS(id, 'retornar');
+        }
+
+        function validarServicoEmpresaRS(id) {
+            registrarAcaoJornadaRS(id, 'validar');
         }
 
         async function carregarServicos() {
             try {
                 const res = await fetch('/api/servicos');
                 const servicos = await res.json();
-                atualizarResumoRS(Array.isArray(servicos) ? servicos : []);
+                window.rsServicosCache = Array.isArray(servicos) ? servicos : [];
+                atualizarResumoRS(window.rsServicosCache);
                 const container = document.getElementById('lista-servicos');
                 const tbodyGestor = document.getElementById('workerTableBodyGestor');
 
@@ -1421,6 +1792,30 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             </div>
                         ` : ''}
 
+                        ${souTitular && estaConfirmado && s.checkin_hora && !s.checkout_hora ? `
+                            <div class="rs-jornada-acoes">
+                                ${!estaEmIntervaloRS(s) ? `
+                                    <button onclick="iniciarIntervaloRS(${s.id})" style="background:var(--warning);">☕ Iniciar intervalo</button>
+                                ` : `
+                                    <button onclick="retornarIntervaloRS(${s.id})" class="btn-success">▶️ Retornar do intervalo</button>
+                                `}
+                                <span style="font-size:11px;color:var(--text-light);align-self:center;">
+                                    ${obterCampoJornada(s, ['intervalo_inicio','intervaloInicio']) ? `Intervalo: ${obterCampoJornada(s, ['intervalo_inicio','intervaloInicio'])}` : 'Intervalo ainda não iniciado'}
+                                    ${obterCampoJornada(s, ['intervalo_retorno','intervaloRetorno','retorno_intervalo']) ? ` às ${obterCampoJornada(s, ['intervalo_retorno','intervaloRetorno','retorno_intervalo'])}` : ''}
+                                </span>
+                            </div>
+                        ` : ''}
+
+                        ${usuarioLogado.tipo === 'empresa' && s.checkout_hora && !s.validado_empresa ? `
+                            <div class="rs-jornada-acoes" style="justify-content:flex-end;">
+                                <button onclick="validarServicoEmpresaRS(${s.id})" class="btn-success">✅ Validar serviço concluído</button>
+                            </div>
+                        ` : ''}
+
+                        ${usuarioLogado.tipo === 'empresa' && s.validado_empresa ? `
+                            <div style="margin-top:10px;font-size:11px;color:var(--success);font-weight:700;">✅ Serviço validado pela empresa</div>
+                        ` : ''}
+
                         ${blocoChatHTML}
                     `;
                     container.appendChild(card);
@@ -1498,7 +1893,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     <p><b>Profissional:</b> ${usuarioLogado.nome} (CPF: ${usuarioLogado.doc})</p>
                     <div class="box">
                         <p>CLÁUSULA PRIMEIRA – DO OBJETO E DO COMPROMISSO: O PRESTADOR compromete-se a executar os serviços contratados por meio do aplicativo, observando integralmente as especificações, condições, horários previamente acordados, padrões de qualidade, segurança e demais requisitos informados no momento do aceite.</p>
-                        <p>CLÁUSULA SEGUNDA – DA AUTONOMIA E DA NATUREZA DA CONTRATAÇÃO: A presente contratação tiene por objeto a prestação de serviço específico, mediante aceite eletrônico realizado pelo PRESTADOR no aplicativo.</p>
+                        <p>CLÁUSULA SEGUNDA – DA AUTONOMIA E DA NATUREZA DA CONTRATAÇÃO: A presente contratação tem por objeto a prestação de serviço específico, mediante aceite eletrônico realizado pelo PRESTADOR no aplicativo.</p>
                         <p>CLÁUSULA TERCEIRA – DO VALOR E DOS ENCARGOS: O valor apresentado e aceito pelo PRESTADOR corresponde à remuneração total ajustada para a execução do serviço.</p>
                         <p>CLÁUSULA QUARTA – DO ACEITE E DA DESISTÊNCIA: O aceite eletrônico realizado pelo PRESTADOR no aplicativo representa manifestação expressa de vontade e confirmação de que tomou conhecimento das condições.</p>
                         <p>CLÁUSULA SEXTA – DA VALIDADE DO ELETRÔNICO E GOV.BR: Validação legal nos termos da Lei nº 14.063/2020 e da Medida Provisória nº 2.200-2/2001.</p>
@@ -1690,25 +2085,52 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             const reader = new FileReader();
             reader.onload = async function(e) {
                 const fotoBase64 = e.target.result;
-                try {
-                    // Chamada corrigida: enviando diretamente para a rota de checkout sem invocar /ponto indevidamente
-                    const res = await fetch(`/api/servicos/${id}/checkout`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
-                    });
-                    const data = await res.json();
-                    
-                    if (res.ok && data.sucesso !== false) {
-                        carregarServicos();
-                        alert('✅ Check-out realizado com sucesso! Serviço finalizado.');
-                    } else { 
-                        alert(data.erro || 'Erro ao realizar check-out.'); 
+
+                const finalizar = async (gps) => {
+                    try {
+                        const horaSaida = new Date().toLocaleTimeString();
+                        const servicoAtual = (window.rsServicosCache || []).find(s => String(s.id) === String(id));
+                        const totalHoras = servicoAtual
+                            ? calcularTotalHorasRS({ ...servicoAtual, checkout_hora: horaSaida })
+                            : '';
+
+                        const res = await fetch(`/api/servicos/${id}/checkout`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                hora: horaSaida,
+                                foto: fotoBase64,
+                                gps,
+                                total_horas: totalHoras
+                            })
+                        });
+
+                        const data = await res.json();
+
+                        if (res.ok && data.sucesso !== false) {
+                            carregarServicos();
+                            alert(`✅ Check-out realizado com sucesso! GPS: ${gps}`);
+                        } else {
+                            alert(data.erro || 'Erro ao realizar check-out.');
+                        }
+                    } catch (err) {
+                        alert('Erro de conexão ao finalizar o serviço.');
                     }
-                } catch (err) { 
-                    alert('Erro de conexão ao finalizar o serviço.'); 
+                };
+
+                if (navigator.geolocation) {
+                    navigator.geolocation.getCurrentPosition(
+                        position => {
+                            const gps = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
+                            finalizar(gps);
+                        },
+                        () => finalizar('GPS Indisponível')
+                    );
+                } else {
+                    finalizar('GPS não suportado');
                 }
             };
+
             reader.readAsDataURL(inputFoto.files[0]);
         }
 
