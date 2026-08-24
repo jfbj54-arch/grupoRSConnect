@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Grupo RS Connect - Gestão Profissional de Serviços</title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary: #0b1329;
@@ -1846,16 +1847,7 @@
 
                             <div id="rs-rec-etapa-codigo" class="hidden">
                                 <div class="rs-recovery-note">
-                                    Digite o código recebido por e-mail e escolha sua nova senha.
-                                </div>
-
-                                <div class="form-group">
-                                    <label>Código de 6 dígitos</label>
-                                    <input type="text"
-                                           id="rec-codigo"
-                                           inputmode="numeric"
-                                           maxlength="6"
-                                           placeholder="000000">
+                                    Escolha sua nova senha para concluir a recuperação da conta.
                                 </div>
 
                                 <div class="form-group">
@@ -2304,6 +2296,103 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
     </div>
 
     <script>
+
+        /* =====================================================
+           SUPABASE AUTH
+           Preencha SOMENTE estas duas informações.
+           A chave publishable/anon pode ficar no navegador.
+        ===================================================== */
+        const SUPABASE_URL = 'COLE_AQUI_SUA_SUPABASE_URL';
+        const SUPABASE_PUBLISHABLE_KEY = 'COLE_AQUI_SUA_CHAVE_PUBLISHABLE_OU_ANON';
+
+        const supabaseAuth = window.supabase.createClient(
+            SUPABASE_URL,
+            SUPABASE_PUBLISHABLE_KEY,
+            {
+                auth: {
+                    persistSession: true,
+                    autoRefreshToken: true,
+                    detectSessionInUrl: true
+                }
+            }
+        );
+
+        function perfilDoUsuarioSupabase(user) {
+            const m = user?.user_metadata || {};
+
+            return {
+                id: user?.id || null,
+                tipo: m.tipo || 'prestador',
+                nome: m.nome || user?.email || 'Usuário',
+                doc: m.doc || '',
+                responsavel: m.responsavel || '',
+                email: user?.email || '',
+                whatsapp: m.whatsapp || '',
+                endereco: m.endereco || '',
+                rg_cnh: m.rgCnh || m.rg_cnh || '',
+                rgCnh: m.rgCnh || m.rg_cnh || '',
+                profissao: m.profissao || '',
+                tipo_chave_pix: m.tipoChavePix || '',
+                pix: m.pix || '',
+                banco: m.banco || '',
+                conta: m.conta || '',
+                experiencia: m.experiencia || ''
+            };
+        }
+
+        async function migrarContaAntigaParaSupabase(email, senha, perfil) {
+            try {
+                await supabaseAuth.auth.signUp({
+                    email,
+                    password: senha,
+                    options: {
+                        data: {
+                            tipo: perfil.tipo || '',
+                            nome: perfil.nome || '',
+                            doc: perfil.doc || '',
+                            responsavel: perfil.responsavel || '',
+                            whatsapp: perfil.whatsapp || '',
+                            endereco: perfil.endereco || '',
+                            rgCnh: perfil.rg_cnh || perfil.rgCnh || '',
+                            profissao: perfil.profissao || '',
+                            pix: perfil.pix || ''
+                        }
+                    }
+                });
+            } catch (e) {
+                console.warn('Migração Supabase:', e);
+            }
+        }
+
+
+        supabaseAuth.auth.onAuthStateChange(async (event, session) => {
+            if (event === 'PASSWORD_RECOVERY') {
+                abrirRecuperacaoSenha();
+
+                document.getElementById('rs-rec-etapa-email')
+                    ?.classList.add('hidden');
+
+                document.getElementById('rs-rec-etapa-codigo')
+                    ?.classList.remove('hidden');
+
+                setTimeout(() => {
+                    document.getElementById('rec-nova-senha')?.focus();
+                }, 100);
+            }
+
+            if (event === 'SIGNED_IN' && session?.user) {
+                const perfil = perfilDoUsuarioSupabase(session.user);
+
+                if (!usuarioLogado) {
+                    usuarioLogado = perfil;
+                    localStorage.setItem(
+                        'rs_usuario',
+                        JSON.stringify(usuarioLogado)
+                    );
+                }
+            }
+        });
+
         const socket = io();
         let usuarioLogado = JSON.parse(localStorage.getItem('rs_usuario')) || null;
 
@@ -2364,46 +2453,56 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         }
 
         async function solicitarCodigoRecuperacao() {
-            const email = document.getElementById('rec-email')?.value.trim();
+            const email =
+                document.getElementById('rec-email')?.value.trim().toLowerCase();
 
             if (!email) {
                 alert('Informe o e-mail da sua conta.');
                 return;
             }
 
+            if (
+                SUPABASE_URL.includes('COLE_AQUI') ||
+                SUPABASE_PUBLISHABLE_KEY.includes('COLE_AQUI')
+            ) {
+                alert('⚠️ Configure primeiro o Supabase Auth no index.html.');
+                return;
+            }
+
             try {
-                const res = await fetch('/api/auth/esqueci-senha', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email })
-                });
+                const redirectTo =
+                    `${window.location.origin}${window.location.pathname}?recovery=1`;
 
-                const data = await res.json();
+                const { error } =
+                    await supabaseAuth.auth.resetPasswordForEmail(
+                        email,
+                        { redirectTo }
+                    );
 
-                if (!res.ok || data.sucesso === false) {
-                    throw new Error(data.erro || 'Não foi possível enviar o código.');
+                if (error) {
+                    throw error;
                 }
 
-                alert(`✅ ${data.mensagem || 'Código enviado.'}`);
+                alert(
+                    '✅ Se esse e-mail estiver cadastrado no Supabase Auth, você receberá um link para redefinir a senha.'
+                );
 
-                document.getElementById('rs-rec-etapa-email')?.classList.add('hidden');
-                document.getElementById('rs-rec-etapa-codigo')?.classList.remove('hidden');
+                fecharRecuperacaoSenha();
 
             } catch (err) {
-                alert(`❌ ${err.message || 'Erro ao solicitar recuperação.'}`);
+                console.error('Erro recuperação Supabase:', err);
+                alert(
+                    `❌ ${err.message || 'Não foi possível solicitar a recuperação.'}`
+                );
             }
         }
 
         async function redefinirSenhaRS() {
-            const email = document.getElementById('rec-email')?.value.trim();
-            const codigo = document.getElementById('rec-codigo')?.value.trim();
-            const novaSenha = document.getElementById('rec-nova-senha')?.value || '';
-            const confirmarSenha = document.getElementById('rec-confirmar-senha')?.value || '';
+            const novaSenha =
+                document.getElementById('rec-nova-senha')?.value || '';
 
-            if (!codigo || codigo.length !== 6) {
-                alert('Digite o código de 6 dígitos recebido por e-mail.');
-                return;
-            }
+            const confirmarSenha =
+                document.getElementById('rec-confirmar-senha')?.value || '';
 
             if (novaSenha.length < 6) {
                 alert('A nova senha deve ter pelo menos 6 caracteres.');
@@ -2416,33 +2515,32 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             }
 
             try {
-                const res = await fetch('/api/auth/redefinir-senha', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        email,
-                        codigo,
-                        novaSenha
-                    })
-                });
+                const { error } =
+                    await supabaseAuth.auth.updateUser({
+                        password: novaSenha
+                    });
 
-                const data = await res.json();
-
-                if (!res.ok || data.sucesso === false) {
-                    throw new Error(data.erro || 'Não foi possível redefinir a senha.');
+                if (error) {
+                    throw error;
                 }
 
-                alert('✅ Senha redefinida! Agora entre com sua nova senha.');
-
-                if (document.getElementById('login-email')) {
-                    document.getElementById('login-email').value = email;
-                }
+                alert(
+                    '✅ Senha atualizada pelo Supabase! Agora você já pode entrar com a nova senha.'
+                );
 
                 fecharRecuperacaoSenha();
-                document.getElementById('login-senha')?.focus();
+
+                try {
+                    const url = new URL(window.location.href);
+                    url.searchParams.delete('recovery');
+                    window.history.replaceState({}, '', url.pathname);
+                } catch (_) {}
 
             } catch (err) {
-                alert(`❌ ${err.message || 'Erro ao redefinir senha.'}`);
+                console.error('Erro ao atualizar senha:', err);
+                alert(
+                    `❌ ${err.message || 'Não foi possível atualizar a senha.'}`
+                );
             }
         }
 
@@ -2481,54 +2579,184 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
         async function realizarLogin(e) {
             e.preventDefault();
-            const email = document.getElementById('login-email').value;
+
+            const email = document.getElementById('login-email').value.trim().toLowerCase();
             const senha = document.getElementById('login-senha').value;
+
+            if (
+                SUPABASE_URL.includes('COLE_AQUI') ||
+                SUPABASE_PUBLISHABLE_KEY.includes('COLE_AQUI')
+            ) {
+                alert('⚠️ Primeiro configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY no index.html.');
+                return;
+            }
+
             try {
-                const res = await fetch('/api/auth/login', {
+                // 1. Tenta o login moderno pelo Supabase Auth.
+                const { data, error } = await supabaseAuth.auth.signInWithPassword({
+                    email,
+                    password: senha
+                });
+
+                if (!error && data?.user) {
+                    usuarioLogado = perfilDoUsuarioSupabase(data.user);
+
+                    localStorage.setItem(
+                        'rs_usuario',
+                        JSON.stringify(usuarioLogado)
+                    );
+
+                    verificarEstadoSessao();
+                    carregarServicos();
+                    return;
+                }
+
+                // 2. Compatibilidade com contas antigas:
+                // tenta o login antigo e, se der certo, vincula a conta ao Supabase.
+                const resLegado = await fetch('/api/auth/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ email, senha })
                 });
-                const data = await res.json();
-                if (data.sucesso) {
-                    usuarioLogado = data.usuario;
-                    localStorage.setItem('rs_usuario', JSON.stringify(usuarioLogado));
+
+                const legado = await resLegado.json();
+
+                if (legado.sucesso && legado.usuario) {
+                    usuarioLogado = legado.usuario;
+
+                    localStorage.setItem(
+                        'rs_usuario',
+                        JSON.stringify(usuarioLogado)
+                    );
+
+                    await migrarContaAntigaParaSupabase(
+                        email,
+                        senha,
+                        legado.usuario
+                    );
+
                     verificarEstadoSessao();
                     carregarServicos();
-                } else { alert(data.erro || 'Dados incorretos.'); }
-            } catch (err) { alert('Erro de conexão.'); }
+
+                    alert(
+                        '✅ Conta antiga reconhecida. O RS Connect está vinculando seu acesso ao Supabase Auth.'
+                    );
+                    return;
+                }
+
+                alert(
+                    error?.message ||
+                    legado.erro ||
+                    'E-mail ou senha incorretos.'
+                );
+
+            } catch (err) {
+                console.error('Erro no login:', err);
+                alert('Erro de conexão ao entrar.');
+            }
         }
 
         async function realizarRegistro(e) {
             e.preventDefault();
+
+            const senha = document.getElementById('cad-senha').value;
+
             const dados = {
                 tipo: document.getElementById('cad-tipo').value,
-                nome: document.getElementById('cad-nome').value,
-                doc: document.getElementById('cad-doc').value,
-                responsavel: document.getElementById('cad-responsavel')?.value || '',
-                email: document.getElementById('cad-email').value,
-                senha: document.getElementById('cad-senha').value,
-                whatsapp: document.getElementById('cad-whatsapp').value,
-                endereco: document.getElementById('cad-endereco').value,
-                rgCnh: document.getElementById('cad-rg-cnh')?.value || '',
-                profissao: document.getElementById('cad-profissao')?.value || '',
-                pix: document.getElementById('cad-pix')?.value || ''
+                nome: document.getElementById('cad-nome').value.trim(),
+                doc: document.getElementById('cad-doc').value.trim(),
+                responsavel: document.getElementById('cad-responsavel')?.value.trim() || '',
+                email: document.getElementById('cad-email').value.trim().toLowerCase(),
+                senha,
+                whatsapp: document.getElementById('cad-whatsapp').value.trim(),
+                endereco: document.getElementById('cad-endereco').value.trim(),
+                rgCnh: document.getElementById('cad-rg-cnh')?.value.trim() || '',
+                profissao: document.getElementById('cad-profissao')?.value.trim() || '',
+                pix: document.getElementById('cad-pix')?.value.trim() || ''
             };
+
+            if (senha.length < 6) {
+                alert('A senha precisa ter pelo menos 6 caracteres.');
+                return;
+            }
+
+            if (
+                SUPABASE_URL.includes('COLE_AQUI') ||
+                SUPABASE_PUBLISHABLE_KEY.includes('COLE_AQUI')
+            ) {
+                alert('⚠️ Primeiro configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY no index.html.');
+                return;
+            }
+
             try {
-                const res = await fetch('/api/auth/registrar', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(dados)
+                const { data, error } = await supabaseAuth.auth.signUp({
+                    email: dados.email,
+                    password: senha,
+                    options: {
+                        data: {
+                            tipo: dados.tipo,
+                            nome: dados.nome,
+                            doc: dados.doc,
+                            responsavel: dados.responsavel,
+                            whatsapp: dados.whatsapp,
+                            endereco: dados.endereco,
+                            rgCnh: dados.rgCnh,
+                            profissao: dados.profissao,
+                            pix: dados.pix
+                        }
+                    }
                 });
-                const data = await res.json();
-                if (data.sucesso) {
-                    alert('Cadastro realizado com sucesso! Faça login.');
+
+                if (error) {
+                    throw error;
+                }
+
+                // Mantém sua tabela usuarios atual para o restante do RS Connect.
+                // O Supabase Auth passa a ser a fonte da autenticação/senha.
+                try {
+                    await fetch('/api/auth/registrar', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(dados)
+                    });
+                } catch (_) {}
+
+                if (data?.session && data?.user) {
+                    usuarioLogado = perfilDoUsuarioSupabase(data.user);
+
+                    localStorage.setItem(
+                        'rs_usuario',
+                        JSON.stringify(usuarioLogado)
+                    );
+
+                    verificarEstadoSessao();
+                    carregarServicos();
+
+                    alert('✅ Cadastro realizado com sucesso!');
+                } else {
+                    alert(
+                        '✅ Cadastro criado! Verifique seu e-mail para confirmar a conta e depois faça login.'
+                    );
+
                     alternarAba('login');
-                } else { alert(data.erro || 'Erro ao registrar.'); }
-            } catch (err) { alert('Erro ao registrar.'); }
+
+                    document.getElementById('login-email').value =
+                        dados.email;
+                }
+
+            } catch (err) {
+                console.error('Erro ao cadastrar:', err);
+                alert(
+                    `❌ ${err.message || 'Não foi possível criar a conta.'}`
+                );
+            }
         }
 
-        function fazerLogout() {
+        async function fazerLogout() {
+            try {
+                await supabaseAuth.auth.signOut();
+            } catch (_) {}
+
             localStorage.removeItem('rs_usuario');
             usuarioLogado = null;
             verificarEstadoSessao();
