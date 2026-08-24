@@ -1658,6 +1658,59 @@
             }
         }
 
+
+        /* ===== RECUPERAÇÃO DE SENHA ===== */
+        .rs-forgot-link {
+            display: inline-block;
+            margin-top: 2px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            font-weight: 700;
+            color: #2563eb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+
+        .rs-forgot-link:hover {
+            text-decoration: underline;
+        }
+
+        .rs-recovery-box {
+            margin-top: 14px;
+            padding: 14px;
+            border: 1px solid #dbeafe;
+            background: #f8fbff;
+            border-radius: 12px;
+        }
+
+        .rs-recovery-box h4 {
+            margin: 0 0 8px;
+            font-size: 13px;
+            color: #1e3a8a;
+        }
+
+        .rs-recovery-note {
+            font-size: 10px;
+            color: #64748b;
+            line-height: 1.5;
+            margin-bottom: 10px;
+        }
+
+        .rs-recovery-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .rs-recovery-actions {
+                flex-direction: column;
+            }
+
+            .rs-recovery-actions button {
+                width: 100% !important;
+            }
+        }
+
 </style>
 </head>
 <body>
@@ -1762,6 +1815,77 @@
                             <label>Senha</label>
                             <input type="password" id="login-senha" required placeholder="Digite sua senha">
                         </div>
+
+                        <a class="rs-forgot-link" onclick="abrirRecuperacaoSenha()">
+                            Esqueci minha senha
+                        </a>
+
+                        <div id="rs-recuperacao-senha" class="rs-recovery-box hidden">
+                            <h4>🔐 Recuperar acesso</h4>
+
+                            <div id="rs-rec-etapa-email">
+                                <div class="rs-recovery-note">
+                                    Digite o e-mail cadastrado. Enviaremos um código de 6 dígitos.
+                                </div>
+
+                                <div class="form-group">
+                                    <label>E-mail da conta</label>
+                                    <input type="email" id="rec-email" placeholder="seuemail@dominio.com">
+                                </div>
+
+                                <div class="rs-recovery-actions">
+                                    <button type="button" onclick="solicitarCodigoRecuperacao()">
+                                        Enviar código
+                                    </button>
+
+                                    <button type="button" class="btn-secondary" onclick="fecharRecuperacaoSenha()">
+                                        Cancelar
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div id="rs-rec-etapa-codigo" class="hidden">
+                                <div class="rs-recovery-note">
+                                    Digite o código recebido por e-mail e escolha sua nova senha.
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Código de 6 dígitos</label>
+                                    <input type="text"
+                                           id="rec-codigo"
+                                           inputmode="numeric"
+                                           maxlength="6"
+                                           placeholder="000000">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Nova senha</label>
+                                    <input type="password"
+                                           id="rec-nova-senha"
+                                           minlength="6"
+                                           placeholder="Mínimo 6 caracteres">
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Confirmar nova senha</label>
+                                    <input type="password"
+                                           id="rec-confirmar-senha"
+                                           minlength="6"
+                                           placeholder="Digite novamente">
+                                </div>
+
+                                <div class="rs-recovery-actions">
+                                    <button type="button" class="btn-success" onclick="redefinirSenhaRS()">
+                                        Redefinir senha
+                                    </button>
+
+                                    <button type="button" class="btn-secondary" onclick="voltarEtapaEmailRecuperacao()">
+                                        Voltar
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
                         <button type="submit" style="margin-top:10px;">Acessar RS Connect</button>
                     </form>
 
@@ -2207,6 +2331,119 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 osc.start();
                 osc.stop(audioCtx.currentTime + 0.5);
             } catch(e) {}
+        }
+
+
+        function abrirRecuperacaoSenha() {
+            const box = document.getElementById('rs-recuperacao-senha');
+            const emailLogin = document.getElementById('login-email')?.value || '';
+
+            box?.classList.remove('hidden');
+
+            if (emailLogin && document.getElementById('rec-email')) {
+                document.getElementById('rec-email').value = emailLogin;
+            }
+        }
+
+        function fecharRecuperacaoSenha() {
+            document.getElementById('rs-recuperacao-senha')?.classList.add('hidden');
+            voltarEtapaEmailRecuperacao();
+
+            const codigo = document.getElementById('rec-codigo');
+            const senha = document.getElementById('rec-nova-senha');
+            const confirmar = document.getElementById('rec-confirmar-senha');
+
+            if (codigo) codigo.value = '';
+            if (senha) senha.value = '';
+            if (confirmar) confirmar.value = '';
+        }
+
+        function voltarEtapaEmailRecuperacao() {
+            document.getElementById('rs-rec-etapa-email')?.classList.remove('hidden');
+            document.getElementById('rs-rec-etapa-codigo')?.classList.add('hidden');
+        }
+
+        async function solicitarCodigoRecuperacao() {
+            const email = document.getElementById('rec-email')?.value.trim();
+
+            if (!email) {
+                alert('Informe o e-mail da sua conta.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/esqueci-senha', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || 'Não foi possível enviar o código.');
+                }
+
+                alert(`✅ ${data.mensagem || 'Código enviado.'}`);
+
+                document.getElementById('rs-rec-etapa-email')?.classList.add('hidden');
+                document.getElementById('rs-rec-etapa-codigo')?.classList.remove('hidden');
+
+            } catch (err) {
+                alert(`❌ ${err.message || 'Erro ao solicitar recuperação.'}`);
+            }
+        }
+
+        async function redefinirSenhaRS() {
+            const email = document.getElementById('rec-email')?.value.trim();
+            const codigo = document.getElementById('rec-codigo')?.value.trim();
+            const novaSenha = document.getElementById('rec-nova-senha')?.value || '';
+            const confirmarSenha = document.getElementById('rec-confirmar-senha')?.value || '';
+
+            if (!codigo || codigo.length !== 6) {
+                alert('Digite o código de 6 dígitos recebido por e-mail.');
+                return;
+            }
+
+            if (novaSenha.length < 6) {
+                alert('A nova senha deve ter pelo menos 6 caracteres.');
+                return;
+            }
+
+            if (novaSenha !== confirmarSenha) {
+                alert('As duas senhas não são iguais.');
+                return;
+            }
+
+            try {
+                const res = await fetch('/api/auth/redefinir-senha', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        codigo,
+                        novaSenha
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || 'Não foi possível redefinir a senha.');
+                }
+
+                alert('✅ Senha redefinida! Agora entre com sua nova senha.');
+
+                if (document.getElementById('login-email')) {
+                    document.getElementById('login-email').value = email;
+                }
+
+                fecharRecuperacaoSenha();
+                document.getElementById('login-senha')?.focus();
+
+            } catch (err) {
+                alert(`❌ ${err.message || 'Erro ao redefinir senha.'}`);
+            }
         }
 
         function alternarAba(aba) {
