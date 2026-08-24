@@ -1786,12 +1786,12 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     }
 
                     let blocoNotaOficialHTML = '';
-                    if (s.nota_fiscal_oficial) {
+                    if (s.nota_fiscal_oficial || s.nota_oficial) {
                         blocoNotaOficialHTML = `
                             <div class="nf-oficial-box">
                                 <strong>📑 Nota Fiscal Oficial (MEI / Prefeitura) Anexada:</strong><br>
-                                <a href="${s.nota_fiscal_oficial}" target="_blank" style="color: var(--success); font-weight: bold; text-decoration: underline;">📄 Visualizar / Baixar Nota Fiscal Oficial</a>
-                                <br><small style="color: var(--text-light);">Enviada por ${s.nota_fiscal_remetente || 'Usuário'}</small>
+                                <a href="${s.nota_fiscal_oficial || s.nota_oficial}" target="_blank" style="color: var(--success); font-weight: bold; text-decoration: underline;">📄 Visualizar / Baixar Nota Fiscal Oficial</a>
+                                <br><small style="color: var(--text-light);">Enviada por ${s.nota_fiscal_remetente || s.nota_remetente || 'Usuário'}</small>
                             </div>
                         `;
                     }
@@ -2144,35 +2144,77 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
         async function enviarNotaFiscalOficial(id) {
             const inputArquivo = document.getElementById(`input-nf-oficial-${id}`);
-            if (!inputArquivo.files || inputArquivo.files.length === 0) {
+
+            if (!inputArquivo || !inputArquivo.files || inputArquivo.files.length === 0) {
                 alert('Selecione o arquivo da Nota Fiscal Oficial (PDF ou imagem)!');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const arquivoBase64 = e.target.result;
-                try {
-                    const res = await fetch(`/api/servicos/${id}/nota-oficial`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nota_fiscal_oficial: arquivoBase64,
-                            nota_fiscal_remetente: usuarioLogado.nome
-                        })
-                    });
-                    const data = await res.json();
-                    if (res.ok && data.sucesso !== false) {
-                        carregarServicos();
-                        alert('📑 Nota Fiscal Oficial enviada com sucesso para o sistema!');
-                    } else {
-                        alert(data.erro || 'Erro ao enviar nota fiscal.');
-                    }
-                } catch(err) {
-                    alert('Erro de conexão ao enviar nota fiscal oficial.');
+            const arquivo = inputArquivo.files[0];
+
+            const tiposPermitidos = [
+                'application/pdf',
+                'image/jpeg',
+                'image/png',
+                'image/webp'
+            ];
+
+            if (!tiposPermitidos.includes(arquivo.type)) {
+                alert('Formato não permitido. Envie PDF, JPG, PNG ou WEBP.');
+                return;
+            }
+
+            if (arquivo.size > 15 * 1024 * 1024) {
+                alert('A Nota Fiscal é muito grande. O limite é 15 MB.');
+                return;
+            }
+
+            const botao = inputArquivo.parentElement?.querySelector('button');
+            const textoOriginal = botao ? botao.innerText : '';
+
+            try {
+                if (botao) {
+                    botao.disabled = true;
+                    botao.innerText = '⏳ Enviando NF...';
                 }
-            };
-            reader.readAsDataURL(inputArquivo.files[0]);
+
+                const formData = new FormData();
+                formData.append('notaFiscal', arquivo);
+                formData.append('notaFiscalRemetente', usuarioLogado?.nome || '');
+                formData.append('usuarioEmail', usuarioLogado?.email || '');
+
+                const res = await fetch(`/api/servicos/${id}/nota-oficial`, {
+                    method: 'POST',
+                    body: formData
+                });
+
+                const texto = await res.text();
+                let data = {};
+
+                try {
+                    data = texto ? JSON.parse(texto) : {};
+                } catch (_) {
+                    data = { erro: texto || 'Resposta inválida do servidor.' };
+                }
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(data.erro || data.mensagem || `Erro HTTP ${res.status}`);
+                }
+
+                inputArquivo.value = '';
+                await carregarServicos();
+
+                alert(`✅ Nota Fiscal enviada com sucesso!\n📄 ${arquivo.name}`);
+
+            } catch (err) {
+                console.error('Erro ao enviar NF:', err);
+                alert(`❌ Não foi possível enviar a Nota Fiscal: ${err.message || 'erro desconhecido'}`);
+            } finally {
+                if (botao) {
+                    botao.disabled = false;
+                    botao.innerText = textoOriginal;
+                }
+            }
         }
 
         async function confirmarPresencaPrestador(id) {
