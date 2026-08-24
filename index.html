@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Grupo RS Connect - Gestão Profissional de Serviços</title>
+    <!-- Open Graph para Redes Sociais e WhatsApp -->
+    <meta property="og:title" content="Grupo RS Connect - Gestão Profissional de Serviços">
+    <meta property="og:description" content="Plataforma inteligente que conecta empresas a prestadores com vagas de titular e reservas de emergência.">
+    <meta property="og:type" content="website">
+    
     <script src="/socket.io/socket.io.js"></script>
     <style>
         :root {
@@ -252,7 +257,7 @@
             border: 1px solid #e2e8f0;
         }
 
-        .info-card-empresa {
+        .info-card-empresa, .wallet-card {
             background: linear-gradient(135deg, #0b1329 0%, #1e293b 100%);
             color: white;
             padding: 22px;
@@ -263,21 +268,8 @@
             align-items: center;
             box-shadow: 0 8px 20px rgba(11, 19, 41, 0.15);
         }
-        .info-card-empresa h3 { margin: 0 0 5px 0; font-size: 15px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;}
-        .info-card-empresa .dados-empresa { font-size: 13px; color: #e2e8f0; line-height: 1.5; }
-
-        .wallet-card {
-            background: linear-gradient(135deg, #0b1329 0%, #1e293b 100%);
-            color: white;
-            padding: 20px;
-            border-radius: 14px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 8px 20px rgba(11, 19, 41, 0.15);
-        }
-        .wallet-card h3 { margin: 0 0 5px 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;}
+        .info-card-empresa h3, .wallet-card h3 { margin: 0 0 5px 0; font-size: 14px; color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;}
+        .dados-empresa { font-size: 13px; color: #e2e8f0; line-height: 1.5; }
         .wallet-saldo { font-size: 26px; font-weight: 800; color: #4ade80; }
 
         .card-chamado {
@@ -332,30 +324,47 @@
         .worker-details-list { list-style: none; padding: 0; margin: 0; }
         .worker-details-list li { padding: 8px 0; border-bottom: 1px solid #f1f1f1; font-size: 13px; display: flex; justify-content: space-between; }
 
+        /* Estilo para Toast Notifications */
+        #toast-container {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            z-index: 9999;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .toast {
+            background: var(--primary);
+            color: white;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            animation: slideIn 0.3s ease;
+            max-width: 300px;
+        }
+        .toast.success { background: var(--success); }
+        .toast.error { background: var(--danger); }
+        @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
         @media print {
             body * { visibility: hidden; }
             #nota-fiscal-impressao, #nota-fiscal-impressao * { visibility: visible; }
             #nota-fiscal-impressao {
-                position: absolute;
-                left: 0;
-                top: 0;
-                width: 100%;
-                background: white;
-                padding: 20px;
-                box-shadow: none;
-                border: none;
+                position: absolute; left: 0; top: 0; width: 100%; background: white; padding: 20px; box-shadow: none; border: none;
             }
             .no-print { display: none !important; }
         }
 
         .nf-container {
-            background: #fff;
-            border: 2px solid var(--primary);
-            padding: 30px;
-            border-radius: 12px;
-            max-width: 700px;
-            margin: 0 auto;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            background: #fff; border: 2px solid var(--primary); padding: 30px; border-radius: 12px; max-width: 700px; margin: 0 auto; box-shadow: 0 10px 30px rgba(0,0,0,0.1);
         }
 
         @media (max-width: 850px) {
@@ -370,6 +379,9 @@
     </style>
 </head>
 <body>
+
+    <!-- Contêiner de Alertas Toast -->
+    <div id="toast-container"></div>
 
     <header class="no-print">
         <div class="logo-container">
@@ -433,7 +445,7 @@
                         <label>Senha</label>
                         <input type="password" id="login-senha" required placeholder="••••••••">
                     </div>
-                    <button type="submit" style="margin-top: 10px;">Entrar na Conta</button>
+                    <button type="submit" id="btn-login-submit" style="margin-top: 10px;">Entrar na Conta</button>
                 </form>
 
                 <form id="form-cadastro" class="hidden" onsubmit="realizarRegistro(event)">
@@ -451,7 +463,7 @@
                     <div class="grid-duplo">
                         <div class="form-group">
                             <label id="label-doc">CNPJ</label>
-                            <input type="text" id="cad-doc" required placeholder="Documento">
+                            <input type="text" id="cad-doc" required placeholder="00.000.000/0001-00" oninput="mascaraDoc(this)">
                         </div>
                         <div class="form-group" id="grupo-responsavel">
                             <label>Responsável</label>
@@ -471,7 +483,7 @@
                     <div class="grid-duplo">
                         <div class="form-group">
                             <label>WhatsApp</label>
-                            <input type="text" id="cad-whatsapp" placeholder="(33) 99999-9999">
+                            <input type="text" id="cad-whatsapp" placeholder="(33) 99999-9999" oninput="mascaraTelefone(this)">
                         </div>
                         <div class="form-group">
                             <label>Cidade / Local</label>
@@ -497,7 +509,7 @@
                         </div>
                     </div>
 
-                    <button type="submit" class="btn-success" style="margin-top: 10px;">Finalizar Cadastro</button>
+                    <button type="submit" id="btn-cad-submit" class="btn-success" style="margin-top: 10px;">Finalizar Cadastro</button>
                 </form>
             </div>
         </div>
@@ -541,16 +553,9 @@
                                 <option value="TI e Redes">TI / Redes / Suporte</option>
                                 <option value="Carga e Descarga">Carga e Descarga</option>
                                 <option value="Conferente">Conferente</option>
-                                <option value="Operador">Operador</option>
                                 <option value="Auxiliar">Auxiliar</option>
-                                <option value="Logistica">Logística</option>
-                                <option value="Equipes de 7 até 10 pessoas">Equipes de 7 até 10 pessoas</option>
-                                <option value="Limpeza doméstica apartamentos">Limpeza doméstica apartamentos</option>
-                                <option value="Limpeza condomínios">Limpeza condomínios</option>
-                                <option value="Cuidadora de idosos">Cuidadora de idosos</option>
                                 <option value="Pedreiro">Pedreiro</option>
                                 <option value="Servente">Servente</option>
-                                <option value="Segurança patrimonial">Segurança patrimonial</option>
                                 <option value="Controlador de acesso">Controlador de acesso</option>
                             </select>
                         </div>
@@ -562,7 +567,7 @@
                         </div>
                         <div class="form-group">
                             <label>Valor (R$)</label>
-                            <input type="text" id="srv-valor" required placeholder="300,00">
+                            <input type="text" id="srv-valor" required placeholder="300,00" oninput="mascaraMoeda(this)">
                         </div>
                     </div>
                     <div class="grid-duplo">
@@ -597,27 +602,9 @@
                     </div>
                     <div class="form-group">
                         <label>Termos e Condições Contratuais</label>
-                        <textarea id="srv-contrato" rows="12">CLÁUSULA PRIMEIRA – DO OBJETO E DO COMPROMISSO: O PRESTADOR compromete-se a executar os serviços contratados por meio do aplicativo, observando integralmente as especificações, condições, horários previamente acordados, padrões de qualidade, segurança e demais requisitos informados no momento do aceite. O PRESTADOR declara possuir capacidade técnica e condições necessárias para a execução do serviço, responsabilizando-se pela correta realização das atividades assumidas. O pagamento correspondente ao serviço será liberado após a conclusão da atividade e a validação do respectivo check-out pelo aplicativo, observadas as condições previamente informadas e aceitas pelas partes.
-
-CLÁUSULA SEGUNDA – DA AUTONOMIA E DA NATUREZA DA CONTRATAÇÃO: A presente contratação tiene por objeto a prestação de serviço específico, mediante aceite eletrônico realizado pelo PRESTADOR no aplicativo. Quando juridicamente aplicável, o PRESTADOR atuará com autonomia técnica e operacional, sem subordinação jurídica, podendo organizar a execução do serviço de acordo com as condições previamente estabelecidas para cada atendimento. O aceite de uma oportunidade de serviço não implica, isoladamente, constituição de vínculo empregatício, devendo a relação ser interpretada de acordo com a realidade da prestação e com a legislação aplicável.
-
-CLÁUSULA TERCEIRA – DO VALOR E DOS ENCARGOS: O valor apresentado e aceito pelo PRESTADOR corresponde à remuneração total ajustada para a execução do serviço, incluindo, quando juridicamente cabível e conforme a natureza da contratação, os custos, tributos, contribuições, despesas e demais encargos de responsabilidade do próprio PRESTADOR. Quando houver obrigação legal de responsabilidade do CONTRATANTE, esta será observada na forma determinada pela legislação vigente. Caso a contratação seja realizada em regime que gere efetiva relação de emprego, os direitos e encargos trabalhistas legalmente exigíveis, incluindo FGTS, férias acrescidas do terço constitucional, 13º salário, contribuições previdenciárias e demais verbas previstas em lei, deverão ser tratados conforme o regime jurídico efetivamente aplicável, não podendo esta cláusula ser utilizada para afastar direito trabalhista indisponível.
-
-CLÁUSULA QUARTA – DO ACEITE E DA DESISTÊNCIA: O aceite eletrônico realizado pelo PRESTADOR no aplicativo representa manifestação expressa de vontade e confirmação de que tomou conhecimento das condições do serviço, do valor, da data, do local e das demais informações apresentadas. Após o aceite, eventual desistência deverá ser comunicada imediatamente e, sempre que possível, com antecedência mínima de 24 (vinte e quatro) horas. A ausência injustificada, o abandono do serviço ou a recusa injustificada após o aceite poderá sujeitar o responsável às consequências previstas neste instrumento e à reparação dos prejuízos comprovadamente causados, respeitados os limites e requisitos estabelecidos pela legislação aplicável.
-
-CLÁUSULA QUINTA – DA RESPONSABILIDADE POR PREJUÍZOS: A parte que, por ação ou omissão culposa ou dolosa, causar prejuízo comprovado à outra parte deverá responder pela reparação dos danos efetivamente decorrentes de sua conduta, observados o nexo causal, a comprovação do prejuízo e os limites estabelecidos pela legislação brasileira. Eventual cobrança, indenização ou cumprimento de obrigação poderá ser buscado pelos meios administrativos ou judiciais cabíveis.
-
-CLÁUSULA SEXTA – DA VALIDADE DO ACEITE ELETRÔNICO: As partes reconhecem como válida a manifestação de vontade realizada por meio eletrônico, inclusive mediante aceite no aplicativo, registro de data e hora, identificação da conta utilizada, registros técnicos, autenticação, código de confirmação, assinatura eletrônica ou outros mecanismos capazes de demonstrar a autoria e a integridade da manifestação. A contratação eletrônica será interpretada de acordo com a legislação brasileira aplicável, inclusive a Medida Provisória nº 2.200-2/2001, a Lei nº 14.063/2020 e demais normas pertinentes. A utilização de assinatura GOV.BR poderá ser adotada como mecanismo adicional de autenticação e assinatura quando disponibilizada e exigida para determinada operação, não sendo estabelecido, por esta cláusula, que ela seja obrigatória em toda e qualquer contratação eletrônica.
-
-CLÁUSULA SÉTIMA – DOS REGISTROS DO APLICATIVO: Os registros eletrônicos relacionados à contratação poderão ser armazenados pelo sistema, incluindo, quando disponíveis, aceite, data e horário, identificação do usuário, informações do serviço, check-in, check-out, alterações, comunicações e demais registros necessários à comprovação da operação. Tais registros poderão ser utilizados como elementos de prova da contratação e da execução do serviço, observadas as normas aplicáveis de proteção de dados e de produção de prova.
-
-CLÁUSULA OITAVA – DO CUMPRIMENTO DA LEGISLAÇÃO: As partes comprometem-se a cumprir a legislação brasileira aplicável à contratação e à execução dos serviços. Nenhuma disposição deste instrumento será interpretada como renúncia antecipada a direito que seja legalmente indisponível ou como tentativa de afastar norma trabalhista, tributária, civil ou de qualquer outra natureza cuja aplicação seja obrigatória.
-
-CLÁUSULA NONA – DO FORO: Fica eleito o foro competente nos termos da legislação aplicável para dirimir eventuais controvérsias decorrentes deste instrumento, sem prejuízo das regras legais de competência que eventualmente sejam obrigatórias.
-
-CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PRESTADOR declara que teve acesso às condições da contratação, ao valor do serviço, às obrigações assumidas e às demais informações apresentadas, manifestando sua concordância de forma livre e consciente. O registro eletrônico do aceite, juntamente com os demais registros da contratação, integrará o histórico da prestação de serviço.</textarea>
+                        <textarea id="srv-contrato" rows="6">CLÁUSULA PRIMEIRA – DO OBJETO E DO COMPROMISSO: O PRESTADOR compromete-se a executar os serviços contratados por meio do aplicativo, observando integralmente as especificações, condições, horários previamente acordados, padrões de qualidade, segurança e demais requisitos informados no momento do aceite.</textarea>
                     </div>
-                    <button type="submit" class="btn-success">🔒 Validar Garantia e Publicar (1 Titular + 2 Reservas)[cite: 1]</button>
+                    <button type="submit" id="btn-pub-submit" class="btn-success">🔒 Validar Garantia e Publicar (1 Titular + 2 Reservas)[cite: 1]</button>
                 </form>
             </div>
 
@@ -655,6 +642,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         </div>
     </div>
 
+    <!-- Modal Ficha -->
     <div id="workerModal" class="rs-modal no-print" style="display:none;">
         <div class="rs-modal-content">
             <span class="close-modal" onclick="fecharDetalhesTrabalhador()">&times;</span>
@@ -680,6 +668,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         </div>
     </div>
 
+    <!-- Recibo Impressão -->
     <div id="nota-fiscal-impressao" style="display:none;">
         <div class="nf-container">
             <div style="display: flex; justify-content: space-between; border-bottom: 2px solid var(--primary); padding-bottom: 15px; margin-bottom: 20px;">
@@ -710,7 +699,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 <h4 style="margin: 0 0 6px 0; color: var(--primary); font-size: 13px;">🛠️ Descrição e Execução do Serviço</h4>
                 <p style="margin: 2px 0;"><b>Serviço:</b> <span id="nf-servico-titulo">-</span></p>
                 <p style="margin: 2px 0;"><b>Endereço de Execução:</b> <span id="nf-servico-endereco">-</span></p>
-                <p style="margin: 2px 0;"><b>Check-in (Chegada):</b> <span id="nf-checkin">-</span> | <b>Check-out (Conclusão):</b> <span id="nf-checkout">-</span></p>
+                <p style="margin: 2px 0;"><b>Check-in:</b> <span id="nf-checkin">-</span> | <b>Check-out:</b> <span id="nf-checkout">-</span></p>
             </div>
 
             <div style="display: flex; justify-content: space-between; align-items: center; background: #e6f4ea; padding: 15px; border-radius: 8px; border: 1px solid #137333; margin-bottom: 25px;">
@@ -719,15 +708,6 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     <span style="font-size: 11px; color: var(--text-light);">Garantia RS Connect Liberada após Validação</span>
                 </div>
                 <div style="font-size: 22px; font-weight: 800; color: #137333;" id="nf-valor">R$ 0,00</div>
-            </div>
-
-            <div style="display: flex; justify-content: space-between; margin-top: 40px; font-size: 11px; text-align: center;">
-                <div style="width: 45%; border-top: 1px solid var(--text); padding-top: 5px;">
-                    Assinatura da Empresa / Gestor
-                </div>
-                <div style="width: 45%; border-top: 1px solid var(--text); padding-top: 5px;">
-                    Assinatura do Prestador / Recebedor (Validada via gov.br)
-                </div>
             </div>
 
             <div class="no-print" style="margin-top: 30px; text-align: center; display: flex; gap: 10px; justify-content: center;">
@@ -745,6 +725,50 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             verificarEstadoSessao();
             carregarServicos();
         });
+
+        // Sistema de Toast Notifications (substitui os alerts nativos)
+        function mostrarToast(mensagem, tipo = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast ${tipo}`;
+            toast.innerHTML = `<span>${mensagem}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => {
+                toast.style.opacity = '0';
+                setTimeout(() => toast.remove(), 300);
+            }, 3500);
+        }
+
+        // Funções de Máscara Automática
+        function mascaraTelefone(input) {
+            let v = input.value.replace(/\D/g, '');
+            v = v.replace(/^(\d{2})(\d)/g, '($1) $2');
+            v = v.replace(/(\d)(\d{4})$/, '$1-$2');
+            input.value = v;
+        }
+
+        function mascaraDoc(input) {
+            let v = input.value.replace(/\D/g, '');
+            if (v.length <= 11) { // CPF
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d)/, '$1.$2');
+                v = v.replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+            } else { // CNPJ
+                v = v.replace(/^(\d{2})(\d)/, '$1.$2');
+                v = v.replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3');
+                v = v.replace(/\.(\d{3})(\d)/, '.$1/$2');
+                v = v.replace(/(\d{4})(\d)/, '$1-$2');
+            }
+            input.value = v;
+        }
+
+        function mascaraMoeda(input) {
+            let v = input.value.replace(/\D/g, '');
+            v = (v / 100).toFixed(2) + '';
+            v = v.replace(".", ",");
+            v = v.replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+            input.value = v;
+        }
 
         socket.on('atualizar_servicos', () => { 
             carregarServicos();
@@ -802,6 +826,10 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
         async function realizarLogin(e) {
             e.preventDefault();
+            const btn = document.getElementById('btn-login-submit');
+            btn.disabled = true;
+            btn.innerText = 'Entrando...';
+
             const email = document.getElementById('login-email').value;
             const senha = document.getElementById('login-senha').value;
             try {
@@ -816,12 +844,24 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     localStorage.setItem('rs_usuario', JSON.stringify(usuarioLogado));
                     verificarEstadoSessao();
                     carregarServicos();
-                } else { alert(data.erro || 'Dados incorretos.'); }
-            } catch (err) { alert('Erro de conexão.'); }
+                    mostrarToast('Login efetuado com sucesso!', 'success');
+                } else { 
+                    mostrarToast(data.erro || 'Dados incorretos.', 'error'); 
+                }
+            } catch (err) { 
+                mostrarToast('Erro de conexão.', 'error'); 
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Entrar na Conta';
+            }
         }
 
         async function realizarRegistro(e) {
             e.preventDefault();
+            const btn = document.getElementById('btn-cad-submit');
+            btn.disabled = true;
+            btn.innerText = 'Cadastrando...';
+
             const dados = {
                 tipo: document.getElementById('cad-tipo').value,
                 nome: document.getElementById('cad-nome').value,
@@ -843,16 +883,24 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 });
                 const data = await res.json();
                 if (data.sucesso) {
-                    alert('Cadastro realizado com sucesso! Faça login.');
+                    mostrarToast('Cadastro realizado com sucesso!', 'success');
                     alternarAba('login');
-                } else { alert(data.erro || 'Erro ao registrar.'); }
-            } catch (err) { alert('Erro ao registrar.'); }
+                } else { 
+                    mostrarToast(data.erro || 'Erro ao registrar.', 'error'); 
+                }
+            } catch (err) { 
+                mostrarToast('Erro ao registrar.', 'error'); 
+            } finally {
+                btn.disabled = false;
+                btn.innerText = 'Finalizar Cadastro';
+            }
         }
 
         function fazerLogout() {
             localStorage.removeItem('rs_usuario');
             usuarioLogado = null;
             verificarEstadoSessao();
+            mostrarToast('Sessão encerrada.');
         }
 
         function verificarEstadoSessao() {
@@ -901,9 +949,13 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         async function publicarServico(e) {
             e.preventDefault();
             if (!usuarioLogado || !usuarioLogado.email) {
-                alert('Sessão expirada. Faça login novamente.');
+                mostrarToast('Sessão expirada. Faça login novamente.', 'error');
                 return;
             }
+
+            const btn = document.getElementById('btn-pub-submit');
+            btn.disabled = true;
+            btn.innerText = 'Publicando...';
 
             const servico = {
                 titulo: document.getElementById('srv-titulo').value.trim(),
@@ -932,7 +984,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 });
                 const data = await res.json();
                 if (res.ok && data.sucesso) {
-                    alert('✅ Vaga publicada com sistema de 1 titular e até 2 reservas de emergência![cite: 1]');
+                    mostrarToast('Vaga publicada com sistema de 1 titular e até 2 reservas!', 'success');
                     document.getElementById('srv-titulo').value = '';
                     document.getElementById('srv-local').value = '';
                     document.getElementById('srv-endereco').value = '';
@@ -941,10 +993,13 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     document.getElementById('srv-descricao').value = '';
                     carregarServicos();
                 } else {
-                    alert(data.erro || 'Erro ao publicar serviço no servidor.');
+                    mostrarToast(data.erro || 'Erro ao publicar serviço.', 'error');
                 }
             } catch (err) {
-                alert('Erro de conexão ao tentar publicar o serviço.');
+                mostrarToast('Erro de conexão ao tentar publicar.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerText = '🔒 Validar Garantia e Publicar (1 Titular + 2 Reservas)[cite: 1]';
             }
         }
 
@@ -954,13 +1009,13 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 const res = await fetch(`/api/servicos/${id}`, { method: 'DELETE' });
                 const data = await res.json();
                 if (res.ok && data.sucesso !== false) {
-                    alert("🗑️ Serviço excluído com sucesso!");
+                    mostrarToast("Serviço excluído com sucesso!", 'success');
                     carregarServicos();
                 } else {
-                    alert(data.erro || "Erro ao excluir o serviço.");
+                    mostrarToast(data.erro || "Erro ao excluir o serviço.", 'error');
                 }
             } catch (err) {
-                alert("Erro de conexão ao excluir o serviço.");
+                mostrarToast("Erro de conexão ao excluir.", 'error');
             }
         }
 
@@ -1021,7 +1076,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                                 <td>${s.titulo} (${s.local})</td>
                                 <td>${s.empresa_nome || usuarioLogado.nome}</td>
                                 <td>R$ ${s.valor}</td>
-                                <td class="status-relogio">${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge relogio-regressivo" style="background:#fef3c7; color:#d97706;">Calculando...</span>'}</td>
+                                <td class="status-relogio">${estaConfirmado ? '<span class="badge confirmed">🟢 Confirmado</span>' : '<span class="badge" style="background:#fef3c7; color:#d97706;">Calculando...</span>'}</td>
                                 <td>
                                     <button class="btn-view" style="padding:6px 10px; font-size:11px; margin-bottom:4px;" onclick='abrirFichaGestor(${JSON.stringify(s)}, "Titular")'>Ver Ficha</button>
                                     <button class="btn-success" style="padding:6px 10px; font-size:11px;" onclick='gerarNotaFiscal(${JSON.stringify(s)})'>📄 Recibo Interno</button>
@@ -1102,7 +1157,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                                     ${mensagensFiltradas.length > 0 ? mensagensFiltradas.map(m => `<div class="chat-msg-item"><b>${m.remetente}:</b> ${m.texto}</div>`).join('') : '<i style="color:#94a3b8; padding:5px;">Nenhuma mensagem nesta negociação ainda.</i>'}
                                 </div>
                                 <div class="chat-input-area">
-                                    <input type="text" id="chat-txt-${s.id}" placeholder="Escrever mensagem privada da negociação..." onkeypress="if(event.key === 'Enter') enviarMensagem(${s.id})">
+                                    <input type="text" id="chat-txt-${s.id}" placeholder="Escrever mensagem privada..." onkeypress="if(event.key === 'Enter') enviarMensagem(${s.id})">
                                     <button onclick="enviarMensagem(${s.id})">Enviar</button>
                                 </div>
                             </div>
@@ -1110,7 +1165,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     } else {
                         blocoChatHTML = `
                             <div style="background:#f1f5f9; padding:10px; border-radius:8px; font-size:12px; color:var(--text-light); text-align:center; margin-top:12px; border:1px solid var(--border);">
-                                🔒 Chat privado (Disponível apenas para a empresa e o profissional vinculado a esta vaga).
+                                🔒 Chat privado (Disponível apenas para empresa e profissional vinculado).
                             </div>
                         `;
                     }
@@ -1120,15 +1175,15 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             <h4>${s.titulo} ${s.categoria ? `<small style="font-size:12px; color:var(--accent);">(${s.categoria})</small>` : ''}</h4>
                             ${infoValorHTML}
                         </div>
-                        <p style="margin:4px 0; font-size:13px;">📍 <strong>Local:</strong> ${s.local} - <a href="${linkGoogleMaps}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">🗺️ Ver no Mapa (${s.endereco})</a></p>
+                        <p style="margin:4px 0; font-size:13px;">📍 <strong>Local:</strong> ${s.local} - <a href="${linkGoogleMaps}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">🗺️ Ver no Mapa</a></p>
                         <p style="margin:4px 0; font-size:13px;">📝 <strong>Descrição:</strong> ${s.descricao}</p>
-                        <p style="margin:4px 0 10px 0; font-size:13px;">👥 <strong>Vagas Preenchidas:</strong> <span style="font-weight:bold; color:var(--accent);">${totalInscritos} / 3</span> (1 Titular + 2 Reservas de Emergência)[cite: 1]</p>
+                        <p style="margin:4px 0 10px 0; font-size:13px;">👥 <strong>Vagas Preenchidas:</strong> <span style="font-weight:bold; color:var(--accent);">${totalInscritos} / 3</span> (1 Titular + 2 Reservas)[cite: 1]</p>
                         
                         ${s.prestador_nome ? `
                             <div class="detalhes-box">
                                 <strong>⭐ Titular da Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
-                                ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
-                                ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado & Validado gov.br</span>` : ''}
+                                ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente</span>`}
+                                ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado gov.br</span>` : ''}
                                 ${blocoFotosHTML}
                             </div>
                         ` : '<div class="detalhes-box">⭐ <strong>Titular da Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
@@ -1146,7 +1201,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
                         ${(souTitular || usuarioLogado.tipo === 'empresa') ? `
                             <div style="background:#f8fafc; border:1px dashed var(--border); padding:12px; border-radius:8px; margin-top:12px;">
-                                <label style="font-size:11px; margin-bottom:4px; display:block;">📑 Enviar Nota Fiscal Oficial (MEI / Prefeitura - PDF ou Imagem):</label>
+                                <label style="font-size:11px; margin-bottom:4px; display:block;">📑 Enviar Nota Fiscal Oficial (MEI / Prefeitura):</label>
                                 <div style="display:flex; gap:8px;">
                                     <input type="file" id="input-nf-oficial-${s.id}" accept="image/*,application/pdf" style="background:white; font-size:12px;">
                                     <button onclick="enviarNotaFiscalOficial(${s.id})" class="btn-success" style="width:auto; padding:6px 14px; font-size:12px;">Enviar NF</button>
@@ -1156,38 +1211,26 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
                         ${usuarioLogado.tipo === 'empresa' ? `
                             <div style="margin-top: 12px; display: flex; gap: 10px; justify-content: flex-end;">
-                                <button onclick="gerarNotaFiscal(${JSON.stringify(s).replace(/"/g, '&quot;')})" class="btn-success" style="padding: 6px 14px; font-size: 12px; width: auto;">📄 Recibo Interno do Sistema</button>
-                                <button onclick="excluirServico(${s.id})" class="btn-danger" style="padding: 6px 14px; font-size: 12px; width: auto;">🗑️ Excluir Serviço</button>
+                                <button onclick="gerarNotaFiscal(${JSON.stringify(s).replace(/"/g, '&quot;')})" class="btn-success" style="padding: 6px 14px; font-size: 12px; width: auto;">📄 Recibo Interno</button>
+                                <button onclick="excluirServico(${s.id})" class="btn-danger" style="padding: 6px 14px; font-size: 12px; width: auto;">🗑️ Excluir</button>
                             </div>
                         ` : ''}
 
                         ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
                             <div class="contrato-box">
                                 <h2>Gestão de Contratos</h2>
-                                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">Baixe seu contrato, assine utilizando o portal oficial do governo e envie o arquivo assinado abaixo.</p>
+                                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">Baixe seu contrato, assine utilizando o portal oficial do governo e envie o arquivo assinado.</p>
                                     
                                 <a href="javascript:void(0)" onclick="baixarContratoPDF(${s.id})" class="btn-download">Baixar Contrato</a>
                                 <a href="https://assinador.iti.br/" target="_blank" class="btn-assinar">Assinar no Gov.br</a>
                                     
                                 <div style="margin-top: 10px;">
                                     <label for="contratoAssinado-${s.id}">Enviar contrato assinado:</label>
-                                    <input type="file" id="contratoAssinado-${s.id}" name="contratoAssinado" accept=".pdf" style="background:white; font-size:12px; margin-bottom:8px;" onchange="verificarUploadAssinado(${s.id})">
+                                    <input type="file" id="contratoAssinado-${s.id}" accept=".pdf" style="background:white; font-size:12px; margin-bottom:8px;" onchange="verificarUploadAssinado(${s.id})">
                                 </div>
 
-                                <label style="font-size:11px; margin-top: 6px; display:block;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li, compreendi e aceito irrevogavelmente os termos e sanções por desistência.</label>
-                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px; margin-top:8px;" disabled>✍️ ${!s.prestador_email ? 'Enviar Assinatura e Assumir Vaga Titular' : 'Enviar Assinatura e Entrar na Fila de Reserva (Emergência)'}</button>
-                            </div>
-                        ` : ''}
-
-                        ${usuarioLogado.tipo === 'prestador' && vagaLotada && !jaCadastrado ? `
-                            <div style="background:#fce8e6; padding:10px; border-radius:8px; font-size:12px; color:var(--danger); text-align:center; margin-top:10px;">
-                                ❌ Vaga Lotada (1 Titular e 2 Reservas já cadastrados).
-                            </div>
-                        ` : ''}
-
-                        ${souReserva ? `
-                            <div style="background:#fef3c7; padding:10px; border-radius:8px; font-size:12px; color:#d97706; font-weight:bold; margin-top:10px;">
-                                🔄 Você está na Fila de Reserva (Emergência) para esta vaga.
+                                <label style="font-size:11px; margin-top: 6px; display:block;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li e aceito os termos e sanções por desistência.</label>
+                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px; margin-top:8px;" disabled>✍️ ${!s.prestador_email ? 'Assumir Vaga Titular' : 'Entrar na Fila de Reserva'}</button>
                             </div>
                         ` : ''}
 
@@ -1203,7 +1246,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         ${souTitular && estaConfirmado ? `
                             <div style="margin-top: 12px; display:flex; flex-direction:column; gap:12px;">
                                 <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
-                                    <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Chegada (Check-in via Câmera)</label>
+                                    <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Chegada (Check-in)</label>
                                     <input type="file" id="foto-checkin-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
                                     <button onclick="realizarCheckinComGPS(${s.id})" style="background:var(--warning); padding:10px; width:100%; font-size:13px;">📍 Registrar Check-in com GPS</button>
                                 </div>
@@ -1227,14 +1270,12 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
         function iniciarContadorRegressivo() {
             const linhas = document.querySelectorAll('#workerTableBodyGestor tr');
-
             linhas.forEach(linha => {
                 const tempoCriacao = parseInt(linha.getAttribute('data-criacao')) || Date.now();
                 const statusElemento = linha.querySelector('.status-relogio');
                 const titularId = linha.getAttribute('data-titular-id');
                 
-                if (!statusElemento) return;
-                if (statusElemento.classList.contains('confirmed')) return;
+                if (!statusElemento || statusElemento.classList.contains('confirmed')) return;
 
                 const duracaoLimiteMs = 30 * 60 * 1000; 
                 const tempoExpiracao = tempoCriacao + duracaoLimiteMs;
@@ -1244,72 +1285,44 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     const diferenca = tempoExpiracao - agora;
 
                     if (diferenca > 0) {
-                        const minutosRestantes = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
-                        const segundosRestantes = Math.floor((diferenca % (1000 * 60)) / 1000);
-
-                        statusElemento.innerHTML = `<span class="badge" style="background:#fef3c7; color:#d97706;">Aceite: ${minutosRestantes}m ${segundosRestantes}s</span>`;
+                        const minutos = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
+                        const segundos = Math.floor((diferenca % (1000 * 60)) / 1000);
+                        statusElemento.innerHTML = `<span class="badge" style="background:#fef3c7; color:#d97706;">Aceite: ${minutos}m ${segundos}s</span>`;
                     } else {
                         clearInterval(intervalo);
                         statusElemento.innerHTML = `<span class="badge" style="background:#fce8e6; color:#dc2626;">Expirado (30m)</span>`;
-                        substituirPrestadorEmergencia(titularId, linha);
+                        substituirPrestadorEmergencia(titularId);
                     }
                 }, 1000);
             });
         }
 
-        function substituirPrestadorEmergencia(titularId, linhaElemento) {
+        function substituirPrestadorEmergencia(titularId) {
             fetch('/api/substituir-prestador', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ titularAtualId: titularId })
             })
-            .then(response => response.json())
+            .then(res => res.json())
             .then(data => {
                 if (data.sucesso) {
-                    alert("O prestador não aceitou dentro do prazo de 30 minutos. O sistema promoveu o próximo reserva da fila.");
+                    mostrarToast("Prazo expirado. Próximo reserva promovido automaticamente.", "info");
                     location.reload();
-                } else {
-                    console.error("Erro ao substituir prestador:", data.mensagem);
                 }
-            })
-            .catch(error => console.error('Erro na requisição:', error));
+            });
         }
 
         function baixarContratoPDF(id) {
-            const janelaPrint = window.open('', '_blank');
-            janelaPrint.document.write(`
-                <html>
-                <head>
-                    <title>Contrato de Prestação de Serviços - RS Connect</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; padding: 40px; color: #333; line-height: 1.6; }
-                        h2 { color: #0b1329; border-bottom: 2px solid #2563eb; padding-bottom: 10px; }
-                        .box { background: #f8fafc; border: 1px solid #cbd5e1; padding: 20px; border-radius: 8px; margin-top: 20px; }
-                    </style>
-                </head>
-                <body>
-                    <h2>🔵 GRUPO RS CONNECT - TERMO DE COMPROMISSO</h2>
-                    <p><b>Profissional:</b> ${usuarioLogado.nome} (CPF: ${usuarioLogado.doc})</p>
-                    <div class="box">
-                        <p>CLÁUSULA PRIMEIRA – DO OBJETO E DO COMPROMISSO: O PRESTADOR compromete-se a executar os serviços contratados por meio do aplicativo, observando integralmente as especificações, condições, horários previamente acordados, padrões de qualidade, segurança e demais requisitos informados no momento do aceite.</p>
-                        <p>CLÁUSULA SEGUNDA – DA AUTONOMIA E DA NATUREZA DA CONTRATAÇÃO: A presente contratação tiene por objeto a prestação de serviço específico, mediante aceite eletrônico realizado pelo PRESTADOR no aplicativo.</p>
-                        <p>CLÁUSULA TERCEIRA – DO VALOR E DOS ENCARGOS: O valor apresentado e aceito pelo PRESTADOR corresponde à remuneração total ajustada para a execução do serviço.</p>
-                        <p>CLÁUSULA QUARTA – DO ACEITE E DA DESISTÊNCIA: O aceite eletrônico realizado pelo PRESTADOR no aplicativo representa manifestação expressa de vontade e confirmação de que tomou conhecimento das condições.</p>
-                        <p>CLÁUSULA SEXTA – DA VALIDADE DO ELETRÔNICO E GOV.BR: Validação legal nos termos da Lei nº 14.063/2020 e da Medida Provisória nº 2.200-2/2001.</p>
-                    </div>
-                    <p style="margin-top: 40px; font-size: 12px; color: #664;">Documento gerado eletronicamente para fins de assinatura digital no portal gov.br.</p>
-                </body>
-                </html>
-            `);
-            janelaPrint.document.close();
-            janelaPrint.focus();
-            setTimeout(() => { janelaPrint.print(); }, 500);
+            const w = window.open('', '_blank');
+            w.document.write(`<html><head><title>Contrato RS Connect</title></head><body style="font-family:Arial;padding:40px;"><h2>GRUPO RS CONNECT - TERMO</h2><p>Termo formalizado para prestação de serviços técnicos.</p></body></html>`);
+            w.document.close();
+            w.print();
         }
 
         function verificarUploadAssinado(id) {
             const inputPDF = document.getElementById(`contratoAssinado-${id}`);
             const checkbox = document.getElementById(`check-termo-${id}`);
-            if (inputPDF && checkbox && inputPDF.files && inputPDF.files.length > 0 && checkbox.checked) {
+            if (inputPDF && checkbox && inputPDF.files.length > 0 && checkbox.checked) {
                 document.getElementById(`btn-aceitar-${id}`).disabled = false;
             }
         }
@@ -1317,20 +1330,14 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         function toggleAceiteContrato(id) {
             const marcado = document.getElementById(`check-termo-${id}`).checked;
             const inputPDF = document.getElementById(`contratoAssinado-${id}`);
-            const temArquivo = inputPDF && inputPDF.files && inputPDF.files.length > 0;
+            const temArquivo = inputPDF && inputPDF.files.length > 0;
             document.getElementById(`btn-aceitar-${id}`).disabled = !(marcado && temArquivo);
         }
 
         async function inscreverVaga(id) {
             const inputPDF = document.getElementById(`contratoAssinado-${id}`);
-            if (!inputPDF.files || inputPDF.files.length === 0) {
-                alert('Por favor, faça o upload do PDF assinado pelo gov.br antes de prosseguir.');
-                return;
-            }
-
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const pdfBase64 = e.target.result;
                 try {
                     const res = await fetch(`/api/servicos/${id}/aceitar`, {
                         method: 'POST',
@@ -1342,21 +1349,24 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             prestadorRgCnh: usuarioLogado.rgCnh || '',
                             prestadorProfissao: usuarioLogado.profissao || '',
                             prestadorPix: usuarioLogado.pix || '',
-                            contratoAssinado: `Assinado via gov.br (PDF Validado: ${inputPDF.files[0].name})`,
-                            documentoPdfAssinado: pdfBase64
+                            contratoAssinado: `Assinado via gov.br (${inputPDF.files[0].name})`,
+                            documentoPdfAssinado: e.target.result
                         })
                     });
                     const data = await res.json();
-                    if (data.sucesso) { carregarServicos(); alert(data.mensagem || 'Contrato assinado via gov.br e vaga assumida com sucesso!'); } 
-                    else { alert(data.erro); }
-                } catch(e) { alert('Erro ao processar inscrição.'); }
+                    if (data.sucesso) { 
+                        carregarServicos(); 
+                        mostrarToast(data.mensagem || 'Inscrição realizada com sucesso!', 'success'); 
+                    } else { 
+                        mostrarToast(data.erro, 'error'); 
+                    }
+                } catch(e) { mostrarToast('Erro ao processar inscrição.', 'error'); }
             };
             reader.readAsDataURL(inputPDF.files[0]);
         }
 
         async function promoverReservaParaTitular(servicoId, reservaEmail) {
             if (!confirm('Deseja promover este profissional da reserva para a vaga de Titular?')) return;
-
             try {
                 const res = await fetch(`/api/servicos/${servicoId}/promover`, {
                     method: 'POST',
@@ -1365,148 +1375,92 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 });
                 const data = await res.json();
                 if (res.ok && data.sucesso) {
-                    alert('✅ Profissional promovido a Titular com sucesso!');
+                    mostrarToast('Profissional promovido a Titular!', 'success');
                     carregarServicos();
                 } else {
-                    alert(data.erro || 'Erro ao realizar a substituição.');
+                    mostrarToast(data.erro || 'Erro ao realizar substituição.', 'error');
                 }
             } catch (err) {
-                alert('Erro de conexão ao processar substituição.');
+                mostrarToast('Erro de conexão.', 'error');
             }
         }
 
         async function enviarNotaFiscalOficial(id) {
             const inputArquivo = document.getElementById(`input-nf-oficial-${id}`);
-            if (!inputArquivo.files || inputArquivo.files.length === 0) {
-                alert('Selecione o arquivo da Nota Fiscal Oficial (PDF ou imagem)!');
-                return;
-            }
+            if (!inputArquivo.files.length) { mostrarToast('Selecione o arquivo da Nota Fiscal!', 'error'); return; }
 
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const arquivoBase64 = e.target.result;
                 try {
                     const res = await fetch(`/api/servicos/${id}/nota-oficial`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            nota_fiscal_oficial: arquivoBase64,
-                            nota_fiscal_remetente: usuarioLogado.nome
-                        })
+                        body: JSON.stringify({ nota_fiscal_oficial: e.target.result, nota_fiscal_remetente: usuarioLogado.nome })
                     });
-                    const data = await res.json();
-                    if (res.ok && data.sucesso !== false) {
-                        carregarServicos();
-                        alert('📑 Nota Fiscal Oficial enviada com sucesso para o sistema!');
-                    } else {
-                        alert(data.erro || 'Erro ao enviar nota fiscal.');
-                    }
-                } catch(err) {
-                    alert('Erro de conexão ao enviar nota fiscal oficial.');
-                }
+                    if (res.ok) { carregarServicos(); mostrarToast('Nota Fiscal Oficial enviada!', 'success'); }
+                } catch(err) { mostrarToast('Erro ao enviar nota fiscal.', 'error'); }
             };
             reader.readAsDataURL(inputArquivo.files[0]);
         }
 
         async function confirmarPresencaPrestador(id) {
             const inputSelfie = document.getElementById(`selfie-confirmacao-${id}`);
-            if (!inputSelfie.files || inputSelfie.files.length === 0) {
-                alert('Por favor, selecione ou tire a foto da selfie de confirmação!');
-                return;
-            }
+            if (!inputSelfie.files.length) { mostrarToast('Tire a foto da selfie de confirmação!', 'error'); return; }
 
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const selfieBase64 = e.target.result;
-                await enviarConfirmacaoServidor(id, selfieBase64);
+                try {
+                    const res = await fetch(`/api/servicos/${id}/confirmar-presenca`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ selfie: e.target.result, presenca_confirmada: true })
+                    });
+                    if (res.ok) { carregarServicos(); mostrarToast('Presença confirmada com sucesso!', 'success'); }
+                } catch(e) { mostrarToast('Erro ao confirmar presença.', 'error'); }
             };
             reader.readAsDataURL(inputSelfie.files[0]);
         }
 
-        async function enviarConfirmacaoServidor(id, selfie) {
-            try {
-                const res = await fetch(`/api/servicos/${id}/confirmar-presenca`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ selfie, presenca_confirmada: true, presencaConfirmada: true })
-                });
-                const data = await res.json();
-                if (res.ok && data.sucesso !== false) {
-                    carregarServicos();
-                    alert('🟢 Presença confirmada como Titular com sucesso!');
-                } else {
-                    alert(data.erro || 'Erro ao confirmar presença.');
-                }
-            } catch(e) { alert('Erro de conexão ao confirmar presença.'); }
-        }
-
         async function realizarCheckinComGPS(id) {
             const inputFoto = document.getElementById(`foto-checkin-${id}`);
-            if (!inputFoto.files || inputFoto.files.length === 0) {
-                alert('Por favor, tire a foto da chegada usando a câmera!');
-                return;
-            }
+            if (!inputFoto.files.length) { mostrarToast('Tire a foto de chegada!', 'error'); return; }
 
             const reader = new FileReader();
             reader.onload = function(e) {
-                const fotoBase64 = e.target.result;
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(async (position) => {
-                        const gpsCoords = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
-                        await enviarCheckinServidor(id, fotoBase64, gpsCoords);
-                    }, () => {
-                        enviarCheckinServidor(id, fotoBase64, "GPS Indisponível");
-                    });
-                } else {
-                    enviarCheckinServidor(id, fotoBase64, "GPS não suportado");
-                }
+                const foto = e.target.result;
+                navigator.geolocation?.getCurrentPosition(async (pos) => {
+                    const gps = `${pos.coords.latitude.toFixed(5)}, ${pos.coords.longitude.toFixed(5)}`;
+                    await postCheckin(id, foto, gps);
+                }, async () => { await postCheckin(id, foto, "GPS Indisponível"); });
             };
             reader.readAsDataURL(inputFoto.files[0]);
         }
 
-        async function enviarCheckinServidor(id, foto, gps) {
+        async function postCheckin(id, foto, gps) {
             await fetch(`/api/servicos/${id}/checkin`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto, gps })
             });
             carregarServicos();
-            alert(`Check-in registrado! GPS: ${gps}`);
+            mostrarToast(`Check-in registrado! GPS: ${gps}`, 'success');
         }
 
         async function realizarCheckout(id) {
             const inputFoto = document.getElementById(`foto-checkout-${id}`);
-            if (!inputFoto.files || inputFoto.files.length === 0) {
-                alert('Por favor, selecione ou tire a foto de conclusão (check-out) antes de finalizar!');
-                return;
-            }
+            if (!inputFoto.files.length) { mostrarToast('Selecione a foto de conclusão!', 'error'); return; }
 
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const fotoBase64 = e.target.result;
                 try {
-                    await fetch(`/api/servicos/${id}/ponto`, {
+                    await fetch(`/api/servicos/${id}/checkout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ foto: fotoBase64, email: usuarioLogado.email })
+                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: e.target.result })
                     });
-
-                    const res = await fetch(`/api/servicos/${id}/checkout`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
-                    });
-                    const data = await res.json();
-                    
-                    if (res.ok && data.sucesso !== false) {
-                        carregarServicos();
-                        alert('✅ Check-out realizado com sucesso! Serviço finalizado.');
-                    } else { 
-                        alert(data.erro || 'Erro ao realizar check-out.'); 
-                    }
-                } catch (err) { 
-                    alert('Erro de conexão ao finalizar o serviço.'); 
-                }
+                    carregarServicos();
+                    mostrarToast('Check-out realizado com sucesso!', 'success');
+                } catch(err) { mostrarToast('Erro ao finalizar serviço.', 'error'); }
             };
             reader.readAsDataURL(inputFoto.files[0]);
         }
@@ -1514,15 +1468,13 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         async function enviarMensagem(id) {
             const txt = document.getElementById(`chat-txt-${id}`).value;
             if (!txt) return;
-            try {
-                await fetch(`/api/servicos/${id}/chat`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ remetente: usuarioLogado.nome, email: usuarioLogado.email, texto: txt })
-                });
-                document.getElementById(`chat-txt-${id}`).value = ``;
-                carregarServicos();
-            } catch(e) { alert('Erro ao enviar mensagem.'); }
+            await fetch(`/api/servicos/${id}/chat`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ remetente: usuarioLogado.nome, email: usuarioLogado.email, texto: txt })
+            });
+            document.getElementById(`chat-txt-${id}`).value = '';
+            carregarServicos();
         }
 
         function filtrarTrabalhadoresGestor() {
@@ -1537,51 +1489,44 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         }
 
         function abrirFichaGestor(s, posicao) {
-            const estaConfirmado = Boolean(s.presenca_confirmada || s.presencaConfirmada || s.confirmado || (s.selfie_confirmacao && s.selfie_confirmacao.length > 10));
-
+            const estaConfirmado = Boolean(s.presenca_confirmada || s.presencaConfirmada || s.confirmado);
             document.getElementById("m-nome").innerText = s.prestador_nome || 'N/D';
             document.getElementById("m-posicao").innerText = posicao || 'Titular';
             document.getElementById("m-servico").innerText = `${s.titulo} (${s.categoria || 'Geral'})`;
             document.getElementById("m-data").innerText = s.local || 'N/D';
             document.getElementById("m-empresa").innerText = s.empresa_nome || usuarioLogado.nome;
-            document.getElementById("m-horario").innerText = s.horario || 'Horário padrão';
+            document.getElementById("m-horario").innerText = s.horario || 'Padrão';
             document.getElementById("m-valor").innerText = `R$ ${s.valor}`;
-            document.getElementById("m-contrato").innerText = s.contrato_assinado ? `Assinado por: ${s.contrato_assinado}` : 'Pendente';
+            document.getElementById("m-contrato").innerText = s.contrato_assinado ? `Assinado` : 'Pendente';
             document.getElementById("m-aceite").innerText = s.data_aceite || 'N/D';
-            document.getElementById("m-status").innerText = estaConfirmado ? '🟢 Presença Confirmada' : '⏳ Aguardando';
-            document.getElementById("m-checkin").innerText = `Check-in: ${s.checkin_hora || 'Pendente'} | Check-out: ${s.checkout_hora || 'Pendente'}`;
-            document.getElementById("m-docs").innerText = s.prestador_rg_cnh ? `RG/CNH: ${s.prestador_rg_cnh} | PIX: ${s.prestador_pix}` : 'N/D';
+            document.getElementById("m-status").innerText = estaConfirmado ? '🟢 Confirmado' : '⏳ Aguardando';
+            document.getElementById("m-checkin").innerText = `Check-in: ${s.checkin_hora || '-'} | Check-out: ${s.checkout_hora || '-'}`;
+            document.getElementById("m-docs").innerText = s.prestador_rg_cnh ? `RG: ${s.prestador_rg_cnh} | PIX: ${s.prestador_pix}` : 'N/D';
             
             const imgSelfie = document.getElementById("m-selfie");
             if (s.selfie_confirmacao) {
                 imgSelfie.src = s.selfie_confirmacao;
                 imgSelfie.style.display = "block";
-            } else {
-                imgSelfie.style.display = "none";
-            }
+            } else { imgSelfie.style.display = "none"; }
 
             document.getElementById("workerModal").style.display = "flex";
         }
 
-        function fecharDetalhesTrabalhador() {
-            document.getElementById("workerModal").style.display = "none";
-        }
+        function fecharDetalhesTrabalhador() { document.getElementById("workerModal").style.display = "none"; }
 
         function gerarNotaFiscal(s) {
             document.getElementById("nf-codigo").innerText = `Nº 000${s.id || '1'} / 2026`;
-            document.getElementById("nf-empresa-nome").innerText = s.empresa_nome || usuarioLogado.nome || 'Grupo RS';
-            document.getElementById("nf-empresa-doc").innerText = usuarioLogado.doc || 'CNPJ não informado';
-            document.getElementById("nf-empresa-resp").innerText = usuarioLogado.responsavel || 'Gestão RS Connect';
-            document.getElementById("nf-empresa-local").innerText = s.local || 'Nanuque - MG';
-
-            document.getElementById("nf-prestador-nome").innerText = s.prestador_nome || 'Profissional Titular';
-            document.getElementById("nf-prestador-doc").innerText = s.prestador_rg_cnh || 'CPF/RG não informado';
-            document.getElementById("nf-prestador-pix").innerText = s.prestador_pix || 'Chave PIX padrão cadastrada';
-
+            document.getElementById("nf-empresa-nome").innerText = s.empresa_nome || usuarioLogado.nome;
+            document.getElementById("nf-empresa-doc").innerText = usuarioLogado.doc || '-';
+            document.getElementById("nf-empresa-resp").innerText = usuarioLogado.responsavel || '-';
+            document.getElementById("nf-empresa-local").innerText = s.local || '-';
+            document.getElementById("nf-prestador-nome").innerText = s.prestador_nome || '-';
+            document.getElementById("nf-prestador-doc").innerText = s.prestador_rg_cnh || '-';
+            document.getElementById("nf-prestador-pix").innerText = s.prestador_pix || '-';
             document.getElementById("nf-servico-titulo").innerText = `${s.titulo} - ${s.descricao}`;
             document.getElementById("nf-servico-endereco").innerText = s.endereco || s.local;
-            document.getElementById("nf-checkin").innerText = s.checkin_hora || 'Não registrado';
-            document.getElementById("nf-checkout").innerText = s.checkout_hora || 'Não registrado';
+            document.getElementById("nf-checkin").innerText = s.checkin_hora || '-';
+            document.getElementById("nf-checkout").innerText = s.checkout_hora || '-';
             document.getElementById("nf-valor").innerText = `R$ ${s.valor}`;
 
             document.getElementById("secao-sistema").classList.add("hidden");
