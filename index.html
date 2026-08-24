@@ -1914,16 +1914,47 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
                         ${souTitular && estaConfirmado ? `
                             <div style="margin-top: 12px; display:flex; flex-direction:column; gap:12px;">
+
                                 <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
                                     <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Chegada (Check-in via Câmera)</label>
-                                    <input type="file" id="foto-checkin-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
-                                    <button onclick="realizarCheckinComGPS(${s.id})" style="background:var(--warning); padding:10px; width:100%; font-size:13px;">📍 Registrar Check-in com GPS</button>
+
+                                    ${s.checkin_hora ? `
+                                        <div style="background:#dcfce7; color:#166534; padding:10px; border-radius:8px; font-weight:800; font-size:12px; margin-bottom:8px;">
+                                            ✅ CHECK-IN FINALIZADO — ${s.checkin_hora}
+                                        </div>
+                                        <button disabled style="background:#94a3b8; cursor:not-allowed; padding:10px; width:100%; font-size:13px; opacity:.85;">
+                                            🔒 Check-in já realizado
+                                        </button>
+                                    ` : `
+                                        <input type="file" id="foto-checkin-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
+                                        <button onclick="realizarCheckinComGPS(${s.id})" style="background:var(--warning); padding:10px; width:100%; font-size:13px;">
+                                            📍 Registrar Check-in com GPS
+                                        </button>
+                                    `}
                                 </div>
+
                                 <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
                                     <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Conclusão (Check-out)</label>
-                                    <input type="file" id="foto-checkout-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
-                                    <button onclick="realizarCheckout(${s.id})" class="btn-success" style="padding:10px; width:100%; font-size:13px;">✅ Finalizar Check-out</button>
+
+                                    ${s.checkout_hora ? `
+                                        <div style="background:#dcfce7; color:#166534; padding:10px; border-radius:8px; font-weight:800; font-size:12px; margin-bottom:8px;">
+                                            ✅ CHECK-OUT FINALIZADO — ${s.checkout_hora}
+                                        </div>
+                                        <button disabled class="btn-success" style="background:#94a3b8; cursor:not-allowed; padding:10px; width:100%; font-size:13px; opacity:.85;">
+                                            🔒 Check-out já realizado
+                                        </button>
+                                    ` : s.checkin_hora ? `
+                                        <input type="file" id="foto-checkout-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
+                                        <button onclick="realizarCheckout(${s.id})" class="btn-success" style="padding:10px; width:100%; font-size:13px;">
+                                            ✅ Finalizar Check-out
+                                        </button>
+                                    ` : `
+                                        <button disabled style="background:#94a3b8; cursor:not-allowed; padding:10px; width:100%; font-size:13px; opacity:.85;">
+                                            🔒 Faça o check-in primeiro
+                                        </button>
+                                    `}
                                 </div>
+
                             </div>
                         ` : ''}
 
