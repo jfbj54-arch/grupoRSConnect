@@ -1290,7 +1290,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     widgetEmpresaInfo.classList.add('hidden');
                     widgetCarteira.classList.remove('hidden');
                     painelGestorTrabalhadores.classList.add('hidden');
-                    document.getElementById('titulo-radar').innerText = "📡 Radar de Vagas Disponíveis (Titular e Reservas)";
+                    document.getElementById('titulo-radar').innerText = "📡 Vagas Disponíveis e Meu Serviço Atual";
                 }
             } else {
                 secaoAuth.classList.remove('hidden');
@@ -1816,6 +1816,20 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     const souReserva = !!reservaObj;
                     const jaCadastrado = souTitular || souReserva;
 
+                    // VISÃO LIMPA DO PRESTADOR:
+                    // - serviço finalizado vai apenas para o Histórico;
+                    // - vaga já preenchida por outra pessoa não aparece como candidatura;
+                    // - reserva já cadastrada continua visível para acompanhar a posição.
+                    if (usuarioLogado.tipo === 'prestador') {
+                        if (vagaEncerrada) {
+                            return;
+                        }
+
+                        if (vagaPreenchida && !souTitular && !souReserva) {
+                            return;
+                        }
+                    }
+
                     const linkGoogleMaps = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(s.endereco || s.local)}`;
 
                     let infoValorHTML = '';
@@ -2149,6 +2163,23 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     container.appendChild(card);
                 });
 
+                // Se o filtro removeu serviços antigos/preenchidos, não deixar o radar vazio sem explicação.
+                if (
+                    usuarioLogado &&
+                    usuarioLogado.tipo === 'prestador' &&
+                    container.children.length === 0
+                ) {
+                    container.innerHTML = `
+                        <div style="background:#fff;border:1px solid var(--border);border-radius:12px;padding:22px;text-align:center;color:var(--text-light);">
+                            <div style="font-size:28px;margin-bottom:8px;">📭</div>
+                            <strong style="color:var(--primary);">Nenhuma vaga disponível no momento</strong>
+                            <div style="font-size:12px;margin-top:5px;">
+                                Serviços concluídos ficam no Histórico da Minha Jornada.
+                            </div>
+                        </div>
+                    `;
+                }
+
                 iniciarContadorRegressivo();
 
             } catch (err) { console.error("Erro ao carregar serviços:", err); }
@@ -2320,7 +2351,12 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 }
 
                 if (!res.ok || data.sucesso === false) {
-                    alert(`⚠️ ${data.erro || data.mensagem || `Não foi possível entrar na fila (HTTP ${res.status}).`}`);
+                    const erroTexto = String(data.erro || data.mensagem || '');
+                    if (erroTexto.includes('Cannot POST') && erroTexto.includes('/fila')) {
+                        alert('⚠️ A rota da fila ainda não está ativa no servidor online. Publique o server.js atualizado no Render e tente novamente.');
+                    } else {
+                        alert(`⚠️ ${erroTexto || `Não foi possível entrar na fila (HTTP ${res.status}).`}`);
+                    }
                     await carregarServicos();
                     return;
                 }
