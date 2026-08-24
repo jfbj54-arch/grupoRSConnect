@@ -2583,76 +2583,99 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             const email = document.getElementById('login-email').value.trim().toLowerCase();
             const senha = document.getElementById('login-senha').value;
 
-            if (
-                SUPABASE_URL.includes('COLE_AQUI') ||
-                SUPABASE_PUBLISHABLE_KEY.includes('COLE_AQUI')
-            ) {
-                alert('⚠️ Primeiro configure SUPABASE_URL e SUPABASE_PUBLISHABLE_KEY no index.html.');
+            if (!email || !senha) {
+                alert('Informe e-mail e senha.');
                 return;
             }
 
             try {
-                // 1. Tenta o login moderno pelo Supabase Auth.
-                const { data, error } = await supabaseAuth.auth.signInWithPassword({
-                    email,
-                    password: senha
-                });
+                // 1) Mantém prioridade para as contas antigas do RS Connect.
+                let erroLegado = null;
 
-                if (!error && data?.user) {
-                    usuarioLogado = perfilDoUsuarioSupabase(data.user);
+                try {
+                    const resLegado = await fetch('/api/auth/login', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ email, senha })
+                    });
 
-                    localStorage.setItem(
-                        'rs_usuario',
-                        JSON.stringify(usuarioLogado)
-                    );
+                    const textoLegado = await resLegado.text();
+                    let legado = {};
 
-                    verificarEstadoSessao();
-                    carregarServicos();
-                    return;
+                    try {
+                        legado = textoLegado ? JSON.parse(textoLegado) : {};
+                    } catch (_) {}
+
+                    if (resLegado.ok && legado.sucesso && legado.usuario) {
+                        usuarioLogado = legado.usuario;
+
+                        localStorage.setItem(
+                            'rs_usuario',
+                            JSON.stringify(usuarioLogado)
+                        );
+
+                        // A migração para Supabase acontece sem bloquear o usuário.
+                        if (
+                            !SUPABASE_URL.includes('COLE_AQUI') &&
+                            !SUPABASE_PUBLISHABLE_KEY.includes('COLE_AQUI')
+                        ) {
+                            migrarContaAntigaParaSupabase(
+                                email,
+                                senha,
+                                legado.usuario
+                            ).catch(err =>
+                                console.warn('Migração Supabase não bloqueante:', err)
+                            );
+                        }
+
+                        verificarEstadoSessao();
+                        carregarServicos();
+                        return;
+                    }
+
+                    erroLegado = legado.erro || null;
+
+                } catch (errLegado) {
+                    console.warn('Login antigo indisponível:', errLegado);
                 }
 
-                // 2. Compatibilidade com contas antigas:
-                // tenta o login antigo e, se der certo, vincula a conta ao Supabase.
-                const resLegado = await fetch('/api/auth/login', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ email, senha })
-                });
-
-                const legado = await resLegado.json();
-
-                if (legado.sucesso && legado.usuario) {
-                    usuarioLogado = legado.usuario;
-
-                    localStorage.setItem(
-                        'rs_usuario',
-                        JSON.stringify(usuarioLogado)
-                    );
-
-                    await migrarContaAntigaParaSupabase(
+                // 2) Se não for uma conta antiga, tenta o Supabase Auth.
+                if (
+                    !SUPABASE_URL.includes('COLE_AQUI') &&
+                    !SUPABASE_PUBLISHABLE_KEY.includes('COLE_AQUI')
+                ) {
+                    const { data, error } = await supabaseAuth.auth.signInWithPassword({
                         email,
-                        senha,
-                        legado.usuario
-                    );
+                        password: senha
+                    });
 
-                    verificarEstadoSessao();
-                    carregarServicos();
+                    if (!error && data?.user) {
+                        usuarioLogado = perfilDoUsuarioSupabase(data.user);
 
-                    alert(
-                        '✅ Conta antiga reconhecida. O RS Connect está vinculando seu acesso ao Supabase Auth.'
+                        localStorage.setItem(
+                            'rs_usuario',
+                            JSON.stringify(usuarioLogado)
+                        );
+
+                        verificarEstadoSessao();
+                        carregarServicos();
+                        return;
+                    }
+
+                    console.warn(
+                        'Supabase Auth não reconheceu a conta:',
+                        error?.message || error
                     );
-                    return;
                 }
 
                 alert(
-                    error?.message ||
-                    legado.erro ||
-                    'E-mail ou senha incorretos.'
+                    erroLegado ||
+                    'E-mail ou senha incorretos. Use a mesma senha que já estava cadastrada no RS Connect.'
                 );
 
             } catch (err) {
-                console.error('Erro no login:', err);
-                alert('Erro de conexão ao entrar.');
+                console.error('Erro no login híbrido:', err);
+                alert('Não foi possível entrar agora. Tente novamente.');
             }
         }
 
