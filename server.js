@@ -3268,7 +3268,60 @@ app.delete(
         }
     }
 );
+// =====================================================
+// EMPRESA VALIDA SERVIÇO, EXCLUIR SERVIÇO ETC...
+// =====================================================
 
+// código anterior termina aqui
+});
+
+
+// =====================================================
+// PROMOVER RESERVA PARA TITULAR
+// SUBSTITUI O TITULAR ATUAL PELO RESERVA ESCOLHIDO
+// =====================================================
+
+app.post('/api/servicos/:id/promover-reserva', async (req, res) => {
+
+    // TODO O CÓDIGO QUE TE MANDEI
+    // fica aqui dentro
+
+});
+
+
+// =====================================================
+// SOCKET.IO
+// =====================================================
+
+io.on(
+    'connection',
+    (socket) => {
+
+        console.log(
+            'Novo cliente conectado via WebSocket:',
+            socket.id
+        );
+    }
+);
+
+
+// =====================================================
+// INDEX
+// =====================================================
+
+app.get(
+    '/',
+    (req, res) => {
+
+        res.status(200)
+            .sendFile(
+                path.join(
+                    __dirname,
+                    'index.html'
+                )
+            );
+    }
+);
 
 // =====================================================
 // SOCKET.IO
