@@ -533,12 +533,25 @@
                             <input type="text" id="srv-titulo" required placeholder="Ex: Manutenção de Equipamentos">
                         </div>
                         <div class="form-group">
-                            <label>Categoria</label>
+                            <label>Categoria / Serviço</label>
                             <select id="srv-categoria">
                                 <option value="Manutenção">Manutenção Geral</option>
                                 <option value="Limpeza">Limpeza e Conservação</option>
                                 <option value="Instalação">Instalação Técnica</option>
                                 <option value="TI e Redes">TI / Redes / Suporte</option>
+                                <option value="Carga e Descarga">Carga e Descarga</option>
+                                <option value="Conferente">Conferente</option>
+                                <option value="Operador">Operador</option>
+                                <option value="Auxiliar">Auxiliar</option>
+                                <option value="Logistica">Logística</option>
+                                <option value="Equipes de 7 até 10 pessoas">Equipes de 7 até 10 pessoas</option>
+                                <option value="Limpeza doméstica apartamentos">Limpeza doméstica apartamentos</option>
+                                <option value="Limpeza condomínios">Limpeza condomínios</option>
+                                <option value="Cuidadora de idosos">Cuidadora de idosos</option>
+                                <option value="Pedreiro">Pedreiro</option>
+                                <option value="Servente">Servente</option>
+                                <option value="Segurança patrimonial">Segurança patrimonial</option>
+                                <option value="Controlador de acesso">Controlador de acesso</option>
                             </select>
                         </div>
                     </div>
@@ -1454,15 +1467,18 @@ CLÁUSULA TERCEIRA – DA VALIDADE JURÍDICA E ASSINATURA ELETRÔNICA: O present
 
             const reader = new FileReader();
             reader.onload = async function(e) {
-                const fotoCheckoutBase64 = e.target.result;
+                const fotoBase64 = e.target.result;
                 try {
+                    await fetch(`/api/servicos/${id}/ponto`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ foto: fotoBase64, email: usuarioLogado.email })
+                    });
+
                     const res = await fetch(`/api/servicos/${id}/checkout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ 
-                            hora: new Date().toLocaleTimeString(), 
-                            foto_checkout: fotoCheckoutBase64 
-                        })
+                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
                     });
                     const data = await res.json();
                     
