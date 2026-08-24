@@ -1656,7 +1656,8 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     if (usuarioLogado.tipo === 'empresa') {
                         if (s.prestador_nome) {
                             const trTitular = document.createElement('tr');
-                            trTitular.setAttribute('data-criacao', s.data_criacao_timestamp || Date.now());
+                            const aceiteTimestamp = s.data_aceite ? Date.parse(s.data_aceite) : 0;
+                            trTitular.setAttribute('data-aceite', aceiteTimestamp);
                             trTitular.setAttribute('data-titular-id', s.prestador_email || s.id);
                             trTitular.innerHTML = `
                                 <td><strong>${s.prestador_nome}</strong><br><small style="color:var(--text-light);">Aceite: ${s.data_aceite || 'Registrado'}</small></td>
@@ -1992,35 +1993,81 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             } catch (err) { console.error("Erro ao carregar serviços:", err); }
         }
 
+        let rsIntervalosContador = [];
+
         function iniciarContadorRegressivo() {
+            // Evita vários relógios duplicados depois de recarregar os serviços via Socket.IO.
+            rsIntervalosContador.forEach(clearInterval);
+            rsIntervalosContador = [];
+
             const linhas = document.querySelectorAll('#workerTableBodyGestor tr');
 
             linhas.forEach(linha => {
-                const tempoCriacao = parseInt(linha.getAttribute('data-criacao')) || Date.now();
+                const tempoAceite = Number(linha.getAttribute('data-aceite') || 0);
                 const statusElemento = linha.querySelector('.status-relogio');
                 const titularId = linha.getAttribute('data-titular-id');
-                
+
                 if (!statusElemento) return;
-                if (statusElemento.classList.contains('confirmed')) return;
 
-                const duracaoLimiteMs = 30 * 60 * 1000; 
-                const tempoExpiracao = tempoCriacao + duracaoLimiteMs;
+                // Se já houve confirmação, não existe mais contagem.
+                if (statusElemento.querySelector('.confirmed')) return;
 
-                const intervalo = setInterval(() => {
-                    const agora = Date.now();
-                    const diferenca = tempoExpiracao - agora;
+                // Nunca cria um prazo novo no navegador.
+                // Sem data do servidor, informa que está sincronizando.
+                if (!tempoAceite || Number.isNaN(tempoAceite)) {
+                    statusElemento.innerHTML =
+                        '<span class="badge" style="background:#e2e8f0;color:#475569;">⏳ Sincronizando prazo...</span>';
+                    return;
+                }
+
+                const duracaoLimiteMs = 30 * 60 * 1000;
+                const tempoExpiracao = tempoAceite + duracaoLimiteMs;
+
+                const atualizar = () => {
+                    const diferenca = tempoExpiracao - Date.now();
 
                     if (diferenca > 0) {
-                        const minutosRestantes = Math.floor((diferenca % (1000 * 60 * 60)) / (1000 * 60));
-                        const segundosRestantes = Math.floor((diferenca % (1000 * 60)) / 1000);
+                        const minutosRestantes = Math.floor(diferenca / 60000);
+                        const segundosRestantes = Math.floor((diferenca % 60000) / 1000);
 
-                        statusElemento.innerHTML = `<span class="badge" style="background:#fef3c7; color:#d97706;">Aceite: ${minutosRestantes}m ${segundosRestantes}s</span>`;
-                    } else {
-                        clearInterval(intervalo);
-                        statusElemento.innerHTML = `<span class="badge" style="background:#fce8e6; color:#dc2626;">Expirado (30m)</span>`;
+                        statusElemento.innerHTML = `
+                            <span class="badge" style="background:#fef3c7;color:#d97706;">
+                                ⏱️ Confirmação: ${String(minutosRestantes).padStart(2, '0')}:${String(segundosRestantes).padStart(2, '0')}
+                            </span>
+                        `;
+
+                        return true;
+                    }
+
+                    statusElemento.innerHTML =
+                        '<span class="badge" style="background:#fce8e6;color:#dc2626;">⛔ Prazo de 30 min expirado</span>';
+
+                    return false;
+                };
+
+                // Atualiza imediatamente, sem esperar o primeiro segundo.
+                if (!atualizar()) {
+                    // Ao reabrir o app depois de 30 minutos, ele já aparece expirado.
+                    // A tentativa de substituição ocorre uma única vez por carregamento.
+                    if (!linha.dataset.expiracaoProcessada) {
+                        linha.dataset.expiracaoProcessada = '1';
                         substituirPrestadorEmergencia(titularId, linha);
                     }
+                    return;
+                }
+
+                const intervalo = setInterval(() => {
+                    if (!atualizar()) {
+                        clearInterval(intervalo);
+
+                        if (!linha.dataset.expiracaoProcessada) {
+                            linha.dataset.expiracaoProcessada = '1';
+                            substituirPrestadorEmergencia(titularId, linha);
+                        }
+                    }
                 }, 1000);
+
+                rsIntervalosContador.push(intervalo);
             });
         }
 
