@@ -122,7 +122,6 @@ async function criarTabelas() {
             );
         `);
 
-        // Garante todas as colunas necessárias caso a tabela já exista
         const colunasGarantir = [
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS categoria TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_diaria NUMERIC(10,2) DEFAULT 0;",
@@ -134,11 +133,6 @@ async function criarTabelas() {
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_whatsapp TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'unico';",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_total NUMERIC(10,2) DEFAULT 0;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_id INTEGER;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_email TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_nome TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_pix TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_whatsapp TEXT;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;",
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;",
@@ -156,9 +150,9 @@ async function criarTabelas() {
             await pool.query(sqlCol).catch(() => {});
         }
 
-        console.log('Tabelas e colunas verificadas/criadas com sucesso no PostgreSQL.');
+        console.log('Tabelas e colunas verificadas/criadas com sucesso no PostgreSQL[cite: 5].');
     } catch (err) {
-        console.error('Erro ao criar tabelas:', err);
+        console.error('Erro ao criar tabelas[cite: 5]:', err);
     }
 }
 
@@ -169,7 +163,7 @@ async function registrarLedger(servicoId, email, tipoMovimento, valor) {
             [servicoId, email, tipoMovimento, valor]
         );
     } catch (err) {
-        console.error('Erro ao registrar ledger:', err);
+        console.error('Erro ao registrar ledger[cite: 5]:', err);
     }
 }
 
@@ -180,7 +174,7 @@ async function registrarAuditoria(email, acao, detalhes) {
             [email || 'sistema', acao, detalhes]
         );
     } catch (err) {
-        console.error('Erro ao registrar auditoria:', err);
+        console.error('Erro ao registrar auditoria[cite: 5]:', err);
     }
 }
 
@@ -213,7 +207,7 @@ app.post('/api/auth/login', async (req, res) => {
         await registrarAuditoria(email, 'LOGIN', 'Login realizado com sucesso.');
         res.json({ sucesso: true, usuario: result.rows[0] });
     } catch (err) {
-        res.status(500).json({ sucesso: false, erro: 'Erro no servidor.' });
+        res.status(500).json({ sucesso: false, erro: 'Erro no servidor[cite: 5].' });
     }
 });
 
@@ -222,7 +216,7 @@ app.get('/api/servicos', async (req, res) => {
         const result = await pool.query(`SELECT * FROM servicos ORDER BY id DESC`);
         res.json(result.rows);
     } catch (err) {
-        res.status(500).json({ erro: 'Erro ao buscar serviços.' });
+        res.status(500).json({ erro: 'Erro ao buscar serviços[cite: 5].' });
     }
 });
 
@@ -275,7 +269,7 @@ app.post('/api/servicos', async (req, res) => {
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, id: servicoId });
     } catch (err) {
-        console.error('Erro detalhado ao publicar serviço:', err);
+        console.error('Erro detalhado ao publicar serviço[cite: 5]:', err);
         res.json({ sucesso: false, erro: 'Erro ao publicar serviço: ' + err.message });
     }
 });
@@ -318,7 +312,7 @@ app.post('/api/servicos/:id/aceitar', async (req, res) => {
             return res.json({ sucesso: true, mensagem: 'Você entrou na Fila de Reserva (Emergência)!' });
         }
     } catch (err) {
-        console.error('Erro ao aceitar contrato:', err);
+        console.error('Erro ao aceitar contrato[cite: 5]:', err);
         res.json({ sucesso: false, erro: 'Erro ao aceitar contrato.' });
     }
 });
@@ -373,7 +367,7 @@ app.post('/api/servicos/:id/processar-status', async (req, res) => {
 
         res.status(400).json({ sucesso: false, erro: 'Ação inválida.' });
     } catch (err) {
-        console.error('Erro no fluxo:', err);
+        console.error('Erro no fluxo[cite: 5]:', err);
         res.status(500).json({ sucesso: false, erro: 'Erro interno ao processar fluxo.' });
     }
 });
@@ -403,7 +397,7 @@ app.post('/api/servicos/:id/nota-oficial', upload.single('notaFiscal'), async (r
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, mensagem: 'Nota fiscal enviada com sucesso!' });
     } catch (err) {
-        console.error('Erro ao enviar nota fiscal:', err);
+        console.error('Erro ao enviar nota fiscal[cite: 5]:', err);
         res.json({ sucesso: false, erro: 'Erro interno ao processar a nota fiscal.' });
     }
 });
@@ -420,12 +414,27 @@ app.post('/api/servicos/:id/confirmar-presenca', async (req, res) => {
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, mensagem: 'Presença confirmada com sucesso!' });
     } catch (err) {
-        console.error("Erro ao confirmar presença:", err);
+        console.error("Erro ao confirmar presença[cite: 5]:", err);
         res.json({ sucesso: false, erro: 'Erro ao confirmar presença.' });
     }
 });
 
+// Rota de ponto original
 app.post('/api/servicos/:id/ponto', async (req, res) => {
+    const id = req.params.id;
+    const { foto, hora } = req.body;
+    try {
+        await pool.query(`UPDATE servicos SET foto_ponto = $1, checkin_hora = $2, status_checkin = 'realizado' WHERE id = $3`, [foto, hora || new Date().toLocaleTimeString(), id]);
+        await registrarAuditoria('sistema', 'CHECKIN_PONTO', `Check-in realizado para o serviço #${id}`);
+        io.emit('atualizar_servicos');
+        res.json({ sucesso: true });
+    } catch (err) {
+        res.json({ sucesso: false, erro: 'Erro ao registrar ponto.' });
+    }
+});
+
+// Nova rota /checkin adicionada para evitar o erro 404
+app.post('/api/servicos/:id/checkin', async (req, res) => {
     const id = req.params.id;
     const { foto, hora } = req.body;
     try {
@@ -463,7 +472,7 @@ app.post('/api/servicos/:id/checkout', upload.single('fotoCheckout'), async (req
         io.emit('atualizar_servicos');
         res.json({ sucesso: true, mensagem: 'Serviço finalizado com sucesso!' });
     } catch (err) {
-        console.error('Erro no checkout:', err);
+        console.error('Erro no checkout[cite: 5]:', err);
         res.json({ sucesso: false, erro: 'Erro ao realizar check-out.' });
     }
 });
@@ -521,7 +530,7 @@ app.delete('/api/servicos/:id', async (req, res) => {
 });
 
 io.on('connection', (socket) => {
-    console.log('Novo cliente conectado via WebSocket:', socket.id);
+    console.log('Novo cliente conectado via WebSocket[cite: 5]:', socket.id);
 });
 
 app.get('/', (req, res) => {
@@ -530,5 +539,5 @@ app.get('/', (req, res) => {
 
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-    console.log(`Servidor rodando na porta ${PORT}`);
+    console.log(`Servidor rodando na porta ${PORT}[cite: 5]`);
 });
