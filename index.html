@@ -1875,20 +1875,14 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         ` : ''}
 
                         ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
-                            <div class="contrato-box">
-                                <h2>Gestão de Contratos</h2>
-                                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">Baixe seu contrato, assine utilizando o portal oficial do governo e envie o arquivo assinado abaixo.</p>
-                                    
-                                <a href="javascript:void(0)" onclick="baixarContratoPDF(${s.id})" class="btn-download">Baixar Contrato</a>
-                                <a href="https://assinador.iti.br/" target="_blank" class="btn-assinar">Assinar no Gov.br</a>
-                                    
-                                <div style="margin-top: 10px;">
-                                    <label for="contratoAssinado-${s.id}">Enviar contrato assinado:</label>
-                                    <input type="file" id="contratoAssinado-${s.id}" name="contratoAssinado" accept=".pdf" style="background:white; font-size:12px; margin-bottom:8px;" onchange="verificarUploadAssinado(${s.id})">
-                                </div>
-
-                                <label style="font-size:11px; margin-top: 6px; display:block;"><input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})"> Declaro que li, compreendi e aceito irrevogavelmente os termos e sanções por desistência.</label>
-                                <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})" class="btn-success" style="padding:10px; margin-top:8px;" disabled>✍️ ${!s.prestador_email ? 'Enviar Assinatura e Assumir Vaga Titular' : 'Enviar Assinatura e Entrar na Fila de Reserva (Emergência)'}</button>
+                            <div style="background:#eff6ff; border:1px solid #bfdbfe; padding:12px; border-radius:10px; margin-top:12px;">
+                                <strong style="color:#1d4ed8;">📋 Entrada na Fila Obrigatória</strong>
+                                <p style="font-size:11px; color:var(--text-light); margin:6px 0 10px;">
+                                    Para aceitar esta vaga, primeiro você precisa entrar na fila. Ninguém pode assumir a vaga por fora da fila.
+                                </p>
+                                <button onclick="entrarNaFila(${s.id})" style="padding:10px;">
+                                    ➕ Entrar na fila desta vaga
+                                </button>
                             </div>
                         ` : ''}
 
@@ -1899,9 +1893,42 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         ` : ''}
 
                         ${souReserva ? `
-                            <div style="background:#fef3c7; padding:10px; border-radius:8px; font-size:12px; color:#d97706; font-weight:bold; margin-top:10px;">
-                                🔄 Você está na Fila de Reserva (Emergência) para esta vaga.
+                            <div style="background:#fef3c7; padding:12px; border-radius:8px; font-size:12px; color:#92400e; font-weight:bold; margin-top:10px;">
+                                🔄 Você está na fila desta vaga — posição ${reservas.findIndex(r => r.email === usuarioLogado.email) + 1}.
                             </div>
+
+                            ${!s.prestador_email && reservas.findIndex(r => r.email === usuarioLogado.email) === 0 ? `
+                                <div class="contrato-box">
+                                    <h2>✅ Sua vez de assumir a vaga</h2>
+                                    <p style="font-size:12px; color:var(--text-light);">
+                                        Você é o primeiro da fila. Baixe o contrato, assine e confirme para assumir como titular.
+                                    </p>
+
+                                    <a href="javascript:void(0)" onclick="baixarContratoPDF(${s.id})" class="btn-download">Baixar Contrato</a>
+                                    <a href="https://assinador.iti.br/" target="_blank" class="btn-assinar">Assinar no Gov.br</a>
+
+                                    <div style="margin-top:10px;">
+                                        <label for="contratoAssinado-${s.id}">Enviar contrato assinado:</label>
+                                        <input type="file" id="contratoAssinado-${s.id}" accept=".pdf"
+                                            style="background:white; font-size:12px; margin-bottom:8px;"
+                                            onchange="verificarUploadAssinado(${s.id})">
+                                    </div>
+
+                                    <label style="font-size:11px; margin-top:6px; display:block;">
+                                        <input type="checkbox" id="check-termo-${s.id}" onchange="toggleAceiteContrato(${s.id})">
+                                        Declaro que li, compreendi e aceito os termos.
+                                    </label>
+
+                                    <button id="btn-aceitar-${s.id}" onclick="inscreverVaga(${s.id})"
+                                        class="btn-success" style="padding:10px; margin-top:8px;" disabled>
+                                        ✍️ Assinar e assumir vaga titular
+                                    </button>
+                                </div>
+                            ` : `
+                                <div style="font-size:11px; color:var(--text-light); margin-top:6px;">
+                                    Aguarde. Apenas o primeiro da fila pode assumir quando a vaga estiver disponível.
+                                </div>
+                            `}
                         ` : ''}
 
                         ${souTitular && !estaConfirmado ? `
@@ -2133,6 +2160,35 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             const inputPDF = document.getElementById(`contratoAssinado-${id}`);
             const temArquivo = inputPDF && inputPDF.files && inputPDF.files.length > 0;
             document.getElementById(`btn-aceitar-${id}`).disabled = !(marcado && temArquivo);
+        }
+
+        async function entrarNaFila(id) {
+            try {
+                const res = await fetch(`/api/servicos/${id}/fila`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        prestadorEmail: usuarioLogado.email,
+                        prestadorNome: usuarioLogado.nome,
+                        prestadorWhatsapp: usuarioLogado.whatsapp || '',
+                        prestadorPix: usuarioLogado.pix || '',
+                        rgCnh: usuarioLogado.rgCnh || ''
+                    })
+                });
+
+                const data = await res.json();
+
+                if (!res.ok || data.sucesso === false) {
+                    alert(data.erro || 'Não foi possível entrar na fila.');
+                    return;
+                }
+
+                alert(`✅ ${data.mensagem}`);
+                carregarServicos();
+
+            } catch (err) {
+                alert('Erro de conexão ao entrar na fila.');
+            }
         }
 
         async function inscreverVaga(id) {
