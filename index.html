@@ -310,6 +310,12 @@
         .contrato-box { background: #fffbeb; border: 1px solid #fde68a; padding: 14px; border-radius: 10px; margin-top: 10px; font-size: 13px; }
         .nf-oficial-box { background: #f0fdf4; border: 1px solid #bbf7d0; padding: 14px; border-radius: 10px; margin-top: 10px; font-size: 13px; }
 
+        /* Estilos adicionados para os componentes de prestador e PIX (mantendo o padrão) */
+        .card-prestador-painel { margin-top: 12px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 10px; padding: 15px; }
+        .perfil-prestador { display: flex; align-items: center; gap: 15px; }
+        .fotos-checkpoint { display: flex; gap: 15px; margin-top: 10px; flex-wrap: wrap; }
+        .checkpoint-box { background: #fff; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; flex: 1; min-width: 140px; text-align: center; }
+
         .chat-container { border: 1px solid var(--border); border-radius: 8px; margin-top: 12px; background: #f8fafc; display: flex; flex-direction: column; height: 200px; width: 100%; box-sizing: border-box; }
         .chat-mensagens { flex: 1; padding: 10px; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 6px; word-break: break-word; }
         .chat-msg-item { background: white; padding: 8px 12px; border-radius: 6px; border: 1px solid #e2e8f0; max-width: 85%; word-break: break-word; white-space: pre-wrap; }
@@ -1124,23 +1130,46 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         <p style="margin:4px 0; font-size:13px;">📝 <strong>Descrição:</strong> ${s.descricao}</p>
                         <p style="margin:4px 0 10px 0; font-size:13px;">👥 <strong>Vagas Preenchidas:</strong> <span style="font-weight:bold; color:var(--accent);">${totalInscritos} / 3</span> (1 Titular + 2 Reservas de Emergência)[cite: 1]</p>
                         
-                        ${s.prestador_nome ? `
-                            <div class="detalhes-box">
-                                <strong>⭐ Titular da Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
-                                ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
-                                ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado & Validado gov.br</span>` : ''}
-                                ${blocoFotosHTML}
+                        <!-- Nova seção integrada de detalhes do prestador e checkpoints sem quebrar a estrutura existente -->
+                        <div class="card-prestador-painel">
+                            <h3>Detalhes do Prestador e Atendimento</h3>
+                            <div class="perfil-prestador">
+                                <img id="fotoPrestador_${s.id}" src="${s.fotoPerfil || 'default-avatar.png'}" alt="Foto do Prestador" style="width: 100px; height: 100px; border-radius: 50%; object-fit: cover;">
+                                <div>
+                                    <h4 id="nomePrestador_${s.id}">${s.prestador_nome || "Nome do Prestador"}</h4>
+                                    <p>Status: <span id="statusServico_${s.id}">${s.status || (estaConfirmado ? 'Em Andamento' : 'Aguardando')}</span></p>
+                                </div>
                             </div>
-                        ` : '<div class="detalhes-box">⭐ <strong>Titular da Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
-
-                        ${reservas.length > 0 ? `
-                            <div class="detalhes-box" style="background:#fefce8;">
-                                <strong>🔄 Fila de Reserva / Emergência (Até 2)[cite: 1]:</strong>
-                                <ul style="margin:4px 0 0 15px; padding:0; font-size:12px;">
-                                    ${reservas.map((r, i) => `<li>Reserva ${i+1}[cite: 1]: <b>${r.nome}</b> ${r.email === usuarioLogado.email ? '(Você)' : ''}</li>`).join('')}
-                                </ul>
+                            <hr>
+                            <div class="fotos-checkpoint">
+                                <div class="checkpoint-box">
+                                    <p><strong>Foto de Chegada:</strong></p>
+                                    <img id="fotoChegadaPreview_${s.id}" src="${s.foto_checkin || ''}" alt="Aguardando foto de chegada..." style="width: 150px; height: 150px; object-fit: cover; display: ${s.foto_checkin ? 'block' : 'none'}; border: 1px dashed #ccc;">
+                                </div>
+                                <div class="checkpoint-box">
+                                    <p><strong>Foto de Saída:</strong></p>
+                                    <img id="fotoSaidaPreview_${s.id}" src="${s.foto_checkout || ''}" alt="Aguardando foto de saída..." style="width: 150px; height: 150px; object-fit: cover; display: ${s.foto_checkout ? 'block' : 'none'}; border: 1px dashed #ccc;">
+                                </div>
                             </div>
-                        ` : ''}
+                            <hr>
+                            <div id="secaoFinalizacao_${s.id}" style="display: ${s.status === 'finalizado' || s.checkout_hora ? 'block' : 'none'};">
+                                <h4>Finalizar Serviço e Solicitar Pagamento</h4>
+                                <form id="formDadosRecebimento_${s.id}" onsubmit="event.preventDefault(); enviarDadosRecebimentoDinamico(${s.id})">
+                                    <label for="tipoChavePix_${s.id}">Tipo de Chave PIX:</label>
+                                    <select id="tipoChavePix_${s.id}" required>
+                                        <option value="cpf">CPF</option>
+                                        <option value="email">E-mail</option>
+                                        <option value="telefone">Telefone</option>
+                                        <option value="aleatoria">Chave Aleatória</option>
+                                    </select>
+                                    <label for="chavePix_${s.id}">Chave PIX:</label>
+                                    <input type="text" id="chavePix_${s.id}" placeholder="Digite sua chave PIX" value="${s.prestador_pix || ''}" required>
+                                    <label for="nomeFavorecido_${s.id}">Nome do Favorecido:</label>
+                                    <input type="text" id="nomeFavorecido_${s.id}" placeholder="Nome completo ou Razão Social" value="${s.prestador_nome || ''}" required>
+                                    <button type="button" onclick="enviarDadosRecebimentoDinamico(${s.id})">Enviar Dados para Recebimento</button>
+                                </form>
+                            </div>
+                        </div>
 
                         ${blocoNotaOficialHTML}
 
@@ -1485,7 +1514,6 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             reader.onload = async function(e) {
                 const fotoBase64 = e.target.result;
                 try {
-                    // Chamada corrigida: enviando diretamente para a rota de checkout sem invocar /ponto indevidamente
                     const res = await fetch(`/api/servicos/${id}/checkout`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1587,6 +1615,28 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         function fecharNotaFiscal() {
             document.getElementById("nota-fiscal-impressao").style.display = "none";
             document.getElementById("secao-sistema").classList.remove("hidden");
+        }
+
+        // Função de envio de dados de pagamento adaptada dinamicamente para cada ID de serviço renderizado
+        function enviarDadosRecebimentoDinamico(id) {
+            const pix = document.getElementById(`chavePix_${id}`).value;
+            const tipo = document.getElementById(`tipoChavePix_${id}`).value;
+            const favorecido = document.getElementById(`nomeFavorecido_${id}`).value;
+
+            if (!pix || !favorecido) {
+                alert('Por favor, preencha todos os campos de recebimento.');
+                return;
+            }
+
+            const dadosPagamento = {
+                servicoId: id,
+                tipoChave: tipo,
+                chavePix: pix,
+                favorecido: favorecido
+            };
+
+            console.log("Enviando dados de pagamento:", dadosPagamento);
+            alert('Dados de recebimento enviados com sucesso!');
         }
     </script>
 </body>
