@@ -1,11 +1,3 @@
-// ============================================================
-// RS CONNECT
-// SERVER.JS — PARTE 1 DE 4
-// BASE + BANCO + COMPATIBILIDADE + SEGURANÇA + AUTENTICAÇÃO
-// ============================================================
-
-'use strict';
-
 const express = require('express');
 const http = require('http');
 const path = require('path');
