@@ -15,7 +15,7 @@
     content="#061523"
   >
 
-  <title>RS Connect</title>
+  <title>RS Connect - Confirmação e Mapa</title>
 
   <script src="/socket.io/socket.io.js"></script>
 
@@ -1181,7 +1181,7 @@
             <div class="form-group">
 
               <label>
-                Endereço
+                Endereço completo (usado no Google Maps)
               </label>
 
               <input
@@ -4198,6 +4198,193 @@ async function carregarServicos(
 }
 
 
+
+// ============================================================
+// ENDEREÇO / GOOGLE MAPS
+// ============================================================
+
+function enderecoCompletoServico(
+  servico
+) {
+
+  const partes = [
+
+    texto(
+      servico?.endereco
+    ),
+
+    texto(
+      servico?.bairro
+    ),
+
+    texto(
+      servico?.cidade ||
+      servico?.local
+    ),
+
+    texto(
+      servico?.estado ||
+      servico?.uf
+    )
+
+  ].filter(Boolean);
+
+
+  return partes.join(
+    ', '
+  );
+}
+
+
+function urlGoogleMapsServico(
+  servico
+) {
+
+  const endereco =
+    enderecoCompletoServico(
+      servico
+    );
+
+
+  if (!endereco) {
+
+    return '';
+  }
+
+
+  return (
+    'https://www.google.com/maps/search/?api=1&query='
+    +
+    encodeURIComponent(
+      endereco
+    )
+  );
+}
+
+
+function abrirGoogleMapsServico(
+  id
+) {
+
+  const servico =
+    buscarServicoCache(
+      id
+    );
+
+
+  if (!servico) {
+
+    toast(
+      'Serviço não encontrado.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const url =
+    urlGoogleMapsServico(
+      servico
+    );
+
+
+  if (!url) {
+
+    toast(
+      'A empresa ainda não informou o endereço deste serviço.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  window.open(
+    url,
+    '_blank',
+    'noopener,noreferrer'
+  );
+}
+
+
+// ============================================================
+// CONFIRMAR PRESENÇA DIRETO PELO SERVIÇO
+// ============================================================
+
+function confirmarPresencaServico(
+  id
+) {
+
+  const servico =
+    buscarServicoCache(
+      id
+    );
+
+
+  if (!servico) {
+
+    toast(
+      'Serviço não encontrado.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  if (
+    !ehPrestador()
+    ||
+    !usuarioEhTitular(
+      servico
+    )
+  ) {
+
+    toast(
+      'Somente o Titular pode confirmar presença.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  if (
+    servico?.presenca_confirmada
+  ) {
+
+    toast(
+      'Sua presença já está confirmada.',
+      'success'
+    );
+
+    return;
+  }
+
+
+  if (
+    servicoFinalizadoPrestador(
+      servico
+    )
+  ) {
+
+    toast(
+      'Este serviço já foi finalizado.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  abrirCameraParaJornada(
+    'presenca',
+    id
+  );
+}
+
+
 // ============================================================
 // CARD DE SERVIÇO
 // ============================================================
@@ -4305,6 +4492,52 @@ function htmlServico(
         Abrir
       </button>
     `;
+
+
+    if (
+      usuarioEhTitular(
+        servico
+      )
+      &&
+      !servico?.presenca_confirmada
+      &&
+      !finalizado
+      &&
+      !status.includes(
+        'cancel'
+      )
+    ) {
+
+      acoes += `
+        <button
+          class="btn btn-primary"
+          onclick="confirmarPresencaServico(
+            ${id}
+          )"
+        >
+          ✅ Confirmar Presença
+        </button>
+      `;
+    }
+
+
+    if (
+      urlGoogleMapsServico(
+        servico
+      )
+    ) {
+
+      acoes += `
+        <button
+          class="btn btn-dark"
+          onclick="abrirGoogleMapsServico(
+            ${id}
+          )"
+        >
+          🗺 Google Maps
+        </button>
+      `;
+    }
 
 
     if (
@@ -4494,6 +4727,21 @@ function htmlServico(
                   ${escapeHtml(
                     servico?.cidade ||
                     servico?.local
+                  )}
+                `
+                :
+                ''
+            }
+
+
+            ${
+              servico?.endereco
+                ?
+                `
+                  <br>
+                  🏠
+                  ${escapeHtml(
+                    servico.endereco
                   )}
                 `
                 :
@@ -5888,6 +6136,88 @@ async function abrirDetalhesServico(
 
 
       ${
+        urlGoogleMapsServico(
+          servico
+        )
+          ?
+          `
+            <div
+              class="service-actions"
+              style="margin-top:10px;"
+            >
+
+              <button
+                class="btn btn-dark"
+                onclick="abrirGoogleMapsServico(
+                  ${id}
+                )"
+              >
+                🗺 Abrir no Google Maps
+              </button>
+
+              ${
+                ehPrestador()
+                &&
+                usuarioEhTitular(
+                  servico
+                )
+                &&
+                !servico?.presenca_confirmada
+                &&
+                !finalizado
+                  ?
+                  `
+                    <button
+                      class="btn btn-primary"
+                      onclick="
+                        $('modalDetalhesServico').classList.add('hidden');
+                        confirmarPresencaServico(${id});
+                      "
+                    >
+                      ✅ Confirmar Presença
+                    </button>
+                  `
+                  :
+                  ''
+              }
+
+            </div>
+          `
+          :
+          (
+            ehPrestador()
+            &&
+            usuarioEhTitular(
+              servico
+            )
+            &&
+            !servico?.presenca_confirmada
+            &&
+            !finalizado
+              ?
+              `
+                <div
+                  class="service-actions"
+                  style="margin-top:10px;"
+                >
+                  <button
+                    class="btn btn-primary"
+                    onclick="
+                      $('modalDetalhesServico').classList.add('hidden');
+                      confirmarPresencaServico(${id});
+                    "
+                  >
+                    ✅ Confirmar Presença
+                  </button>
+                </div>
+              `
+              :
+              ''
+          )
+      }
+
+
+      ${
         servico?.descricao
           ?
           `
@@ -6567,6 +6897,31 @@ function carregarJornada() {
             }
 
           </div>
+
+
+          ${
+            urlGoogleMapsServico(
+              servico
+            )
+              ?
+              `
+                <div
+                  class="service-actions"
+                  style="margin-top:10px;"
+                >
+                  <button
+                    class="btn btn-dark"
+                    onclick="abrirGoogleMapsServico(
+                      ${servico.id}
+                    )"
+                  >
+                    🗺 Abrir rota no Google Maps
+                  </button>
+                </div>
+              `
+              :
+              ''
+          }
 
         </div>
 
@@ -7436,11 +7791,18 @@ function obterLocalizacaoAtual() {
 // ============================================================
 
 async function abrirCameraParaJornada(
-  acao
+  acao,
+  servicoId = null
 ) {
 
   const servico =
-    obterServicoJornada();
+    servicoId
+      ?
+      buscarServicoCache(
+        servicoId
+      )
+      :
+      obterServicoJornada();
 
 
   if (
@@ -7449,6 +7811,28 @@ async function abrirCameraParaJornada(
 
     toast(
       'Nenhuma jornada ativa.',
+      'warning'
+    );
+
+
+    return;
+  }
+
+
+  if (
+    servicoId
+    &&
+    (
+      !ehPrestador()
+      ||
+      !usuarioEhTitular(
+        servico
+      )
+    )
+  ) {
+
+    toast(
+      'Somente o Titular pode confirmar este serviço.',
       'warning'
     );
 
