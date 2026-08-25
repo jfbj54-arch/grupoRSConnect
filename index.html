@@ -3,9 +3,12 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Grupo RS Connect - Gestão Profissional de Serviços</title>
+    <title>RS Connect | Gestão de Serviços e Equipes</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #0b1329;
@@ -460,13 +463,1308 @@
             .dashboard-container { padding: 15px; }
             .grid-duplo { flex-direction: column; gap: 0; }
         }
+    
+
+        /* =====================================================
+           RS CONNECT — INTERFACE PROFISSIONAL 2026
+           Camada visual de acabamento. Não altera as rotas/API.
+           ===================================================== */
+
+        :root {
+            --primary: #0f172a;
+            --primary-2: #1e293b;
+            --accent: #2563eb;
+            --accent-hover: #1d4ed8;
+            --success: #16a34a;
+            --warning: #d97706;
+            --danger: #dc2626;
+            --bg-gradient: #f4f7fb;
+            --card-bg: #ffffff;
+            --text: #253045;
+            --text-light: #667085;
+            --border: #e5eaf1;
+            --surface-soft: #f8fafc;
+            --surface-blue: #eff6ff;
+            --shadow-sm: 0 1px 2px rgba(15, 23, 42, .04);
+            --shadow-md: 0 10px 30px rgba(15, 23, 42, .07);
+            --shadow-lg: 0 22px 55px rgba(15, 23, 42, .10);
+            --radius-sm: 10px;
+            --radius-md: 14px;
+            --radius-lg: 20px;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background:
+                radial-gradient(circle at 15% 0%, rgba(37,99,235,.06), transparent 26%),
+                radial-gradient(circle at 90% 15%, rgba(14,165,233,.05), transparent 24%),
+                #f4f7fb;
+            color: var(--text);
+            line-height: 1.5;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 900;
+            min-height: 68px;
+            padding: 0 34px;
+            background: rgba(255,255,255,.92);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid rgba(226,232,240,.85);
+            box-shadow: 0 4px 18px rgba(15,23,42,.04);
+        }
+
+        .logo-container span {
+            display: inline-flex;
+            align-items: center;
+            gap: 9px;
+            font-size: 17px !important;
+            letter-spacing: -.4px !important;
+        }
+
+        .logo-container span::before {
+            content: "RS";
+            width: 34px;
+            height: 34px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            color: #fff;
+            font-size: 11px;
+            font-weight: 800;
+            background: linear-gradient(135deg, #2563eb, #1e40af);
+            box-shadow: 0 6px 18px rgba(37,99,235,.24);
+        }
+
+        .nav-links {
+            gap: 8px;
+            font-size: 12px;
+        }
+
+        .nav-links span {
+            padding: 8px 11px;
+            border-radius: 8px;
+        }
+
+        .nav-links span:hover {
+            background: #f1f5f9;
+            color: var(--primary);
+        }
+
+        .topo-usuario {
+            background: #f8fafc;
+            padding: 6px 7px 6px 12px;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+        }
+
+        .main-wrapper {
+            align-items: flex-start;
+            padding: 38px 22px 60px;
+        }
+
+        .split-container {
+            max-width: 1180px;
+            grid-template-columns: 1fr 440px;
+            gap: 54px;
+        }
+
+        .hero-section {
+            padding: 30px 18px 30px 4px;
+        }
+
+        .hero-section h1 {
+            max-width: 680px;
+            font-size: clamp(36px, 4vw, 54px);
+            line-height: 1.08;
+            letter-spacing: -1.8px;
+            margin: 0 0 20px;
+        }
+
+        .hero-section > p {
+            max-width: 650px;
+            font-size: 16px;
+            line-height: 1.75;
+            margin-bottom: 30px;
+        }
+
+        .feature-box {
+            max-width: 680px;
+            margin-bottom: 12px;
+            padding: 15px 16px;
+            background: rgba(255,255,255,.74);
+            border: 1px solid rgba(226,232,240,.9);
+            border-radius: 14px;
+            box-shadow: var(--shadow-sm);
+            backdrop-filter: blur(8px);
+        }
+
+        .feature-icon {
+            width: 42px;
+            height: 42px;
+            border-radius: 11px;
+            background: linear-gradient(135deg, #eff6ff, #dbeafe);
+        }
+
+        .feature-text h4 {
+            font-size: 13px;
+        }
+
+        .feature-text p {
+            font-size: 12px;
+            line-height: 1.55;
+        }
+
+        .auth-card {
+            padding: 30px;
+            border: 1px solid rgba(226,232,240,.9);
+            border-radius: var(--radius-lg);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .auth-card h2 {
+            font-size: 24px;
+            letter-spacing: -.5px;
+        }
+
+        .auth-tabs {
+            padding: 4px;
+            border: 0;
+            background: #f1f5f9;
+        }
+
+        .auth-tab-btn {
+            min-height: 40px;
+        }
+
+        .auth-tab-btn.active {
+            box-shadow: 0 2px 8px rgba(15,23,42,.08);
+        }
+
+        label {
+            color: #64748b;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: .65px;
+        }
+
+        input,
+        select,
+        textarea {
+            min-height: 44px;
+            padding: 11px 13px;
+            border-radius: 10px;
+            background: #fff;
+            border: 1px solid #dfe5ec;
+            box-shadow: inset 0 1px 1px rgba(15,23,42,.015);
+        }
+
+        textarea {
+            line-height: 1.55;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            border-color: #93b4ff;
+            box-shadow: 0 0 0 4px rgba(37,99,235,.09);
+        }
+
+        button,
+        .btn-download,
+        .btn-assinar {
+            min-height: 40px;
+            border-radius: 9px;
+            font-weight: 700;
+            letter-spacing: -.1px;
+            box-shadow: none;
+        }
+
+        button:hover,
+        .btn-download:hover,
+        .btn-assinar:hover {
+            transform: translateY(-1px);
+        }
+
+        button:active,
+        .btn-download:active,
+        .btn-assinar:active {
+            transform: translateY(0);
+        }
+
+        .dashboard-container {
+            max-width: 1180px;
+            padding: 0;
+            background: transparent;
+            box-shadow: none;
+            border: 0;
+        }
+
+        .info-card-empresa,
+        .wallet-card {
+            position: relative;
+            overflow: hidden;
+            padding: 24px;
+            border: 1px solid rgba(255,255,255,.08);
+            border-radius: 18px;
+            box-shadow: 0 18px 38px rgba(15,23,42,.12);
+        }
+
+        .info-card-empresa::after,
+        .wallet-card::after {
+            content: "";
+            position: absolute;
+            width: 160px;
+            height: 160px;
+            border-radius: 50%;
+            right: -60px;
+            top: -70px;
+            background: rgba(255,255,255,.06);
+        }
+
+        #painel-empresa,
+        .rs-gestor-section,
+        .painel-jornada-rs {
+            background: #fff !important;
+            border: 1px solid var(--border) !important;
+            border-radius: 16px !important;
+            box-shadow: var(--shadow-md) !important;
+        }
+
+        #painel-empresa {
+            padding: 26px !important;
+        }
+
+        #painel-empresa h2,
+        #titulo-radar,
+        .rs-gestor-section h2,
+        .painel-jornada-header h3 {
+            letter-spacing: -.35px;
+        }
+
+        #titulo-radar {
+            color: var(--primary);
+            border: 0 !important;
+            padding-bottom: 0 !important;
+            font-size: 20px !important;
+            margin: 30px 0 16px !important;
+        }
+
+        #titulo-radar::after {
+            content: "";
+            display: block;
+            width: 42px;
+            height: 3px;
+            margin-top: 9px;
+            border-radius: 20px;
+            background: var(--accent);
+        }
+
+        .card-chamado {
+            position: relative;
+            padding: 22px;
+            border: 1px solid var(--border);
+            border-left: 0;
+            border-radius: 16px;
+            box-shadow: 0 8px 24px rgba(15,23,42,.055);
+            overflow: hidden;
+            transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
+
+        .card-chamado::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 4px;
+            background: linear-gradient(180deg, #2563eb, #60a5fa);
+        }
+
+        .card-chamado:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 15px 36px rgba(15,23,42,.085);
+            border-color: #d8e0ea;
+        }
+
+        .card-header {
+            gap: 14px;
+            align-items: flex-start;
+        }
+
+        .card-header h4 {
+            font-size: 17px;
+            letter-spacing: -.25px;
+        }
+
+        .preco-tag {
+            white-space: nowrap;
+            padding: 6px 11px;
+            border: 0;
+            font-size: 12px;
+        }
+
+        .detalhes-box,
+        .contrato-box,
+        .nf-oficial-box,
+        .secao-prestador-box {
+            border-radius: 12px;
+            padding: 14px;
+        }
+
+        .detalhes-box {
+            border: 1px solid #e8edf3;
+            background: #fafbfd;
+        }
+
+        .contrato-box {
+            background: #fffaf0;
+            border-color: #f8dfaa;
+        }
+
+        .nf-oficial-box {
+            background: #f5fcf7;
+            border-color: #cdeed7;
+        }
+
+        .badge {
+            padding: 5px 9px;
+            border-radius: 999px;
+            font-size: 10px;
+            letter-spacing: .1px;
+        }
+
+        .rs-table {
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .rs-table th {
+            background: #111b2e;
+            padding: 13px 14px;
+            font-size: 11px;
+            letter-spacing: .2px;
+        }
+
+        .rs-table td {
+            padding: 13px 14px;
+            vertical-align: top;
+        }
+
+        .rs-table tbody tr:hover {
+            background: #fafcff;
+        }
+
+        .chat-container {
+            height: 230px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #fbfcfe;
+        }
+
+        .chat-mensagens {
+            padding: 12px;
+        }
+
+        .chat-msg-item {
+            padding: 9px 11px;
+            border-radius: 10px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .chat-input-area input {
+            min-height: 42px;
+        }
+
+        .jornada-grid {
+            gap: 14px;
+        }
+
+        .jornada-item {
+            background: #fbfcfe;
+            border-radius: 13px;
+            padding: 16px;
+            box-shadow: var(--shadow-sm);
+        }
+
+        .jornada-item h4 {
+            font-size: 14px;
+            letter-spacing: -.2px;
+        }
+
+        .jornada-status-live {
+            background: #ecfdf3;
+            border-color: #b7ebc9;
+            border-radius: 999px;
+        }
+
+        .rs-modal {
+            backdrop-filter: blur(4px);
+        }
+
+        .rs-modal-content {
+            border-radius: 18px;
+            box-shadow: 0 25px 65px rgba(15,23,42,.22);
+            border: 1px solid rgba(255,255,255,.4);
+        }
+
+        #cameraAoVivoModal > div {
+            border: 1px solid rgba(255,255,255,.10);
+            box-shadow: 0 28px 80px rgba(0,0,0,.48) !important;
+        }
+
+        .worker-details-list li {
+            gap: 18px;
+        }
+
+        @media (max-width: 900px) {
+            header {
+                padding: 0 16px;
+                min-height: 62px;
+            }
+
+            .main-wrapper {
+                padding: 22px 12px 44px;
+            }
+
+            .split-container {
+                gap: 20px;
+            }
+
+            .hero-section {
+                padding: 10px 4px;
+            }
+
+            .hero-section h1 {
+                font-size: 34px;
+            }
+
+            .dashboard-container {
+                width: 100%;
+            }
+
+            .info-card-empresa,
+            .wallet-card,
+            #painel-empresa,
+            .rs-gestor-section,
+            .painel-jornada-rs,
+            .card-chamado {
+                border-radius: 14px !important;
+            }
+
+            .card-chamado {
+                padding: 18px 16px;
+            }
+
+            .card-header {
+                flex-direction: column;
+            }
+
+            .preco-tag {
+                align-self: flex-start;
+            }
+        }
+
+        @media (max-width: 560px) {
+            header {
+                min-height: 58px;
+            }
+
+            .logo-container span {
+                font-size: 15px !important;
+            }
+
+            .logo-container span::before {
+                width: 30px;
+                height: 30px;
+            }
+
+            .topo-usuario {
+                max-width: 52%;
+            }
+
+            #txt-usuario-logado {
+                max-width: 120px;
+                overflow: hidden;
+                white-space: nowrap;
+                text-overflow: ellipsis;
+            }
+
+            .auth-card {
+                padding: 22px 18px;
+            }
+
+            .hero-section h1 {
+                font-size: 30px;
+            }
+
+            .grid-duplo {
+                flex-direction: column;
+                gap: 0;
+            }
+
+            .info-card-empresa,
+            .wallet-card {
+                padding: 18px;
+                align-items: flex-start;
+                gap: 12px;
+                flex-direction: column;
+            }
+
+            #painel-empresa {
+                padding: 18px !important;
+            }
+
+            .rs-gestor-section,
+            .painel-jornada-rs {
+                padding: 18px !important;
+            }
+
+            .card-chamado {
+                padding: 17px 14px;
+            }
+
+            .jornada-acoes {
+                display: grid;
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .jornada-acoes button {
+                width: 100%;
+            }
+
+            .rs-table th,
+            .rs-table td {
+                padding: 10px 11px;
+            }
+        }
+
+    
+
+        /* =====================================================
+           RS CONNECT — DARK CONTROL CENTER
+           Inspirado no estilo visual solicitado, sem imagens.
+           ===================================================== */
+
+        body {
+            background: #050b16 !important;
+            color: #e8eef9 !important;
+        }
+
+        body::before {
+            content: "";
+            position: fixed;
+            inset: 0;
+            pointer-events: none;
+            z-index: -1;
+            background:
+                radial-gradient(circle at 20% 0%, rgba(37,99,235,.14), transparent 32%),
+                radial-gradient(circle at 88% 12%, rgba(124,58,237,.10), transparent 28%),
+                linear-gradient(180deg, #060d19 0%, #030812 100%);
+        }
+
+        header {
+            display: none !important;
+        }
+
+        .main-wrapper {
+            padding: 0 !important;
+            max-width: none !important;
+            width: 100% !important;
+            display: block !important;
+        }
+
+        .rs-app-shell {
+            min-height: 100vh;
+            display: grid;
+            grid-template-columns: 225px minmax(0, 1fr);
+            background: transparent;
+        }
+
+        .rs-sidebar {
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 22px 14px 16px;
+            background:
+                linear-gradient(180deg, rgba(7,17,33,.98), rgba(4,11,22,.98));
+            border-right: 1px solid #16243a;
+            box-shadow: 18px 0 40px rgba(0,0,0,.16);
+            overflow-y: auto;
+            z-index: 80;
+        }
+
+        .rs-sidebar-brand {
+            display: flex;
+            align-items: center;
+            gap: 11px;
+            padding: 4px 8px 22px;
+            border-bottom: 1px solid #13223a;
+            margin-bottom: 16px;
+        }
+
+        .rs-brand-mark {
+            width: 46px;
+            height: 38px;
+            display: grid;
+            place-items: center;
+            border-radius: 9px;
+            color: #fff;
+            font-size: 21px;
+            font-weight: 900;
+            font-style: italic;
+            letter-spacing: -2px;
+            background: linear-gradient(135deg, #087cff, #4ea1ff 55%, #fff);
+            box-shadow: 0 0 24px rgba(0,124,255,.30);
+        }
+
+        .rs-sidebar-brand strong {
+            display: block;
+            color: white;
+            font-size: 13px;
+            letter-spacing: 2px;
+        }
+
+        .rs-sidebar-brand small {
+            display: block;
+            margin-top: 2px;
+            color: #23a8ff;
+            font-size: 9px;
+        }
+
+        .rs-side-nav {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .rs-nav-item {
+            width: 100%;
+            min-height: 43px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 0 12px;
+            border-radius: 9px;
+            color: #aebbd0;
+            background: transparent;
+            border: 1px solid transparent;
+            box-shadow: none;
+            font-weight: 500;
+            text-align: left;
+        }
+
+        .rs-nav-item:hover,
+        .rs-nav-item.active {
+            color: #fff;
+            background: linear-gradient(90deg, rgba(0,113,255,.24), rgba(0,113,255,.08));
+            border-color: #116ff0;
+            box-shadow: inset 0 0 20px rgba(0,113,255,.08), 0 0 22px rgba(0,113,255,.09);
+            transform: none;
+        }
+
+        .rs-nav-item span {
+            flex: 1;
+        }
+
+        .rs-sidebar-spacer {
+            flex: 1;
+            min-height: 20px;
+        }
+
+        .rs-side-security {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            padding: 12px;
+            border: 1px solid #17263d;
+            border-radius: 12px;
+            background: #091427;
+            margin-bottom: 10px;
+        }
+
+        .rs-mini-shield {
+            width: 30px;
+            height: 30px;
+            display: grid;
+            place-items: center;
+            color: #2aa8ff;
+            border-radius: 9px;
+            background: #0b203c;
+            border: 1px solid #164c84;
+        }
+
+        .rs-side-security strong,
+        .rs-side-security small {
+            display: block;
+        }
+
+        .rs-side-security strong {
+            color: #dce8f7;
+            font-size: 10px;
+        }
+
+        .rs-side-security small {
+            color: #718198;
+            font-size: 8px;
+            margin-top: 2px;
+        }
+
+        .rs-side-logout {
+            width: 100%;
+            min-height: 39px;
+            color: #93a4ba;
+            background: transparent;
+            border: 0;
+            box-shadow: none;
+            text-align: left;
+            padding: 0 12px;
+        }
+
+        .rs-main-panel {
+            min-width: 0;
+            padding: 22px 24px 55px;
+        }
+
+        .rs-dashboard-top {
+            min-height: 62px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 18px;
+            margin-bottom: 18px;
+        }
+
+        .rs-welcome {
+            color: #fff;
+            font-size: 20px;
+            font-weight: 700;
+            letter-spacing: -.45px;
+        }
+
+        .rs-welcome-sub {
+            margin-top: 3px;
+            color: #7e8da3;
+            font-size: 11px;
+        }
+
+        .rs-top-actions {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .rs-search-box {
+            width: min(290px, 35vw);
+            height: 42px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 0 12px;
+            border: 1px solid #1d2d45;
+            border-radius: 11px;
+            background: #091322;
+            color: #6e819a;
+        }
+
+        .rs-search-box input {
+            height: 100%;
+            min-height: 0;
+            padding: 0;
+            border: 0;
+            background: transparent;
+            color: #dce6f5;
+            box-shadow: none;
+        }
+
+        .rs-search-box input:focus {
+            box-shadow: none;
+            background: transparent;
+        }
+
+        .rs-avatar {
+            width: 42px;
+            height: 42px;
+            flex: 0 0 auto;
+            display: grid;
+            place-items: center;
+            border-radius: 50%;
+            color: #fff;
+            font-weight: 800;
+            font-size: 12px;
+            border: 2px solid #27466f;
+            background: linear-gradient(135deg, #1b3356, #0e1a2c);
+            box-shadow: 0 0 18px rgba(43,128,255,.12);
+        }
+
+        .rs-kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(4, minmax(0, 1fr));
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+
+        .rs-kpi-card {
+            position: relative;
+            min-height: 145px;
+            padding: 17px;
+            overflow: hidden;
+            border-radius: 13px;
+            border: 1px solid #1b2d47;
+            background: linear-gradient(145deg, #091426, #07111f);
+            box-shadow: 0 12px 32px rgba(0,0,0,.16);
+        }
+
+        .rs-kpi-card::after {
+            content: "";
+            position: absolute;
+            width: 100px;
+            height: 100px;
+            right: -30px;
+            top: -30px;
+            border-radius: 50%;
+            background: currentColor;
+            opacity: .055;
+            filter: blur(5px);
+        }
+
+        .rs-kpi-card.blue { color: #238bff; border-color: #165ba8; }
+        .rs-kpi-card.purple { color: #9b55ff; border-color: #59318c; }
+        .rs-kpi-card.orange { color: #ff633f; border-color: #853629; }
+        .rs-kpi-card.green { color: #1ee777; border-color: #176b43; }
+
+        .rs-kpi-icon {
+            display: block;
+            margin-bottom: 9px;
+            font-size: 18px;
+            font-weight: 800;
+        }
+
+        .rs-kpi-card strong {
+            display: block;
+            color: #fff;
+            font-size: 25px;
+            font-weight: 600;
+            letter-spacing: -.7px;
+        }
+
+        .rs-kpi-card small {
+            display: block;
+            margin-top: 1px;
+            color: #d2dceb;
+            font-size: 11px;
+        }
+
+        .rs-kpi-card em {
+            display: block;
+            margin-top: 10px;
+            color: #647891;
+            font-size: 9px;
+            font-style: normal;
+        }
+
+        .dashboard-container {
+            max-width: none !important;
+            width: 100% !important;
+            margin: 0 !important;
+            color: #d9e4f4;
+        }
+
+        .info-card-empresa,
+        .wallet-card,
+        #painel-empresa,
+        .rs-gestor-section,
+        .painel-jornada-rs,
+        .card-chamado,
+        .detalhes-box,
+        .contrato-box,
+        .nf-oficial-box,
+        .secao-prestador-box {
+            background: linear-gradient(145deg, #091425, #07101d) !important;
+            color: #d7e2f1 !important;
+            border-color: #192b44 !important;
+            box-shadow: 0 12px 34px rgba(0,0,0,.13) !important;
+        }
+
+        .info-card-empresa,
+        .wallet-card {
+            background:
+                radial-gradient(circle at 85% 0%, rgba(37,99,235,.13), transparent 28%),
+                linear-gradient(145deg, #0b1729, #07111f) !important;
+        }
+
+        #painel-empresa h2,
+        #titulo-radar,
+        .rs-gestor-section h2,
+        .painel-jornada-header h3,
+        .card-header h4,
+        .detalhes-box strong,
+        .contrato-box h2,
+        .contrato-box h3,
+        .nf-oficial-box strong,
+        .jornada-item h4 {
+            color: #f5f8ff !important;
+        }
+
+        #titulo-radar::after {
+            background: #1688ff !important;
+            box-shadow: 0 0 12px rgba(22,136,255,.50);
+        }
+
+        .card-chamado {
+            border-left: 1px solid #192b44 !important;
+        }
+
+        .card-chamado::before {
+            width: 3px !important;
+            background: linear-gradient(180deg, #087cff, #25a8ff) !important;
+        }
+
+        .card-chamado:hover {
+            border-color: #24466f !important;
+            box-shadow: 0 17px 40px rgba(0,0,0,.22), 0 0 0 1px rgba(18,115,255,.08) !important;
+        }
+
+        .card-chamado p,
+        .detalhes-box,
+        .contrato-box p,
+        .nf-oficial-box,
+        .jornada-meta,
+        .gps-text,
+        .worker-details-list,
+        .rs-gestor-section p {
+            color: #91a1b7 !important;
+        }
+
+        .card-chamado a {
+            color: #35a1ff !important;
+        }
+
+        .preco-tag {
+            background: rgba(30,231,119,.08) !important;
+            color: #53ef99 !important;
+            border: 1px solid rgba(30,231,119,.19) !important;
+        }
+
+        input,
+        select,
+        textarea {
+            background: #07111f !important;
+            border-color: #1d304b !important;
+            color: #e6eef9 !important;
+        }
+
+        input::placeholder,
+        textarea::placeholder {
+            color: #566a84 !important;
+        }
+
+        label {
+            color: #7f92aa !important;
+        }
+
+        .auth-card {
+            background: linear-gradient(145deg, #091426, #07101d) !important;
+            border-color: #1b2d47 !important;
+            color: #dce7f5 !important;
+        }
+
+        .auth-card h2 {
+            color: white !important;
+        }
+
+        .auth-tabs {
+            background: #07111f !important;
+            border: 1px solid #182a43 !important;
+        }
+
+        .auth-tab-btn {
+            color: #7f92aa !important;
+        }
+
+        .auth-tab-btn.active {
+            background: #0c65ef !important;
+            color: #fff !important;
+        }
+
+        .hero-section h1 {
+            color: #fff !important;
+        }
+
+        .hero-section p,
+        .feature-text p {
+            color: #7f92aa !important;
+        }
+
+        .hero-section h1 span,
+        .feature-text h4 {
+            color: #42a6ff !important;
+        }
+
+        .feature-box {
+            background: #091426 !important;
+            border-color: #1a2c45 !important;
+        }
+
+        .feature-icon {
+            background: #0b2344 !important;
+            color: #39a3ff !important;
+        }
+
+        button,
+        .btn-download {
+            background: linear-gradient(135deg, #087cff, #0b63e8) !important;
+            color: #fff !important;
+            border: 1px solid rgba(84,163,255,.22) !important;
+            box-shadow: 0 8px 22px rgba(0,108,255,.16) !important;
+        }
+
+        .btn-success {
+            background: linear-gradient(135deg, #0b8c55, #08723f) !important;
+            border-color: rgba(52,211,153,.22) !important;
+        }
+
+        .btn-danger {
+            background: linear-gradient(135deg, #a92736, #811e2b) !important;
+            border-color: rgba(255,99,117,.20) !important;
+        }
+
+        .btn-assinar {
+            background: #0a1424 !important;
+            border: 1px solid #2a3b54 !important;
+            color: #dce7f5 !important;
+        }
+
+        .chat-container,
+        .chat-input-area,
+        .chat-msg-item,
+        .jornada-item,
+        .jornada-vazia {
+            background: #07111f !important;
+            border-color: #172a44 !important;
+            color: #c7d5e8 !important;
+        }
+
+        .rs-table {
+            border-color: #1b2d47 !important;
+        }
+
+        .rs-table th {
+            background: #0a1628 !important;
+            color: #cfe0f5 !important;
+            border-color: #1b2d47 !important;
+        }
+
+        .rs-table td {
+            background: #07111f !important;
+            color: #9db0c8 !important;
+            border-color: #14263d !important;
+        }
+
+        .rs-table tbody tr:hover td {
+            background: #09192b !important;
+        }
+
+        .rs-modal-content {
+            background: #081322 !important;
+            color: #dce7f5 !important;
+            border-color: #20334f !important;
+        }
+
+        .worker-details-list li {
+            border-color: #182a42 !important;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 1050px) {
+            .rs-app-shell {
+                grid-template-columns: 74px minmax(0, 1fr);
+            }
+
+            .rs-sidebar {
+                padding-left: 9px;
+                padding-right: 9px;
+            }
+
+            .rs-sidebar-brand {
+                justify-content: center;
+                padding-left: 0;
+                padding-right: 0;
+            }
+
+            .rs-sidebar-brand > div:last-child,
+            .rs-nav-item span,
+            .rs-side-security > div:last-child,
+            .rs-side-logout {
+                display: none;
+            }
+
+            .rs-nav-item {
+                justify-content: center;
+                padding: 0;
+                font-size: 17px;
+            }
+
+            .rs-side-security {
+                justify-content: center;
+                padding: 8px;
+            }
+
+            .rs-main-panel {
+                padding: 18px 16px 45px;
+            }
+
+            .rs-kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 680px) {
+            .rs-app-shell {
+                display: block;
+            }
+
+            .rs-sidebar {
+                position: fixed;
+                top: auto;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                height: 62px;
+                z-index: 5000;
+                display: block;
+                padding: 5px 7px;
+                border-right: 0;
+                border-top: 1px solid #172a43;
+                box-shadow: 0 -10px 30px rgba(0,0,0,.28);
+                overflow: hidden;
+            }
+
+            .rs-sidebar-brand,
+            .rs-sidebar-spacer,
+            .rs-side-security,
+            .rs-side-logout {
+                display: none !important;
+            }
+
+            .rs-side-nav {
+                height: 100%;
+                display: grid;
+                grid-template-columns: repeat(5, 1fr);
+                gap: 3px;
+            }
+
+            .rs-nav-item {
+                min-height: 50px;
+                border: 0 !important;
+                font-size: 17px;
+                padding: 0;
+                flex-direction: column;
+                justify-content: center;
+                gap: 1px;
+                background: transparent !important;
+                box-shadow: none !important;
+            }
+
+            .rs-nav-item:nth-child(n+6) {
+                display: none;
+            }
+
+            .rs-nav-item span {
+                display: block;
+                font-size: 7px;
+                color: #7588a2;
+            }
+
+            .rs-nav-item.active span {
+                color: #3ba4ff;
+            }
+
+            .rs-main-panel {
+                padding: 14px 10px 85px;
+            }
+
+            .rs-dashboard-top {
+                align-items: flex-start;
+                margin-bottom: 13px;
+            }
+
+            .rs-welcome {
+                font-size: 17px;
+            }
+
+            .rs-welcome-sub {
+                font-size: 9px;
+                max-width: 190px;
+            }
+
+            .rs-search-box {
+                display: none;
+            }
+
+            .rs-avatar {
+                width: 36px;
+                height: 36px;
+            }
+
+            .rs-kpi-grid {
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                gap: 9px;
+            }
+
+            .rs-kpi-card {
+                min-height: 112px;
+                padding: 13px;
+                border-radius: 11px;
+            }
+
+            .rs-kpi-card strong {
+                font-size: 20px;
+            }
+
+            .rs-kpi-card small {
+                font-size: 9px;
+            }
+
+            .rs-kpi-card em {
+                font-size: 7px;
+                margin-top: 6px;
+            }
+
+            #titulo-radar {
+                font-size: 17px !important;
+            }
+
+            .card-chamado {
+                padding: 15px 12px !important;
+            }
+        }
+
     </style>
 </head>
 <body>
 
     <header class="no-print">
         <div class="logo-container">
-            <span style="font-weight: 800; font-size: 18px; color: var(--primary); letter-spacing: -0.5px;">🔵 RS CONNECT</span>
+            <span style="font-weight: 800; font-size: 18px; color: var(--primary); letter-spacing: -0.5px;">RS CONNECT</span>
         </div>
         <div class="nav-links">
             <span>Início</span>
@@ -482,8 +1780,8 @@
     <div class="main-wrapper">
         <div id="secao-auth" class="split-container no-print">
             <div class="hero-section">
-                <h1>Bem-vindo ao <span>RS Connect</span></h1>
-                <p>Plataforma inteligente que conecta empresas a prestadores de serviços com preenchimento em escala: 1 vaga titular e até 2 vagas de reserva/emergência na fila de espera.</p>
+                <h1>Gestão de serviços com <span>controle e confiança.</span></h1>
+                <p>Uma plataforma para publicar serviços, organizar titulares e reservas, acompanhar presença, jornada e pagamento em um só lugar.</p>
                 
                 <div class="feature-box">
                     <div class="feature-icon">👥</div>
@@ -595,10 +1893,83 @@
             </div>
         </div>
 
-        <div id="secao-sistema" class="dashboard-container hidden">
+        <div id="secao-sistema-shell" class="rs-app-shell hidden">
+            <aside id="rs-sidebar" class="rs-sidebar no-print">
+                <div class="rs-sidebar-brand">
+                    <div class="rs-brand-mark">RS</div>
+                    <div>
+                        <strong>CONNECT</strong>
+                        <small>Gestão inteligente</small>
+                    </div>
+                </div>
+
+                <nav class="rs-side-nav">
+                    <button class="rs-nav-item active" onclick="rsIrPara('topo-dashboard')">⌂ <span>Início</span></button>
+                    <button class="rs-nav-item" onclick="rsIrPara('titulo-radar')">⌖ <span>Radar de Vagas</span></button>
+                    <button class="rs-nav-item" onclick="rsIrPara('titulo-radar')">▣ <span>Meus Serviços</span></button>
+                    <button class="rs-nav-item" onclick="rsIrPara('painel-controle-ponto-rs')">◷ <span>Jornada do Dia</span></button>
+                    <button class="rs-nav-item" onclick="rsIrPara('lista-servicos')">✉ <span>Mensagens</span></button>
+                    <button class="rs-nav-item" onclick="rsIrPara('widget-carteira')">$ <span>Financeiro</span></button>
+                    <button class="rs-nav-item" onclick="rsIrPara('painel-gestor-trabalhadores')">▤ <span>Relatórios</span></button>
+                    <button class="rs-nav-item" onclick="rsIrPara('painel-gestor-trabalhadores')">♙ <span>Profissionais</span></button>
+                </nav>
+
+                <div class="rs-sidebar-spacer"></div>
+
+                <div class="rs-side-security">
+                    <div class="rs-mini-shield">✓</div>
+                    <div>
+                        <strong>Ambiente seguro</strong>
+                        <small>Dados e registros protegidos</small>
+                    </div>
+                </div>
+
+                <button class="rs-side-logout" onclick="fazerLogout()">↪ Sair da conta</button>
+            </aside>
+
+            <main class="rs-main-panel">
+                <div id="topo-dashboard" class="rs-dashboard-top no-print">
+                    <div>
+                        <div class="rs-welcome">Olá, <span id="rs-welcome-name">usuário</span>! 👋</div>
+                        <div class="rs-welcome-sub">Gerencie seus serviços e sua operação em tempo real.</div>
+                    </div>
+                    <div class="rs-top-actions">
+                        <div class="rs-search-box">⌕ <input id="rs-busca-dashboard" type="text" placeholder="Buscar..." oninput="rsBuscaRapida(this.value)"></div>
+                        <div class="rs-avatar" id="rs-avatar">RS</div>
+                    </div>
+                </div>
+
+                <section id="rs-kpis" class="rs-kpi-grid no-print">
+                    <div class="rs-kpi-card blue">
+                        <span class="rs-kpi-icon">▣</span>
+                        <strong id="rs-kpi-servicos">0</strong>
+                        <small>Serviços Ativos</small>
+                        <em>Operação em andamento</em>
+                    </div>
+                    <div class="rs-kpi-card purple">
+                        <span class="rs-kpi-icon">♙</span>
+                        <strong id="rs-kpi-profissionais">0</strong>
+                        <small>Profissionais</small>
+                        <em>Titulares e reservas</em>
+                    </div>
+                    <div class="rs-kpi-card orange">
+                        <span class="rs-kpi-icon">!</span>
+                        <strong id="rs-kpi-pendencias">0</strong>
+                        <small>Pendências</small>
+                        <em>Ações necessárias</em>
+                    </div>
+                    <div class="rs-kpi-card green">
+                        <span class="rs-kpi-icon">R$</span>
+                        <strong id="rs-kpi-financeiro">R$ 0,00</strong>
+                        <small>Valor em Serviços</small>
+                        <em>Visão operacional</em>
+                    </div>
+                </section>
+
+                <div id="secao-sistema" class="dashboard-container hidden">
             <div id="widget-empresa-info" class="info-card-empresa hidden">
                 <div>
-                    <h3>🏢 Painel de Controle Corporativo</h3>
+                    <h3>🏢 Painel Corporativo</h3>
                     <div id="detalhes-empresa-logada" class="dados-empresa">Carregando dados...</div>
                 </div>
                 <div style="text-align: right;">
@@ -767,6 +2138,8 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             <div id="lista-servicos" class="no-print">
                 <p style="text-align:center; color:var(--text-light);">Carregando...</p>
             </div>
+                </div>
+            </main>
         </div>
     </div>
 
@@ -1098,6 +2471,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         function verificarEstadoSessao() {
             const secaoAuth = document.getElementById('secao-auth');
             const secaoSistema = document.getElementById('secao-sistema');
+            const secaoSistemaShell = document.getElementById('secao-sistema-shell');
             const painelTopo = document.getElementById('painel-usuario-topo');
             const txtUsuario = document.getElementById('txt-usuario-logado');
             const painelEmpresa = document.getElementById('painel-empresa');
@@ -1108,8 +2482,28 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             if (usuarioLogado) {
                 secaoAuth.classList.add('hidden');
                 secaoSistema.classList.remove('hidden');
+                if (secaoSistemaShell) secaoSistemaShell.classList.remove('hidden');
                 painelTopo.classList.remove('hidden');
                 txtUsuario.innerText = `${usuarioLogado.nome} (${usuarioLogado.tipo.toUpperCase()})`;
+
+                const rsWelcomeName = document.getElementById('rs-welcome-name');
+                const rsAvatar = document.getElementById('rs-avatar');
+
+                if (rsWelcomeName) {
+                    rsWelcomeName.textContent = String(usuarioLogado.nome || 'usuário').split(' ')[0];
+                }
+
+                if (rsAvatar) {
+                    const partesNome = String(usuarioLogado.nome || 'RS')
+                        .trim()
+                        .split(/\s+/)
+                        .filter(Boolean);
+
+                    rsAvatar.textContent = (
+                        (partesNome[0]?.[0] || 'R') +
+                        (partesNome.length > 1 ? partesNome[partesNome.length - 1][0] : 'S')
+                    ).toUpperCase();
+                }
                 
                 if (usuarioLogado.tipo === 'empresa') {
                     painelEmpresa.classList.remove('hidden');
@@ -1129,11 +2523,12 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     widgetEmpresaInfo.classList.add('hidden');
                     widgetCarteira.classList.remove('hidden');
                     painelGestorTrabalhadores.classList.add('hidden');
-                    document.getElementById('titulo-radar').innerText = "📡 Radar de Vagas Disponíveis (Titular e Reservas)";
+                    document.getElementById('titulo-radar').innerText = "📡 Oportunidades de Serviço";
                 }
             } else {
                 secaoAuth.classList.remove('hidden');
                 secaoSistema.classList.add('hidden');
+                if (secaoSistemaShell) secaoSistemaShell.classList.add('hidden');
                 painelTopo.classList.add('hidden');
             }
         }
@@ -1367,11 +2762,119 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             }
         }
 
+
+        // =====================================================
+        // DASHBOARD VISUAL - KPIs E BUSCA RÁPIDA
+        // =====================================================
+        function rsMoeda(valor) {
+            return Number(valor || 0).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL'
+            });
+        }
+
+        function rsAtualizarKPIs(servicos) {
+            const lista = Array.isArray(servicos) ? servicos : [];
+
+            let filtrados = lista;
+
+            if (usuarioLogado?.tipo === 'empresa') {
+                filtrados = lista.filter(s =>
+                    mesmoEmailRS(s.empresa_email || s.empresaEmail, usuarioLogado.email)
+                );
+            }
+
+            const encerrados = new Set([
+                'concluido',
+                'concluido_com_sucesso',
+                'cancelado',
+                'cancelado_ausencia_prestador'
+            ]);
+
+            const ativos = filtrados.filter(s =>
+                !encerrados.has(String(s.status || '').toLowerCase())
+            );
+
+            const emailsProfissionais = new Set();
+
+            filtrados.forEach(s => {
+                if (s.prestador_email) {
+                    emailsProfissionais.add(emailRS(s.prestador_email));
+                }
+
+                (s.reservas || []).forEach(r => {
+                    if (r?.email) emailsProfissionais.add(emailRS(r.email));
+                });
+            });
+
+            const pendencias = filtrados.filter(s => {
+                const status = String(s.status || '').toLowerCase();
+
+                return (
+                    (s.prestador_email && !s.presenca_confirmada && !s.presencaConfirmada) ||
+                    status === 'aguardando_validacao' ||
+                    (s.validado_empresa && !s.pagamento_autorizado)
+                );
+            }).length;
+
+            const totalValor = filtrados.reduce((acc, s) => {
+                return acc + numeroVisualRS(s.valor_total || s.valor || 0);
+            }, 0);
+
+            const setText = (id, valor) => {
+                const el = document.getElementById(id);
+                if (el) el.textContent = valor;
+            };
+
+            setText('rs-kpi-servicos', ativos.length);
+            setText('rs-kpi-profissionais', emailsProfissionais.size);
+            setText('rs-kpi-pendencias', pendencias);
+            setText('rs-kpi-financeiro', rsMoeda(totalValor));
+        }
+
+        function numeroVisualRS(valor) {
+            if (typeof valor === 'number') return valor;
+
+            let texto = String(valor || '0')
+                .replace(/R\$/gi, '')
+                .trim();
+
+            if (texto.includes(',') && texto.includes('.')) {
+                texto = texto.replace(/\./g, '').replace(',', '.');
+            } else if (texto.includes(',')) {
+                texto = texto.replace(',', '.');
+            }
+
+            const numero = Number(texto.replace(/[^0-9.-]/g, ''));
+            return Number.isFinite(numero) ? numero : 0;
+        }
+
+        function rsIrPara(id) {
+            const el = document.getElementById(id);
+            if (!el) return;
+
+            el.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start'
+            });
+        }
+
+        function rsBuscaRapida(valor) {
+            const termo = String(valor || '').trim().toLowerCase();
+            const cards = document.querySelectorAll('#lista-servicos .card-chamado');
+
+            cards.forEach(card => {
+                const texto = (card.innerText || '').toLowerCase();
+                card.style.display = !termo || texto.includes(termo) ? '' : 'none';
+            });
+        }
+
         async function carregarServicos() {
             try {
                 const res = await fetch('/api/servicos');
                 const servicos = await res.json();
                 window.rsServicosCache = Array.isArray(servicos) ? servicos : [];
+                rsAtualizarKPIs(window.rsServicosCache);
                 atualizarPainelJornadaRS(window.rsServicosCache);
                 const container = document.getElementById('lista-servicos');
                 const tbodyGestor = document.getElementById('workerTableBodyGestor');
