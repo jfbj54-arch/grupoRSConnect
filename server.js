@@ -16,52 +16,380 @@ const io = new Server(server, {
     }
 });
 
+
 // =====================================================
-// INICIAR SERVIDOR - FICA NO COMEÇO DE PROPÓSITO
+// CONFIGURAÇÕES GERAIS
 // =====================================================
 
-const PORT = process.env.PORT || 10000;
+app.use(
+    express.json({
+        limit: '50mb'
+    })
+);
 
-server.listen(PORT, '0.0.0.0', () => {
-    console.log('==========================================');
-    console.log('RS CONNECT - SERVIDOR ONLINE');
-    console.log(`Porta: ${PORT}`);
-    console.log(`Ambiente: ${process.env.NODE_ENV || 'production'}`);
-    console.log('==========================================');
-});
+app.use(
+    express.urlencoded({
+        extended: true,
+        limit: '50mb'
+    })
+);
+
+app.use(
+    express.static(
+        __dirname
+    )
+);
+
+
+// =====================================================
+// MULTER
+// ARQUIVOS EM MEMÓRIA
+// =====================================================
 
 const upload = multer({
+    storage:
+        multer.memoryStorage(),
+
     limits: {
-        fileSize: 50 * 1024 * 1024
+        fileSize:
+            50 * 1024 * 1024
     }
 });
 
-app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
-app.use(express.static(path.join(__dirname)));
+
+// =====================================================
+// POSTGRESQL
+// =====================================================
 
 const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: process.env.DATABASE_URL
-        ? { rejectUnauthorized: false }
-        : false
+    connectionString:
+        process.env.DATABASE_URL,
+
+    ssl:
+        process.env.NODE_ENV === 'production'
+            ? {
+                rejectUnauthorized: false
+            }
+            : false
 });
 
-pool.connect((err, client, release) => {
-    if (err) {
-        console.error('Erro ao conectar ao PostgreSQL:', err.stack || err);
-        return;
+
+// =====================================================
+// FUNÇÕES AUXILIARES
+// =====================================================
+
+function normalizarEmail(email) {
+
+    return String(
+        email || ''
+    )
+        .trim()
+        .toLowerCase();
+}
+
+
+function arrayJson(valor) {
+
+    if (
+        Array.isArray(valor)
+    ) {
+        return valor;
     }
 
-    console.log('Conectado com sucesso ao PostgreSQL.');
-    release();
-    criarTabelas();
-});
+    if (!valor) {
+        return [];
+    }
 
-async function criarTabelas() {
     try {
+
+        const resultado =
+            typeof valor === 'string'
+                ? JSON.parse(valor)
+                : valor;
+
+        return Array.isArray(resultado)
+            ? resultado
+            : [];
+
+    } catch (_) {
+
+        return [];
+    }
+}
+
+
+function numeroBR(valor) {
+
+    if (
+        typeof valor === 'number'
+    ) {
+        return valor;
+    }
+
+    let texto =
+        String(
+            valor || '0'
+        )
+            .replace(
+                /R\$/gi,
+                ''
+            )
+            .trim();
+
+    if (
+        texto.includes(',')
+    ) {
+
+        texto =
+            texto
+                .replace(
+                    /\./g,
+                    ''
+                )
+                .replace(
+                    ',',
+                    '.'
+                );
+    }
+
+    texto =
+        texto.replace(
+            /[^0-9.-]/g,
+            ''
+        );
+
+    const numero =
+        Number(texto);
+
+    return Number.isFinite(numero)
+        ? numero
+        : 0;
+}
+
+
+function hashCodigoRecuperacao(codigo) {
+
+    return crypto
+        .createHash('sha256')
+        .update(
+            String(codigo)
+        )
+        .digest('hex');
+}
+
+
+// =====================================================
+// E-MAIL DE RECUPERAÇÃO
+// =====================================================
+
+async function enviarEmailRecuperacao(
+    email,
+    codigo
+) {
+
+    console.log(
+        `Código de recuperação para ${email}: ${codigo}`
+    );
+
+    /*
+       Aqui pode ser integrado posteriormente:
+       Resend
+       SendGrid
+       Nodemailer
+       SMTP
+    */
+
+    return true;
+}
+
+
+// =====================================================
+// AUDITORIA
+// =====================================================
+
+async function registrarAuditoria(
+    usuarioEmail,
+    acao,
+    detalhes
+) {
+
+    try {
+
+        await pool.query(
+            `
+            INSERT INTO auditoria
+            (
+                usuario_email,
+                acao,
+                detalhes
+            )
+            VALUES
+            (
+                $1,
+                $2,
+                $3
+            )
+            `,
+            [
+                normalizarEmail(
+                    usuarioEmail
+                ),
+
+                acao || '',
+
+                detalhes || ''
+            ]
+        );
+
+    } catch (err) {
+
+        console.error(
+            'Erro ao registrar auditoria:',
+            err.message
+        );
+    }
+}
+
+
+// =====================================================
+// LEDGER / MOVIMENTAÇÕES
+// =====================================================
+
+async function registrarLedger(
+    servicoId,
+    usuarioEmail,
+    tipo,
+    valor
+) {
+
+    try {
+
+        await pool.query(
+            `
+            INSERT INTO ledger
+            (
+                servico_id,
+                usuario_email,
+                tipo,
+                valor
+            )
+            VALUES
+            (
+                $1,
+                $2,
+                $3,
+                $4
+            )
+            `,
+            [
+                servicoId,
+
+                normalizarEmail(
+                    usuarioEmail
+                ),
+
+                tipo || '',
+
+                Number(valor) || 0
+            ]
+        );
+
+    } catch (err) {
+
+        console.error(
+            'Erro ao registrar ledger:',
+            err.message
+        );
+    }
+}
+
+
+// =====================================================
+// MENSAGEM AUTOMÁTICA DO SISTEMA
+// =====================================================
+
+async function adicionarMensagemSistema(
+    servicoId,
+    texto
+) {
+
+    try {
+
+        const result =
+            await pool.query(
+                `
+                SELECT mensagens
+                FROM servicos
+                WHERE id = $1
+                `,
+                [
+                    servicoId
+                ]
+            );
+
+        if (
+            !result.rows.length
+        ) {
+            return;
+        }
+
+        const mensagens =
+            arrayJson(
+                result.rows[0]
+                    .mensagens
+            );
+
+        mensagens.push({
+            remetente:
+                'Sistema',
+
+            texto:
+                texto,
+
+            sistema:
+                true,
+
+            data:
+                new Date()
+                    .toISOString()
+        });
+
+        await pool.query(
+            `
+            UPDATE servicos
+            SET mensagens = $1::jsonb
+            WHERE id = $2
+            `,
+            [
+                JSON.stringify(
+                    mensagens
+                ),
+
+                servicoId
+            ]
+        );
+
+    } catch (err) {
+
+        console.error(
+            'Erro ao adicionar mensagem do sistema:',
+            err.message
+        );
+    }
+}
+
+
+// =====================================================
+// CRIAÇÃO / ATUALIZAÇÃO DAS TABELAS
+// =====================================================
+
+async function prepararBanco() {
+
+    try {
+
         await pool.query(`
-            CREATE TABLE IF NOT EXISTS usuarios (
+            CREATE TABLE IF NOT EXISTS usuarios
+            (
                 id SERIAL PRIMARY KEY,
                 tipo TEXT,
                 nome TEXT,
@@ -78,1482 +406,1865 @@ async function criarTabelas() {
                 banco TEXT,
                 conta TEXT,
                 experiencia TEXT,
-                criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
-            CREATE TABLE IF NOT EXISTS prestadores (
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS prestadores
+            (
                 id SERIAL PRIMARY KEY,
                 email TEXT UNIQUE,
-                reputacao NUMERIC(4,2) DEFAULT 5.0,
-                advertencias INTEGER DEFAULT 0,
-                criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
 
-            CREATE TABLE IF NOT EXISTS servicos (
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS servicos
+            (
                 id SERIAL PRIMARY KEY,
+
                 titulo TEXT,
                 categoria TEXT,
                 local TEXT,
                 endereco TEXT,
+
                 valor TEXT,
-                valor_diaria NUMERIC(12,2) DEFAULT 0,
-                valor_liquido NUMERIC(12,2) DEFAULT 0,
+                valor_diaria NUMERIC DEFAULT 0,
+                valor_liquido NUMERIC DEFAULT 0,
+                valor_total NUMERIC DEFAULT 0,
+
                 data_horario TEXT,
                 forma_pgto TEXT,
                 descricao TEXT,
                 contrato_texto TEXT,
+
                 empresa_email TEXT,
                 empresa_whatsapp TEXT,
                 empresa_nome TEXT,
-                recorrencia TEXT DEFAULT 'unico',
-                valor_total NUMERIC(12,2) DEFAULT 0,
-                status TEXT DEFAULT 'ativo',
-                motivo_cancelamento TEXT,
-                criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
 
-                prestador_email TEXT,
+                recorrencia TEXT DEFAULT 'unico',
+
+                status TEXT DEFAULT 'ativo',
+
                 prestador_id INTEGER,
+                prestador_email TEXT,
                 prestador_nome TEXT,
                 prestador_pix TEXT,
                 prestador_whatsapp TEXT,
                 prestador_rg_cnh TEXT,
-                data_aceite TIMESTAMPTZ,
+
+                data_aceite TIMESTAMP,
 
                 reservas JSONB DEFAULT '[]'::jsonb,
                 mensagens JSONB DEFAULT '[]'::jsonb,
 
+                presenca_confirmada BOOLEAN DEFAULT FALSE,
                 selfie_confirmacao TEXT,
                 documento_comprovante TEXT,
-                presenca_confirmada BOOLEAN DEFAULT FALSE,
 
                 status_checkin TEXT DEFAULT 'pendente',
+
                 checkin_hora TEXT,
                 checkout_hora TEXT,
+
                 foto_ponto TEXT,
                 foto_checkin TEXT,
                 foto_checkout TEXT,
+
                 checkin_gps TEXT,
                 checkout_gps TEXT,
+
                 intervalo_inicio TEXT,
                 intervalo_retorno TEXT,
                 total_horas TEXT,
 
                 validado_empresa BOOLEAN DEFAULT FALSE,
-                validado_em TIMESTAMPTZ,
+                validado_em TIMESTAMP,
+
+                pagamento_autorizado BOOLEAN DEFAULT FALSE,
+
+                autorizacao_pagamento_arquivo TEXT,
+                autorizacao_pagamento_nome TEXT,
+                autorizacao_pagamento_em TIMESTAMP,
+                autorizacao_pagamento_por TEXT,
+
+                contrato_empresa_arquivo TEXT,
+                contrato_empresa_nome TEXT,
+                contrato_empresa_tipo TEXT,
+                contrato_empresa_enviado_em TIMESTAMP,
 
                 nota_oficial TEXT,
                 nota_nome TEXT,
                 nota_tipo TEXT,
                 nota_remetente TEXT,
-                nota_enviada_em TIMESTAMPTZ,
-
-                contrato_empresa_arquivo TEXT,
-                contrato_empresa_nome TEXT,
-                contrato_empresa_tipo TEXT,
-                contrato_empresa_enviado_em TIMESTAMPTZ,
-
-                pagamento_autorizado BOOLEAN DEFAULT FALSE,
-                autorizacao_pagamento_arquivo TEXT,
-                autorizacao_pagamento_nome TEXT,
-                autorizacao_pagamento_em TIMESTAMPTZ,
-                autorizacao_pagamento_por TEXT,
+                nota_enviada_em TIMESTAMP,
 
                 comprovante_pagamento BOOLEAN DEFAULT FALSE,
                 comprovante_pagamento_arquivo TEXT,
                 comprovante_pagamento_nome TEXT,
                 comprovante_pagamento_tipo TEXT,
-                comprovante_pagamento_enviado_em TIMESTAMPTZ,
-                pagamento_recebido_confirmado BOOLEAN DEFAULT FALSE,
-                pagamento_recebido_em TIMESTAMPTZ
-            );
+                comprovante_pagamento_enviado_em TIMESTAMP,
 
-            CREATE TABLE IF NOT EXISTS ledger_transacoes (
+                pagamento_recebido_confirmado BOOLEAN DEFAULT FALSE,
+                pagamento_recebido_em TIMESTAMP,
+
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS auditoria
+            (
+                id SERIAL PRIMARY KEY,
+                usuario_email TEXT,
+                acao TEXT,
+                detalhes TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+        `);
+
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS ledger
+            (
                 id SERIAL PRIMARY KEY,
                 servico_id INTEGER,
                 usuario_email TEXT,
-                usuario_id INTEGER,
                 tipo TEXT,
-                tipo_movimento TEXT,
-                valor NUMERIC(12,2) NOT NULL DEFAULT 0,
-                status TEXT NOT NULL DEFAULT 'PROCESSADO',
-                criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS auditoria_sistema (
-                id SERIAL PRIMARY KEY,
-                usuario_email TEXT,
-                acao TEXT NOT NULL,
-                detalhes TEXT,
-                criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
-
-            CREATE TABLE IF NOT EXISTS recuperacao_senha (
-                id SERIAL PRIMARY KEY,
-                email TEXT NOT NULL,
-                codigo_hash TEXT NOT NULL,
-                expira_em TIMESTAMPTZ NOT NULL,
-                usado BOOLEAN DEFAULT FALSE,
-                criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-            );
+                valor NUMERIC DEFAULT 0,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         `);
 
-        const colunas = [
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS categoria TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_diaria NUMERIC(12,2) DEFAULT 0;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_liquido NUMERIC(12,2) DEFAULT 0;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS data_horario TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS forma_pgto TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_texto TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_email TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_whatsapp TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_nome TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'unico';",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_total NUMERIC(12,2) DEFAULT 0;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS motivo_cancelamento TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS criado_em TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_email TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_id INTEGER;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_nome TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_pix TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_whatsapp TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_rg_cnh TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS data_aceite TIMESTAMPTZ;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS documento_comprovante TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS status_checkin TEXT DEFAULT 'pendente';",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_hora TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_hora TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_ponto TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkin TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkout TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_gps TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_gps TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_inicio TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_retorno TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS total_horas TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS validado_empresa BOOLEAN DEFAULT FALSE;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS validado_em TIMESTAMPTZ;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_nome TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_tipo TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_remetente TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_enviada_em TIMESTAMPTZ;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_arquivo TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_nome TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_tipo TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_enviado_em TIMESTAMPTZ;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_autorizado BOOLEAN DEFAULT FALSE;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_arquivo TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_nome TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_em TIMESTAMPTZ;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_por TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento BOOLEAN DEFAULT FALSE;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_arquivo TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_nome TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_tipo TEXT;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_enviado_em TIMESTAMPTZ;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_recebido_confirmado BOOLEAN DEFAULT FALSE;",
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_recebido_em TIMESTAMPTZ;"
-        ];
-
-        for (const sql of colunas) {
-            try {
-                await pool.query(sql);
-            } catch (err) {
-                console.error('Erro ao garantir coluna:', err.message);
-            }
-        }
 
         await pool.query(`
-            UPDATE servicos
-            SET data_aceite = COALESCE(criado_em, CURRENT_TIMESTAMP)
-            WHERE prestador_email IS NOT NULL
-              AND data_aceite IS NULL
+            CREATE TABLE IF NOT EXISTS recuperacao_senha
+            (
+                id SERIAL PRIMARY KEY,
+                email TEXT,
+                codigo_hash TEXT,
+                usado BOOLEAN DEFAULT FALSE,
+                expira_em TIMESTAMP,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
         `);
 
-        console.log('Tabelas e colunas do RS Connect verificadas com sucesso.');
 
-    } catch (err) {
-        console.error('Erro ao preparar banco de dados:', err);
-    }
-}
+        // =================================================
+        // GARANTE COLUNAS EM BANCOS ANTIGOS
+        // =================================================
 
-function normalizarEmail(valor) {
-    return String(valor || '').trim().toLowerCase();
-}
+        const colunas = [
 
-function arrayJson(valor) {
-    return Array.isArray(valor) ? valor : [];
-}
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_nome TEXT`,
 
-function numeroBR(valor) {
-    if (typeof valor === 'number') return valor;
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_whatsapp TEXT`,
 
-    const texto = String(valor || '0').trim();
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS recorrencia TEXT DEFAULT 'unico'`,
 
-    if (!texto) return 0;
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_total NUMERIC DEFAULT 0`,
 
-    if (texto.includes(',') && texto.includes('.')) {
-        return Number(
-            texto
-                .replace(/\./g, '')
-                .replace(',', '.')
-        ) || 0;
-    }
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_diaria NUMERIC DEFAULT 0`,
 
-    if (texto.includes(',')) {
-        return Number(
-            texto.replace(',', '.')
-        ) || 0;
-    }
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS valor_liquido NUMERIC DEFAULT 0`,
 
-    return Number(texto) || 0;
-}
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_id INTEGER`,
 
-async function registrarLedger(
-    servicoId,
-    email,
-    tipoMovimento,
-    valor
-) {
-    try {
-        await pool.query(
-            `
-            INSERT INTO ledger_transacoes
-            (
-                servico_id,
-                usuario_email,
-                tipo_movimento,
-                valor
-            )
-            VALUES
-            (
-                $1,
-                $2,
-                $3,
-                $4
-            )
-            `,
-            [
-                servicoId,
-                email || null,
-                tipoMovimento,
-                numeroBR(valor)
-            ]
-        );
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_nome TEXT`,
 
-    } catch (err) {
-        console.error(
-            'Erro ao registrar ledger:',
-            err
-        );
-    }
-}
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_pix TEXT`,
 
-async function registrarAuditoria(
-    email,
-    acao,
-    detalhes
-) {
-    try {
-        await pool.query(
-            `
-            INSERT INTO auditoria_sistema
-            (
-                usuario_email,
-                acao,
-                detalhes
-            )
-            VALUES
-            (
-                $1,
-                $2,
-                $3
-            )
-            `,
-            [
-                email || 'sistema',
-                acao,
-                detalhes
-            ]
-        );
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_whatsapp TEXT`,
 
-    } catch (err) {
-        console.error(
-            'Erro ao registrar auditoria:',
-            err
-        );
-    }
-}
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_rg_cnh TEXT`,
 
-async function adicionarMensagemSistema(
-    servicoId,
-    texto
-) {
-    try {
-        const result =
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS data_aceite TIMESTAMP`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS selfie_confirmacao TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS documento_comprovante TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS status_checkin TEXT DEFAULT 'pendente'`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_hora TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_hora TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_ponto TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkin TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS foto_checkout TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkin_gps TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS checkout_gps TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_inicio TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS intervalo_retorno TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS total_horas TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS validado_empresa BOOLEAN DEFAULT FALSE`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS validado_em TIMESTAMP`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_autorizado BOOLEAN DEFAULT FALSE`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_arquivo TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_nome TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_em TIMESTAMP`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS autorizacao_pagamento_por TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_arquivo TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_nome TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_tipo TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_empresa_enviado_em TIMESTAMP`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_nome TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_tipo TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_remetente TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_enviada_em TIMESTAMP`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento BOOLEAN DEFAULT FALSE`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_arquivo TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_nome TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_tipo TEXT`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS comprovante_pagamento_enviado_em TIMESTAMP`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_recebido_confirmado BOOLEAN DEFAULT FALSE`,
+
+            `ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_recebido_em TIMESTAMP`
+        ];
+
+
+        for (
+            const sql of colunas
+        ) {
+
             await pool.query(
-                `
-                SELECT mensagens
-                FROM servicos
-                WHERE id = $1
-                `,
-                [servicoId]
+                sql
             );
-
-        if (!result.rows.length) {
-            return;
         }
 
-        const mensagens =
-            arrayJson(
-                result.rows[0].mensagens
-            );
 
-        mensagens.push({
-            remetente:
-                'SISTEMA',
-
-            texto:
-                texto,
-
-            data:
-                new Date()
-                    .toISOString()
-        });
-
-        await pool.query(
-            `
-            UPDATE servicos
-            SET mensagens = $1::jsonb
-            WHERE id = $2
-            `,
-            [
-                JSON.stringify(
-                    mensagens
-                ),
-                servicoId
-            ]
+        console.log(
+            'Tabelas e colunas do RS Connect verificadas com sucesso.'
         );
 
     } catch (err) {
+
         console.error(
-            'Erro ao adicionar mensagem automática:',
+            'Erro ao preparar PostgreSQL:',
+            err
+        );
+
+        throw err;
+    }
+}
+
+
+// =====================================================
+// INICIAR SERVIDOR
+// IMPORTANTE PARA O RENDER
+// =====================================================
+
+const PORT =
+    process.env.PORT
+    ||
+    10000;
+
+
+server.listen(
+    PORT,
+    '0.0.0.0',
+    () => {
+
+        console.log(
+            '=========================================='
+        );
+
+        console.log(
+            'RS CONNECT - SERVIDOR ONLINE'
+        );
+
+        console.log(
+            `Porta: ${PORT}`
+        );
+
+        console.log(
+            `Ambiente: ${process.env.NODE_ENV || 'development'}`
+        );
+
+        console.log(
+            '=========================================='
+        );
+    }
+);
+
+
+// =====================================================
+// CONECTAR E PREPARAR POSTGRESQL
+// =====================================================
+
+(async () => {
+
+    try {
+
+        await pool.query(
+            'SELECT NOW()'
+        );
+
+        console.log(
+            'Conectado com sucesso ao PostgreSQL.'
+        );
+
+        await prepararBanco();
+
+    } catch (err) {
+
+        console.error(
+            'Falha ao inicializar banco:',
             err
         );
     }
-}
 
-function hashCodigoRecuperacao(
-    codigo
-) {
-    return crypto
-        .createHash('sha256')
-        .update(
-            String(codigo)
-        )
-        .digest('hex');
-}
-
-async function enviarEmailRecuperacao(
-    email,
-    codigo
-) {
-    const apiKey =
-        process.env.RESEND_API_KEY;
-
-    const remetente =
-        process.env.RESET_EMAIL_FROM
-        ||
-        'RS Connect <onboarding@resend.dev>';
-
-    if (!apiKey) {
-        throw new Error(
-            'RESEND_API_KEY não configurada no servidor.'
-        );
-    }
-
-    const resposta =
-        await fetch(
-            'https://api.resend.com/emails',
-            {
-                method:
-                    'POST',
-
-                headers: {
-                    Authorization:
-                        `Bearer ${apiKey}`,
-
-                    'Content-Type':
-                        'application/json'
-                },
-
-                body:
-                    JSON.stringify({
-                        from:
-                            remetente,
-
-                        to:
-                            [email],
-
-                        subject:
-                            'Código para redefinir sua senha - RS Connect',
-
-                        html: `
-                            <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px;">
-                                <h2>RS Connect</h2>
-
-                                <p>
-                                    Use o código abaixo para redefinir sua senha:
-                                </p>
-
-                                <div style="font-size:32px;font-weight:bold;text-align:center;padding:18px;background:#eff6ff;border-radius:10px;">
-                                    ${codigo}
-                                </div>
-
-                                <p>
-                                    O código expira em 15 minutos.
-                                </p>
-                            </div>
-                        `
-                    })
-            }
-        );
-
-    const texto =
-        await resposta.text();
-
-    if (!resposta.ok) {
-        throw new Error(
-            `Falha ao enviar e-mail: ${texto}`
-        );
-    }
-}
+})();
 // =====================================================
 // PARTE 2 - AUTENTICAÇÃO, USUÁRIOS E SERVIÇOS
 // =====================================================
 
-app.post('/api/auth/registrar', async (req, res) => {
-    const d = req.body || {};
 
-    try {
-        const result = await pool.query(
-            `
-            INSERT INTO usuarios
-            (tipo, nome, doc, responsavel, email, senha, whatsapp, endereco,
-             rg_cnh, profissao, tipo_chave_pix, pix, banco, conta, experiencia)
-            VALUES
-            ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15)
-            RETURNING id
-            `,
-            [
-                d.tipo || '',
-                d.nome || '',
-                d.doc || '',
-                d.responsavel || '',
-                normalizarEmail(d.email),
-                d.senha || '',
-                d.whatsapp || '',
-                d.endereco || '',
-                d.rgCnh || d.rg_cnh || '',
-                d.profissao || '',
-                d.tipoChavePix || d.tipo_chave_pix || '',
-                d.pix || '',
-                d.banco || '',
-                d.conta || '',
-                d.experiencia || ''
-            ]
-        );
+// =====================================================
+// CADASTRAR USUÁRIO
+// =====================================================
 
-        if (d.tipo === 'prestador') {
-            await pool.query(
-                `INSERT INTO prestadores (email) VALUES ($1) ON CONFLICT (email) DO NOTHING`,
-                [normalizarEmail(d.email)]
-            );
-        }
+app.post(
+    '/api/auth/registrar',
+    async (req, res) => {
 
-        await registrarAuditoria(
-            d.email,
-            'CADASTRO_USUARIO',
-            `Novo usuário tipo ${d.tipo || 'não informado'} cadastrado.`
-        );
+        const d =
+            req.body || {};
 
-        return res.json({
-            sucesso: true,
-            id: result.rows[0].id
-        });
+        try {
 
-    } catch (err) {
-        console.error(
-            'Erro no cadastro:',
-            err
-        );
+            const result =
+                await pool.query(
+                    `
+                    INSERT INTO usuarios
+                    (
+                        tipo,
+                        nome,
+                        doc,
+                        responsavel,
+                        email,
+                        senha,
+                        whatsapp,
+                        endereco,
+                        rg_cnh,
+                        profissao,
+                        tipo_chave_pix,
+                        pix,
+                        banco,
+                        conta,
+                        experiencia
+                    )
 
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                err.code === '23505'
-                    ? 'E-mail já cadastrado.'
-                    : 'Erro ao cadastrar usuário.'
-        });
-    }
-});
+                    VALUES
+                    (
+                        $1,$2,$3,$4,$5,
+                        $6,$7,$8,$9,$10,
+                        $11,$12,$13,$14,$15
+                    )
 
+                    RETURNING id
+                    `,
+                    [
+                        d.tipo || '',
 
-app.post('/api/auth/login', async (req, res) => {
-    const email =
-        normalizarEmail(
-            req.body?.email
-        );
+                        d.nome || '',
 
-    const senha =
-        String(
-            req.body?.senha || ''
-        );
+                        d.doc || '',
 
-    try {
-        const result =
-            await pool.query(
-                `
-                SELECT *
-                FROM usuarios
-                WHERE LOWER(email) = $1
-                  AND senha = $2
-                LIMIT 1
-                `,
-                [
-                    email,
-                    senha
-                ]
-            );
+                        d.responsavel || '',
 
-        if (!result.rows.length) {
-            return res.status(401).json({
-                sucesso: false,
-                erro: 'E-mail ou senha incorretos.'
-            });
-        }
+                        normalizarEmail(
+                            d.email
+                        ),
 
-        await registrarAuditoria(
-            email,
-            'LOGIN',
-            'Login realizado com sucesso.'
-        );
+                        d.senha || '',
 
-        return res.json({
-            sucesso: true,
-            usuario:
-                result.rows[0]
-        });
+                        d.whatsapp || '',
 
-    } catch (err) {
-        console.error(
-            'Erro no login:',
-            err
-        );
+                        d.endereco || '',
 
-        return res.status(500).json({
-            sucesso: false,
-            erro: 'Erro no servidor.'
-        });
-    }
-});
+                        d.rgCnh
+                        ||
+                        d.rg_cnh
+                        ||
+                        '',
+
+                        d.profissao || '',
+
+                        d.tipoChavePix
+                        ||
+                        d.tipo_chave_pix
+                        ||
+                        '',
+
+                        d.pix || '',
+
+                        d.banco || '',
+
+                        d.conta || '',
+
+                        d.experiencia || ''
+                    ]
+                );
 
 
-app.post('/api/auth/esqueci-senha', async (req, res) => {
-    const email =
-        normalizarEmail(
-            req.body?.email
-        );
+            if (
+                d.tipo ===
+                'prestador'
+            ) {
 
-    if (!email) {
-        return res.status(400).json({
-            sucesso: false,
-            erro: 'Informe o e-mail da conta.'
-        });
-    }
+                await pool.query(
+                    `
+                    INSERT INTO prestadores
+                    (
+                        email
+                    )
 
-    try {
-        const usuario =
-            await pool.query(
-                `
-                SELECT id
-                FROM usuarios
-                WHERE LOWER(email) = $1
-                LIMIT 1
-                `,
-                [email]
+                    VALUES
+                    (
+                        $1
+                    )
+
+                    ON CONFLICT (email)
+                    DO NOTHING
+                    `,
+                    [
+                        normalizarEmail(
+                            d.email
+                        )
+                    ]
+                );
+            }
+
+
+            await registrarAuditoria(
+                d.email,
+
+                'CADASTRO_USUARIO',
+
+                `Novo usuário tipo ${d.tipo || 'não informado'} cadastrado.`
             );
 
-        if (!usuario.rows.length) {
+
             return res.json({
                 sucesso: true,
-                mensagem:
-                    'Se o e-mail estiver cadastrado, enviaremos um código.'
+
+                id:
+                    result.rows[0].id
             });
-        }
 
-        const codigo =
-            String(
-                crypto.randomInt(
-                    100000,
-                    1000000
-                )
+
+        } catch (err) {
+
+            console.error(
+                'Erro no cadastro:',
+                err
             );
 
-        const codigoHash =
-            hashCodigoRecuperacao(
-                codigo
-            );
 
-        await pool.query(
-            `
-            UPDATE recuperacao_senha
-            SET usado = TRUE
-            WHERE LOWER(email) = $1
-              AND usado = FALSE
-            `,
-            [email]
-        );
-
-        await pool.query(
-            `
-            INSERT INTO recuperacao_senha
-            (
-                email,
-                codigo_hash,
-                expira_em
-            )
-            VALUES
-            (
-                $1,
-                $2,
-                CURRENT_TIMESTAMP + INTERVAL '15 minutes'
-            )
-            `,
-            [
-                email,
-                codigoHash
-            ]
-        );
-
-        await enviarEmailRecuperacao(
-            email,
-            codigo
-        );
-
-        await registrarAuditoria(
-            email,
-            'SOLICITAR_RECUPERACAO_SENHA',
-            'Código de recuperação enviado.'
-        );
-
-        return res.json({
-            sucesso: true,
-            mensagem:
-                'Código enviado. Ele expira em 15 minutos.'
-        });
-
-    } catch (err) {
-        console.error(
-            'Erro na recuperação de senha:',
-            err
-        );
-
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Não foi possível enviar o código de recuperação.'
-        });
-    }
-});
-
-
-app.post('/api/auth/redefinir-senha', async (req, res) => {
-    const email =
-        normalizarEmail(
-            req.body?.email
-        );
-
-    const codigo =
-        String(
-            req.body?.codigo || ''
-        ).trim();
-
-    const novaSenha =
-        String(
-            req.body?.novaSenha || ''
-        );
-
-    if (
-        !email ||
-        !codigo ||
-        !novaSenha
-    ) {
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'Preencha e-mail, código e nova senha.'
-        });
-    }
-
-    if (
-        novaSenha.length < 6
-    ) {
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'A nova senha deve ter pelo menos 6 caracteres.'
-        });
-    }
-
-    try {
-        const token =
-            await pool.query(
-                `
-                SELECT *
-                FROM recuperacao_senha
-                WHERE LOWER(email) = $1
-                  AND codigo_hash = $2
-                  AND usado = FALSE
-                  AND expira_em > CURRENT_TIMESTAMP
-                ORDER BY id DESC
-                LIMIT 1
-                `,
-                [
-                    email,
-                    hashCodigoRecuperacao(
-                        codigo
-                    )
-                ]
-            );
-
-        if (!token.rows.length) {
             return res.status(400).json({
                 sucesso: false,
+
                 erro:
-                    'Código inválido ou expirado.'
+                    err.code === '23505'
+                        ? 'E-mail já cadastrado.'
+                        : 'Erro ao cadastrar usuário.'
+            });
+        }
+    }
+);
+
+
+// =====================================================
+// LOGIN
+// =====================================================
+
+app.post(
+    '/api/auth/login',
+    async (req, res) => {
+
+        const email =
+            normalizarEmail(
+                req.body?.email
+            );
+
+
+        const senha =
+            String(
+                req.body?.senha
+                ||
+                ''
+            );
+
+
+        try {
+
+            const result =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM usuarios
+
+                    WHERE LOWER(email) =
+                        $1
+
+                    AND senha =
+                        $2
+
+                    LIMIT 1
+                    `,
+                    [
+                        email,
+                        senha
+                    ]
+                );
+
+
+            if (
+                !result.rows.length
+            ) {
+
+                return res.status(401).json({
+                    sucesso: false,
+
+                    erro:
+                        'E-mail ou senha incorretos.'
+                });
+            }
+
+
+            await registrarAuditoria(
+                email,
+
+                'LOGIN',
+
+                'Login realizado com sucesso.'
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                usuario:
+                    result.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                'Erro no login:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+
+                erro:
+                    'Erro no servidor.'
+            });
+        }
+    }
+);
+
+
+// =====================================================
+// ESQUECI MINHA SENHA
+// =====================================================
+
+app.post(
+    '/api/auth/esqueci-senha',
+    async (req, res) => {
+
+        const email =
+            normalizarEmail(
+                req.body?.email
+            );
+
+
+        if (!email) {
+
+            return res.status(400).json({
+                sucesso: false,
+
+                erro:
+                    'Informe o e-mail da conta.'
             });
         }
 
-        const usuario =
+
+        try {
+
+            const usuario =
+                await pool.query(
+                    `
+                    SELECT id
+                    FROM usuarios
+
+                    WHERE LOWER(email) =
+                        $1
+
+                    LIMIT 1
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            if (
+                !usuario.rows.length
+            ) {
+
+                return res.json({
+                    sucesso: true,
+
+                    mensagem:
+                        'Se o e-mail estiver cadastrado, enviaremos um código.'
+                });
+            }
+
+
+            const codigo =
+                String(
+                    crypto.randomInt(
+                        100000,
+                        1000000
+                    )
+                );
+
+
+            const codigoHash =
+                hashCodigoRecuperacao(
+                    codigo
+                );
+
+
             await pool.query(
                 `
-                UPDATE usuarios
-                SET senha = $1
-                WHERE LOWER(email) = $2
-                RETURNING id
+                UPDATE recuperacao_senha
+
+                SET usado =
+                    TRUE
+
+                WHERE LOWER(email) =
+                    $1
+
+                AND usado =
+                    FALSE
                 `,
                 [
-                    novaSenha,
                     email
                 ]
             );
 
-        if (!usuario.rows.length) {
-            return res.status(404).json({
-                sucesso: false,
-                erro: 'Conta não encontrada.'
-            });
-        }
 
-        await pool.query(
-            `
-            UPDATE recuperacao_senha
-            SET usado = TRUE
-            WHERE id = $1
-            `,
-            [
-                token.rows[0].id
-            ]
-        );
-
-        await registrarAuditoria(
-            email,
-            'REDEFINIR_SENHA',
-            'Senha redefinida com código de recuperação.'
-        );
-
-        return res.json({
-            sucesso: true,
-            mensagem:
-                'Senha redefinida com sucesso.'
-        });
-
-    } catch (err) {
-        console.error(
-            'Erro ao redefinir senha:',
-            err
-        );
-
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro interno ao redefinir senha.'
-        });
-    }
-});
-
-
-app.get('/api/usuarios/:email', async (req, res) => {
-    try {
-        const result =
             await pool.query(
                 `
-                SELECT *
-                FROM usuarios
-                WHERE LOWER(email) = $1
-                LIMIT 1
+                INSERT INTO recuperacao_senha
+                (
+                    email,
+                    codigo_hash,
+                    expira_em
+                )
+
+                VALUES
+                (
+                    $1,
+                    $2,
+                    CURRENT_TIMESTAMP
+                    +
+                    INTERVAL '15 minutes'
+                )
                 `,
                 [
-                    normalizarEmail(
-                        req.params.email
-                    )
+                    email,
+                    codigoHash
                 ]
             );
 
-        if (!result.rows.length) {
-            return res.status(404).json({
+
+            await enviarEmailRecuperacao(
+                email,
+                codigo
+            );
+
+
+            await registrarAuditoria(
+                email,
+
+                'SOLICITAR_RECUPERACAO_SENHA',
+
+                'Código de recuperação enviado.'
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    'Código enviado. Ele expira em 15 minutos.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                'Erro na recuperação de senha:',
+                err
+            );
+
+
+            return res.status(500).json({
                 sucesso: false,
+
                 erro:
-                    'Usuário não encontrado.'
+                    'Não foi possível enviar o código de recuperação.'
+            });
+        }
+    }
+);
+
+
+// =====================================================
+// REDEFINIR SENHA
+// =====================================================
+
+app.post(
+    '/api/auth/redefinir-senha',
+    async (req, res) => {
+
+        const email =
+            normalizarEmail(
+                req.body?.email
+            );
+
+
+        const codigo =
+            String(
+                req.body?.codigo
+                ||
+                ''
+            ).trim();
+
+
+        const novaSenha =
+            String(
+                req.body?.novaSenha
+                ||
+                ''
+            );
+
+
+        if (
+            !email
+            ||
+            !codigo
+            ||
+            !novaSenha
+        ) {
+
+            return res.status(400).json({
+                sucesso: false,
+
+                erro:
+                    'Preencha e-mail, código e nova senha.'
             });
         }
 
-        return res.json({
-            sucesso: true,
-            usuario:
-                result.rows[0]
-        });
 
-    } catch (err) {
-        console.error(
-            'Erro ao buscar usuário:',
-            err
-        );
+        if (
+            novaSenha.length < 6
+        ) {
 
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao buscar usuário.'
-        });
-    }
-});
+            return res.status(400).json({
+                sucesso: false,
+
+                erro:
+                    'A nova senha deve ter pelo menos 6 caracteres.'
+            });
+        }
 
 
-app.put('/api/usuarios/:email', async (req, res) => {
-    const d =
-        req.body || {};
+        try {
 
-    try {
-        const result =
+            const token =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM recuperacao_senha
+
+                    WHERE LOWER(email) =
+                        $1
+
+                    AND codigo_hash =
+                        $2
+
+                    AND usado =
+                        FALSE
+
+                    AND expira_em >
+                        CURRENT_TIMESTAMP
+
+                    ORDER BY id DESC
+
+                    LIMIT 1
+                    `,
+                    [
+                        email,
+
+                        hashCodigoRecuperacao(
+                            codigo
+                        )
+                    ]
+                );
+
+
+            if (
+                !token.rows.length
+            ) {
+
+                return res.status(400).json({
+                    sucesso: false,
+
+                    erro:
+                        'Código inválido ou expirado.'
+                });
+            }
+
+
+            const usuario =
+                await pool.query(
+                    `
+                    UPDATE usuarios
+
+                    SET senha =
+                        $1
+
+                    WHERE LOWER(email) =
+                        $2
+
+                    RETURNING id
+                    `,
+                    [
+                        novaSenha,
+                        email
+                    ]
+                );
+
+
+            if (
+                !usuario.rows.length
+            ) {
+
+                return res.status(404).json({
+                    sucesso: false,
+
+                    erro:
+                        'Conta não encontrada.'
+                });
+            }
+
+
             await pool.query(
                 `
-                UPDATE usuarios
-                SET
-                    nome = COALESCE($1, nome),
-                    doc = COALESCE($2, doc),
-                    responsavel = COALESCE($3, responsavel),
-                    whatsapp = COALESCE($4, whatsapp),
-                    endereco = COALESCE($5, endereco),
-                    rg_cnh = COALESCE($6, rg_cnh),
-                    profissao = COALESCE($7, profissao),
-                    tipo_chave_pix = COALESCE($8, tipo_chave_pix),
-                    pix = COALESCE($9, pix),
-                    banco = COALESCE($10, banco),
-                    conta = COALESCE($11, conta),
-                    experiencia = COALESCE($12, experiencia)
-                WHERE LOWER(email) = $13
-                RETURNING *
+                UPDATE recuperacao_senha
+
+                SET usado =
+                    TRUE
+
+                WHERE id =
+                    $1
                 `,
                 [
-                    d.nome ?? null,
-                    d.doc ?? null,
-                    d.responsavel ?? null,
-                    d.whatsapp ?? null,
-                    d.endereco ?? null,
-                    d.rgCnh ?? d.rg_cnh ?? null,
-                    d.profissao ?? null,
-                    d.tipoChavePix ?? d.tipo_chave_pix ?? null,
-                    d.pix ?? null,
-                    d.banco ?? null,
-                    d.conta ?? null,
-                    d.experiencia ?? null,
-                    normalizarEmail(
-                        req.params.email
-                    )
+                    token.rows[0].id
                 ]
             );
 
-        if (!result.rows.length) {
-            return res.status(404).json({
+
+            await registrarAuditoria(
+                email,
+
+                'REDEFINIR_SENHA',
+
+                'Senha redefinida com código de recuperação.'
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    'Senha redefinida com sucesso.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                'Erro ao redefinir senha:',
+                err
+            );
+
+
+            return res.status(500).json({
                 sucesso: false,
+
                 erro:
-                    'Usuário não encontrado.'
+                    'Erro interno ao redefinir senha.'
             });
         }
-
-        await registrarAuditoria(
-            req.params.email,
-            'ATUALIZAR_PERFIL',
-            'Perfil atualizado.'
-        );
-
-        return res.json({
-            sucesso: true,
-            usuario:
-                result.rows[0]
-        });
-
-    } catch (err) {
-        console.error(
-            'Erro ao atualizar usuário:',
-            err
-        );
-
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao atualizar usuário.'
-        });
     }
-});
+);
+
+
+// =====================================================
+// BUSCAR USUÁRIO
+// =====================================================
+
+app.get(
+    '/api/usuarios/:email',
+    async (req, res) => {
+
+        try {
+
+            const result =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM usuarios
+
+                    WHERE LOWER(email) =
+                        $1
+
+                    LIMIT 1
+                    `,
+                    [
+                        normalizarEmail(
+                            req.params.email
+                        )
+                    ]
+                );
+
+
+            if (
+                !result.rows.length
+            ) {
+
+                return res.status(404).json({
+                    sucesso: false,
+
+                    erro:
+                        'Usuário não encontrado.'
+                });
+            }
+
+
+            return res.json({
+                sucesso: true,
+
+                usuario:
+                    result.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                'Erro ao buscar usuário:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+
+                erro:
+                    'Erro ao buscar usuário.'
+            });
+        }
+    }
+);
+
+
+// =====================================================
+// ATUALIZAR USUÁRIO
+// =====================================================
+
+app.put(
+    '/api/usuarios/:email',
+    async (req, res) => {
+
+        const d =
+            req.body || {};
+
+
+        try {
+
+            const result =
+                await pool.query(
+                    `
+                    UPDATE usuarios
+
+                    SET
+                        nome =
+                            COALESCE(
+                                $1,
+                                nome
+                            ),
+
+                        doc =
+                            COALESCE(
+                                $2,
+                                doc
+                            ),
+
+                        responsavel =
+                            COALESCE(
+                                $3,
+                                responsavel
+                            ),
+
+                        whatsapp =
+                            COALESCE(
+                                $4,
+                                whatsapp
+                            ),
+
+                        endereco =
+                            COALESCE(
+                                $5,
+                                endereco
+                            ),
+
+                        rg_cnh =
+                            COALESCE(
+                                $6,
+                                rg_cnh
+                            ),
+
+                        profissao =
+                            COALESCE(
+                                $7,
+                                profissao
+                            ),
+
+                        tipo_chave_pix =
+                            COALESCE(
+                                $8,
+                                tipo_chave_pix
+                            ),
+
+                        pix =
+                            COALESCE(
+                                $9,
+                                pix
+                            ),
+
+                        banco =
+                            COALESCE(
+                                $10,
+                                banco
+                            ),
+
+                        conta =
+                            COALESCE(
+                                $11,
+                                conta
+                            ),
+
+                        experiencia =
+                            COALESCE(
+                                $12,
+                                experiencia
+                            )
+
+                    WHERE LOWER(email) =
+                        $13
+
+                    RETURNING *
+                    `,
+                    [
+                        d.nome ?? null,
+
+                        d.doc ?? null,
+
+                        d.responsavel ?? null,
+
+                        d.whatsapp ?? null,
+
+                        d.endereco ?? null,
+
+                        d.rgCnh
+                        ??
+                        d.rg_cnh
+                        ??
+                        null,
+
+                        d.profissao ?? null,
+
+                        d.tipoChavePix
+                        ??
+                        d.tipo_chave_pix
+                        ??
+                        null,
+
+                        d.pix ?? null,
+
+                        d.banco ?? null,
+
+                        d.conta ?? null,
+
+                        d.experiencia ?? null,
+
+                        normalizarEmail(
+                            req.params.email
+                        )
+                    ]
+                );
+
+
+            if (
+                !result.rows.length
+            ) {
+
+                return res.status(404).json({
+                    sucesso: false,
+
+                    erro:
+                        'Usuário não encontrado.'
+                });
+            }
+
+
+            await registrarAuditoria(
+                req.params.email,
+
+                'ATUALIZAR_PERFIL',
+
+                'Perfil atualizado.'
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                usuario:
+                    result.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                'Erro ao atualizar usuário:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+
+                erro:
+                    'Erro ao atualizar usuário.'
+            });
+        }
+    }
+);
 
 
 // =====================================================
 // LISTAR SERVIÇOS
 // =====================================================
 
-app.get('/api/servicos', async (req, res) => {
-    try {
-        const result =
-            await pool.query(`
-                SELECT
-                    s.*,
-                    COALESCE(
-                        NULLIF(
-                            s.empresa_nome,
-                            ''
-                        ),
-                        u.nome
-                    ) AS empresa_nome_resolvido
-                FROM servicos s
-                LEFT JOIN usuarios u
-                    ON LOWER(u.email)
-                    =
-                    LOWER(s.empresa_email)
-                ORDER BY s.id DESC
-            `);
+app.get(
+    '/api/servicos',
+    async (req, res) => {
 
-        const servicos =
-            result.rows.map(
-                s => ({
-                    ...s,
+        try {
 
-                    empresa_nome:
-                        s.empresa_nome_resolvido
-                        ||
-                        s.empresa_nome
-                        ||
-                        '',
+            const result =
+                await pool.query(
+                    `
+                    SELECT
+                        s.*,
 
-                    empresaNome:
-                        s.empresa_nome_resolvido
-                        ||
-                        s.empresa_nome
-                        ||
-                        '',
-
-                    empresaEmail:
-                        s.empresa_email,
-
-                    empresaWhatsapp:
-                        s.empresa_whatsapp
-                        ||
-                        '',
-
-                    prestadorEmail:
-                        s.prestador_email,
-
-                    prestadorNome:
-                        s.prestador_nome,
-
-                    prestadorWhatsapp:
-                        s.prestador_whatsapp,
-
-                    prestadorPix:
-                        s.prestador_pix,
-
-                    dataAceite:
-                        s.data_aceite,
-
-                    presencaConfirmada:
-                        !!s.presenca_confirmada,
-
-                    selfieConfirmacao:
-                        s.selfie_confirmacao
-                        ||
-                        null,
-
-                    checkinHora:
-                        s.checkin_hora,
-
-                    checkoutHora:
-                        s.checkout_hora,
-
-                    fotoCheckin:
-                        s.foto_checkin
-                        ||
-                        s.foto_ponto
-                        ||
-                        null,
-
-                    fotoCheckout:
-                        s.foto_checkout
-                        ||
-                        null,
-
-                    checkinGps:
-                        s.checkin_gps
-                        ||
-                        null,
-
-                    checkoutGps:
-                        s.checkout_gps
-                        ||
-                        null,
-
-                    validadoEmpresa:
-                        !!s.validado_empresa,
-
-                    pagamentoAutorizado:
-                        !!s.pagamento_autorizado,
-
-                    autorizacaoPagamentoArquivo:
-                        s.autorizacao_pagamento_arquivo
-                        ||
-                        null,
-
-                    autorizacaoPagamentoNome:
-                        s.autorizacao_pagamento_nome
-                        ||
-                        null,
-
-                    autorizacaoPagamentoEm:
-                        s.autorizacao_pagamento_em
-                        ||
-                        null,
-
-                    autorizacaoPagamentoPor:
-                        s.autorizacao_pagamento_por
-                        ||
-                        null,
-
-                    reservas:
-                        arrayJson(
-                            s.reservas
-                        ),
-
-                    mensagens:
-                        arrayJson(
-                            s.mensagens
+                        COALESCE(
+                            NULLIF(
+                                s.empresa_nome,
+                                ''
+                            ),
+                            u.nome
                         )
-                })
+                        AS empresa_nome_resolvido
+
+                    FROM servicos s
+
+                    LEFT JOIN usuarios u
+                        ON LOWER(u.email)
+                        =
+                        LOWER(s.empresa_email)
+
+                    ORDER BY s.id DESC
+                    `
+                );
+
+
+            const servicos =
+                result.rows.map(
+                    s => ({
+
+                        ...s,
+
+                        empresa_nome:
+                            s.empresa_nome_resolvido
+                            ||
+                            s.empresa_nome
+                            ||
+                            '',
+
+                        empresaNome:
+                            s.empresa_nome_resolvido
+                            ||
+                            s.empresa_nome
+                            ||
+                            '',
+
+                        empresaEmail:
+                            s.empresa_email,
+
+                        empresaWhatsapp:
+                            s.empresa_whatsapp
+                            ||
+                            '',
+
+                        prestadorEmail:
+                            s.prestador_email,
+
+                        prestadorNome:
+                            s.prestador_nome,
+
+                        prestadorWhatsapp:
+                            s.prestador_whatsapp,
+
+                        prestadorPix:
+                            s.prestador_pix,
+
+                        dataAceite:
+                            s.data_aceite,
+
+                        presencaConfirmada:
+                            !!s.presenca_confirmada,
+
+                        selfieConfirmacao:
+                            s.selfie_confirmacao
+                            ||
+                            null,
+
+                        checkinHora:
+                            s.checkin_hora,
+
+                        checkoutHora:
+                            s.checkout_hora,
+
+                        fotoCheckin:
+                            s.foto_checkin
+                            ||
+                            s.foto_ponto
+                            ||
+                            null,
+
+                        fotoCheckout:
+                            s.foto_checkout
+                            ||
+                            null,
+
+                        checkinGps:
+                            s.checkin_gps
+                            ||
+                            null,
+
+                        checkoutGps:
+                            s.checkout_gps
+                            ||
+                            null,
+
+                        validadoEmpresa:
+                            !!s.validado_empresa,
+
+                        pagamentoAutorizado:
+                            !!s.pagamento_autorizado,
+
+                        autorizacaoPagamentoArquivo:
+                            s.autorizacao_pagamento_arquivo
+                            ||
+                            null,
+
+                        autorizacaoPagamentoNome:
+                            s.autorizacao_pagamento_nome
+                            ||
+                            null,
+
+                        autorizacaoPagamentoEm:
+                            s.autorizacao_pagamento_em
+                            ||
+                            null,
+
+                        autorizacaoPagamentoPor:
+                            s.autorizacao_pagamento_por
+                            ||
+                            null,
+
+                        reservas:
+                            arrayJson(
+                                s.reservas
+                            ),
+
+                        mensagens:
+                            arrayJson(
+                                s.mensagens
+                            )
+                    })
+                );
+
+
+            return res.json(
+                servicos
             );
 
-        return res.json(
-            servicos
-        );
 
-    } catch (err) {
-        console.error(
-            'Erro ao listar serviços:',
-            err
-        );
+        } catch (err) {
 
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao buscar serviços.'
-        });
-    }
-});
-
-
-app.get('/api/servicos/:id', async (req, res) => {
-    try {
-        const result =
-            await pool.query(
-                `
-                SELECT *
-                FROM servicos
-                WHERE id = $1
-                `,
-                [
-                    req.params.id
-                ]
+            console.error(
+                'Erro ao listar serviços:',
+                err
             );
 
-        if (!result.rows.length) {
-            return res.status(404).json({
+
+            return res.status(500).json({
                 sucesso: false,
+
                 erro:
-                    'Serviço não encontrado.'
+                    'Erro ao buscar serviços.'
             });
         }
-
-        return res.json({
-            sucesso: true,
-            servico:
-                result.rows[0]
-        });
-
-    } catch (err) {
-        console.error(
-            'Erro ao buscar serviço:',
-            err
-        );
-
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao buscar serviço.'
-        });
     }
-});
+);
+
+
+// =====================================================
+// BUSCAR UM SERVIÇO
+// =====================================================
+
+app.get(
+    '/api/servicos/:id',
+    async (req, res) => {
+
+        try {
+
+            const result =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM servicos
+
+                    WHERE id =
+                        $1
+                    `,
+                    [
+                        req.params.id
+                    ]
+                );
+
+
+            if (
+                !result.rows.length
+            ) {
+
+                return res.status(404).json({
+                    sucesso: false,
+
+                    erro:
+                        'Serviço não encontrado.'
+                });
+            }
+
+
+            return res.json({
+                sucesso: true,
+
+                servico:
+                    result.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                'Erro ao buscar serviço:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+
+                erro:
+                    'Erro ao buscar serviço.'
+            });
+        }
+    }
+);
 
 
 // =====================================================
 // PUBLICAR SERVIÇO
 // =====================================================
 
-app.post('/api/servicos', async (req, res) => {
-    const s =
-        req.body || {};
+app.post(
+    '/api/servicos',
+    async (req, res) => {
 
-    try {
-        const valorUnitario =
-            numeroBR(
-                s.valor
-            );
+        const s =
+            req.body || {};
 
-        const recorrencia =
-            String(
-                s.recorrencia
-                ||
-                'unico'
-            )
-                .trim()
-                .toLowerCase();
 
-        let valorTotal =
-            valorUnitario;
+        try {
 
-        if (
-            recorrencia ===
-            'semanal'
-        ) {
-            valorTotal =
-                valorUnitario * 4;
-        }
+            const valorUnitario =
+                numeroBR(
+                    s.valor
+                );
 
-        if (
-            recorrencia ===
-            'quinzenal'
-        ) {
-            valorTotal =
-                valorUnitario * 2;
-        }
 
-        const taxaPlataforma =
-            valorTotal * 0.10;
-
-        const valorLiquido =
-            valorTotal -
-            taxaPlataforma;
-
-        const result =
-            await pool.query(
-                `
-                INSERT INTO servicos
-                (
-                    titulo,
-                    categoria,
-                    local,
-                    endereco,
-                    valor,
-                    valor_diaria,
-                    valor_liquido,
-                    data_horario,
-                    forma_pgto,
-                    descricao,
-                    contrato_texto,
-                    empresa_email,
-                    empresa_whatsapp,
-                    empresa_nome,
-                    recorrencia,
-                    valor_total,
-                    status,
-                    reservas,
-                    mensagens,
-                    pagamento_autorizado
+            const recorrencia =
+                String(
+                    s.recorrencia
+                    ||
+                    'unico'
                 )
-                VALUES
-                (
-                    $1,$2,$3,$4,$5,
-                    $6,$7,$8,$9,$10,
-                    $11,$12,$13,$14,$15,
-                    $16,
-                    'ativo',
-                    '[]'::jsonb,
-                    '[]'::jsonb,
-                    FALSE
-                )
-                RETURNING *
-                `,
-                [
-                    s.titulo || '',
+                    .trim()
+                    .toLowerCase();
 
-                    s.categoria
-                    ||
-                    'Geral',
 
-                    s.local
-                    ||
-                    '',
+            let valorTotal =
+                valorUnitario;
 
-                    s.endereco
-                    ||
-                    '',
 
-                    String(
-                        s.valor
+            if (
+                recorrencia ===
+                'semanal'
+            ) {
+
+                valorTotal =
+                    valorUnitario * 4;
+            }
+
+
+            if (
+                recorrencia ===
+                'quinzenal'
+            ) {
+
+                valorTotal =
+                    valorUnitario * 2;
+            }
+
+
+            const taxaPlataforma =
+                valorTotal * 0.10;
+
+
+            const valorLiquido =
+                valorTotal
+                -
+                taxaPlataforma;
+
+
+            const result =
+                await pool.query(
+                    `
+                    INSERT INTO servicos
+                    (
+                        titulo,
+                        categoria,
+                        local,
+                        endereco,
+                        valor,
+                        valor_diaria,
+                        valor_liquido,
+                        data_horario,
+                        forma_pgto,
+                        descricao,
+                        contrato_texto,
+                        empresa_email,
+                        empresa_whatsapp,
+                        empresa_nome,
+                        recorrencia,
+                        valor_total,
+                        status,
+                        reservas,
+                        mensagens,
+                        pagamento_autorizado
+                    )
+
+                    VALUES
+                    (
+                        $1,$2,$3,$4,$5,
+                        $6,$7,$8,$9,$10,
+                        $11,$12,$13,$14,$15,
+                        $16,
+                        'ativo',
+                        '[]'::jsonb,
+                        '[]'::jsonb,
+                        FALSE
+                    )
+
+                    RETURNING *
+                    `,
+                    [
+                        s.titulo
                         ||
-                        valorUnitario
-                    ),
+                        '',
 
-                    valorUnitario,
-
-                    valorLiquido,
-
-                    s.horario
-                    ||
-                    s.dataHorario
-                    ||
-                    s.data_horario
-                    ||
-                    'A combinar',
-
-                    s.pagamento
-                    ||
-                    s.formaPgto
-                    ||
-                    s.forma_pgto
-                    ||
-                    'Pix',
-
-                    s.descricao
-                    ||
-                    '',
-
-                    s.contrato
-                    ||
-                    s.contratoTexto
-                    ||
-                    s.contrato_texto
-                    ||
-                    '',
-
-                    normalizarEmail(
-                        s.empresaEmail
+                        s.categoria
                         ||
-                        s.empresa_email
-                    ),
+                        'Geral',
 
-                    s.empresaWhatsapp
-                    ||
-                    s.empresa_whatsapp
-                    ||
-                    '',
+                        s.local
+                        ||
+                        '',
 
-                    s.empresaNome
-                    ||
-                    s.empresa_nome
-                    ||
-                    '',
+                        s.endereco
+                        ||
+                        '',
 
-                    recorrencia,
+                        String(
+                            s.valor
+                            ||
+                            valorUnitario
+                        ),
 
-                    valorTotal
-                ]
-            );
+                        valorUnitario,
 
-        const servico =
-            result.rows[0];
+                        valorLiquido,
 
-        await registrarLedger(
-            servico.id,
-            servico.empresa_email,
-            'RETENCAO_GARANTIA',
-            valorTotal
-        );
+                        s.horario
+                        ||
+                        s.dataHorario
+                        ||
+                        s.data_horario
+                        ||
+                        'A combinar',
 
-        await registrarAuditoria(
-            servico.empresa_email,
-            'PUBLICAR_SERVICO',
-            `Serviço #${servico.id} publicado.`
-        );
+                        s.pagamento
+                        ||
+                        s.formaPgto
+                        ||
+                        s.forma_pgto
+                        ||
+                        'Pix',
 
-        io.emit(
-            'atualizar_servicos'
-        );
+                        s.descricao
+                        ||
+                        '',
 
-        return res.json({
-            sucesso: true,
-            id:
+                        s.contrato
+                        ||
+                        s.contratoTexto
+                        ||
+                        s.contrato_texto
+                        ||
+                        '',
+
+                        normalizarEmail(
+                            s.empresaEmail
+                            ||
+                            s.empresa_email
+                        ),
+
+                        s.empresaWhatsapp
+                        ||
+                        s.empresa_whatsapp
+                        ||
+                        '',
+
+                        s.empresaNome
+                        ||
+                        s.empresa_nome
+                        ||
+                        '',
+
+                        recorrencia,
+
+                        valorTotal
+                    ]
+                );
+
+
+            const servico =
+                result.rows[0];
+
+
+            await registrarLedger(
                 servico.id,
-            servico
-        });
 
-    } catch (err) {
-        console.error(
-            'Erro ao publicar serviço:',
-            err
-        );
+                servico.empresa_email,
 
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao publicar serviço: '
-                +
-                err.message
-        });
+                'RETENCAO_GARANTIA',
+
+                valorTotal
+            );
+
+
+            await registrarAuditoria(
+                servico.empresa_email,
+
+                'PUBLICAR_SERVICO',
+
+                `Serviço #${servico.id} publicado.`
+            );
+
+
+            io.emit(
+                'atualizar_servicos'
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                id:
+                    servico.id,
+
+                servico
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                'Erro ao publicar serviço:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+
+                erro:
+                    'Erro ao publicar serviço: '
+                    +
+                    err.message
+            });
+        }
     }
-});
+);
 
 
 // =====================================================
 // CHAT DO SERVIÇO
 // =====================================================
 
-app.post('/api/servicos/:id/chat', async (req, res) => {
-    const id =
-        req.params.id;
+app.post(
+    '/api/servicos/:id/chat',
+    async (req, res) => {
 
-    const remetente =
-        req.body?.remetente
-        ||
-        req.body?.remetenteNome
-        ||
-        req.body?.email
-        ||
-        'Usuário';
+        const id =
+            req.params.id;
 
-    const texto =
-        String(
-            req.body?.texto
+
+        const remetente =
+            req.body?.remetente
             ||
-            req.body?.mensagem
+            req.body?.remetenteNome
             ||
-            ''
-        ).trim();
+            req.body?.email
+            ||
+            'Usuário';
 
-    if (!texto) {
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'Digite uma mensagem.'
-        });
-    }
 
-    try {
-        const result =
-            await pool.query(
-                `
-                SELECT mensagens
-                FROM servicos
-                WHERE id = $1
-                `,
-                [id]
-            );
+        const texto =
+            String(
+                req.body?.texto
+                ||
+                req.body?.mensagem
+                ||
+                ''
+            ).trim();
 
-        if (!result.rows.length) {
-            return res.status(404).json({
+
+        if (!texto) {
+
+            return res.status(400).json({
                 sucesso: false,
+
                 erro:
-                    'Serviço não encontrado.'
+                    'Digite uma mensagem.'
             });
         }
 
-        const mensagens =
-            arrayJson(
-                result.rows[0].mensagens
+
+        try {
+
+            const result =
+                await pool.query(
+                    `
+                    SELECT mensagens
+                    FROM servicos
+
+                    WHERE id =
+                        $1
+                    `,
+                    [
+                        id
+                    ]
+                );
+
+
+            if (
+                !result.rows.length
+            ) {
+
+                return res.status(404).json({
+                    sucesso: false,
+
+                    erro:
+                        'Serviço não encontrado.'
+                });
+            }
+
+
+            const mensagens =
+                arrayJson(
+                    result.rows[0]
+                        .mensagens
+                );
+
+
+            const novaMensagem = {
+
+                remetente,
+
+                texto,
+
+                data:
+                    new Date()
+                        .toISOString()
+            };
+
+
+            mensagens.push(
+                novaMensagem
             );
 
-        const novaMensagem = {
-            remetente,
-            texto,
-            data:
-                new Date()
-                    .toISOString()
-        };
 
-        mensagens.push(
-            novaMensagem
-        );
+            await pool.query(
+                `
+                UPDATE servicos
 
-        await pool.query(
-            `
-            UPDATE servicos
-            SET mensagens = $1::jsonb
-            WHERE id = $2
-            `,
-            [
-                JSON.stringify(
-                    mensagens
-                ),
-                id
-            ]
-        );
+                SET mensagens =
+                    $1::jsonb
 
-        io.emit(
-            'nova_mensagem',
-            {
-                servicoId:
-                    id,
+                WHERE id =
+                    $2
+                `,
+                [
+                    JSON.stringify(
+                        mensagens
+                    ),
+
+                    id
+                ]
+            );
+
+
+            io.emit(
+                'nova_mensagem',
+                {
+                    servicoId:
+                        id,
+
+                    mensagem:
+                        novaMensagem
+                }
+            );
+
+
+            io.emit(
+                'atualizar_servicos'
+            );
+
+
+            return res.json({
+                sucesso: true,
 
                 mensagem:
-                    novaMensagem
-            }
-        );
+                    novaMensagem,
 
-        io.emit(
-            'atualizar_servicos'
-        );
+                mensagens
+            });
 
-        return res.json({
-            sucesso: true,
-            mensagem:
-                novaMensagem,
-            mensagens
-        });
 
-    } catch (err) {
-        console.error(
-            'Erro no chat:',
-            err
-        );
+        } catch (err) {
 
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao enviar mensagem.'
-        });
+            console.error(
+                'Erro no chat:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+
+                erro:
+                    'Erro ao enviar mensagem.'
+            });
+        }
     }
-});
+);
 
 
 // =====================================================
@@ -1562,75 +2273,117 @@ app.post('/api/servicos/:id/chat', async (req, res) => {
 
 app.post(
     '/api/servicos/:id/nota-oficial',
-    upload.single('notaFiscal'),
+
+    upload.single(
+        'notaFiscal'
+    ),
+
     async (req, res) => {
 
         const id =
             req.params.id;
 
+
         try {
+
             const arquivo =
                 req.file;
+
 
             const dadosNota =
                 (
                     arquivo
-                        ?
-                        `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
-                        :
-                        null
+
+                        ? `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
+
+                        : null
                 )
+
                 ||
-                req.body.notaFiscal
+
+                req.body?.notaFiscal
+
                 ||
-                req.body.nota_fiscal_oficial
+
+                req.body?.nota_fiscal_oficial
+
                 ||
-                req.body.nota_oficial
+
+                req.body?.nota_oficial
+
                 ||
+
                 null;
 
+
             if (!dadosNota) {
+
                 return res.status(400).json({
                     sucesso: false,
+
                     erro:
                         'Nenhuma Nota Fiscal foi enviada.'
                 });
             }
+
 
             const existe =
                 await pool.query(
                     `
                     SELECT id
                     FROM servicos
-                    WHERE id = $1
+
+                    WHERE id =
+                        $1
                     `,
-                    [id]
+                    [
+                        id
+                    ]
                 );
 
-            if (!existe.rows.length) {
+
+            if (
+                !existe.rows.length
+            ) {
+
                 return res.status(404).json({
                     sucesso: false,
+
                     erro:
                         'Serviço não encontrado.'
                 });
             }
 
+
             const nomeArquivo =
                 arquivo?.originalname
+
                 ||
-                req.body.notaNome
+
+                req.body?.notaNome
+
                 ||
-                req.body.nota_nome
+
+                req.body?.nota_nome
+
                 ||
+
                 'nota-fiscal';
+
 
             const tipoArquivo =
                 arquivo?.mimetype
+
                 ||
-                req.body.notaTipo
+
+                req.body?.notaTipo
+
                 ||
-                req.body.nota_tipo
+
+                req.body?.nota_tipo
+
                 ||
+
                 (
                     String(
                         dadosNota
@@ -1638,48 +2391,75 @@ app.post(
                         .startsWith(
                             'data:application/pdf'
                         )
-                        ?
-                        'application/pdf'
-                        :
-                        'arquivo'
+
+                        ? 'application/pdf'
+
+                        : 'arquivo'
                 );
 
+
             const remetente =
-                req.body.notaFiscalRemetente
+                req.body?.notaFiscalRemetente
+
                 ||
-                req.body.nota_fiscal_remetente
+
+                req.body?.nota_fiscal_remetente
+
                 ||
-                req.body.usuarioNome
+
+                req.body?.usuarioNome
+
                 ||
+
                 'Usuário';
+
 
             await pool.query(
                 `
                 UPDATE servicos
+
                 SET
-                    nota_oficial = $1,
-                    nota_nome = $2,
-                    nota_tipo = $3,
-                    nota_remetente = $4,
-                    nota_enviada_em = CURRENT_TIMESTAMP
-                WHERE id = $5
+                    nota_oficial =
+                        $1,
+
+                    nota_nome =
+                        $2,
+
+                    nota_tipo =
+                        $3,
+
+                    nota_remetente =
+                        $4,
+
+                    nota_enviada_em =
+                        CURRENT_TIMESTAMP
+
+                WHERE id =
+                    $5
                 `,
                 [
                     dadosNota,
+
                     nomeArquivo,
+
                     tipoArquivo,
+
                     remetente,
+
                     id
                 ]
             );
 
+
             await adicionarMensagemSistema(
                 id,
+
                 `Nota Fiscal Oficial "${nomeArquivo}" enviada por ${remetente}.`
             );
 
+
             await registrarAuditoria(
-                req.body.usuarioEmail
+                req.body?.usuarioEmail
                 ||
                 'sistema',
 
@@ -1688,32 +2468,43 @@ app.post(
                 `Nota Fiscal ${nomeArquivo} enviada para o serviço #${id}`
             );
 
+
             io.emit(
                 'atualizar_servicos'
             );
 
+
             return res.json({
                 sucesso: true,
+
                 mensagem:
                     'Nota Fiscal enviada com sucesso!',
+
                 nota_nome:
                     nomeArquivo,
+
                 nota_tipo:
                     tipoArquivo,
+
                 nota_remetente:
                     remetente,
+
                 nota_fiscal_oficial:
                     dadosNota
             });
 
+
         } catch (err) {
+
             console.error(
                 'Erro ao enviar Nota Fiscal:',
                 err
             );
 
+
             return res.status(500).json({
                 sucesso: false,
+
                 erro:
                     'Erro interno ao processar a Nota Fiscal: '
                     +
@@ -1728,7 +2519,7 @@ app.post(
 
 
 // =====================================================
-// ENTRAR NA FILA
+// ENTRAR NA FILA / RESERVA
 // =====================================================
 
 app.post(
@@ -1774,6 +2565,7 @@ app.post(
             '';
 
         if (!prestadorEmail) {
+
             return res.status(400).json({
                 sucesso: false,
                 erro:
@@ -1785,6 +2577,7 @@ app.post(
             await pool.connect();
 
         try {
+
             await client.query(
                 'BEGIN'
             );
@@ -1801,6 +2594,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -1842,6 +2636,7 @@ app.post(
                 ||
                 servico.checkout_hora
             ) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -1862,6 +2657,7 @@ app.post(
                 empresaEmail &&
                 empresaEmail === prestadorEmail
             ) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -1882,6 +2678,7 @@ app.post(
                 titularEmail &&
                 titularEmail === prestadorEmail
             ) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -1909,6 +2706,7 @@ app.post(
                 );
 
             if (jaEstaNaFila) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -1929,8 +2727,10 @@ app.post(
                     : 3;
 
             if (
-                fila.length >= limite
+                fila.length >=
+                limite
             ) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -1968,8 +2768,12 @@ app.post(
             await client.query(
                 `
                 UPDATE servicos
-                SET reservas = $1::jsonb
-                WHERE id = $2
+
+                SET reservas =
+                    $1::jsonb
+
+                WHERE id =
+                    $2
                 `,
                 [
                     JSON.stringify(
@@ -1985,9 +2789,11 @@ app.post(
 
             await registrarAuditoria(
                 prestadorEmail,
+
                 temTitular
                     ? 'ENTRAR_RESERVA'
                     : 'ENTRAR_FILA',
+
                 `Prestador entrou no serviço #${id}.`
             );
 
@@ -2016,10 +2822,13 @@ app.post(
             });
 
         } catch (err) {
+
             try {
+
                 await client.query(
                     'ROLLBACK'
                 );
+
             } catch (_) {}
 
             console.error(
@@ -2034,6 +2843,7 @@ app.post(
             });
 
         } finally {
+
             client.release();
         }
     }
@@ -2042,6 +2852,11 @@ app.post(
 
 // =====================================================
 // ACEITAR VAGA COMO TITULAR
+//
+// REGRA CORRIGIDA:
+// - Se a vaga não possui titular, o primeiro prestador
+//   pode assumir DIRETAMENTE.
+// - Não precisa estar previamente na fila.
 // =====================================================
 
 app.post(
@@ -2079,7 +2894,15 @@ app.post(
             ||
             '';
 
+        const rgCnh =
+            req.body?.rgCnh
+            ||
+            req.body?.rg_cnh
+            ||
+            '';
+
         if (!prestadorEmail) {
+
             return res.status(400).json({
                 sucesso: false,
                 erro:
@@ -2091,6 +2914,7 @@ app.post(
             await pool.connect();
 
         try {
+
             await client.query(
                 'BEGIN'
             );
@@ -2107,6 +2931,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -2124,6 +2949,7 @@ app.post(
             if (
                 servico.prestador_email
             ) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -2131,7 +2957,28 @@ app.post(
                 return res.status(409).json({
                     sucesso: false,
                     erro:
-                        'Esta vaga já possui Titular.'
+                        'Esta vaga já possui um Titular. Você pode entrar somente como Reserva de Emergência.'
+                });
+            }
+
+            const empresaEmail =
+                normalizarEmail(
+                    servico.empresa_email
+                );
+
+            if (
+                empresaEmail &&
+                empresaEmail === prestadorEmail
+            ) {
+
+                await client.query(
+                    'ROLLBACK'
+                );
+
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'A empresa não pode assumir a própria vaga.'
                 });
             }
 
@@ -2140,59 +2987,31 @@ app.post(
                     servico.reservas
                 );
 
-            const indice =
-                fila.findIndex(
+            fila =
+                fila.filter(
                     pessoa =>
                         normalizarEmail(
                             pessoa.email
                         )
-                        ===
+                        !==
                         prestadorEmail
-                );
-
-            if (
-                indice === -1
-            ) {
-                await client.query(
-                    'ROLLBACK'
-                );
-
-                return res.status(403).json({
-                    sucesso: false,
-                    erro:
-                        'Você não está na fila desta vaga.'
-                });
-            }
-
-            if (
-                indice !== 0
-            ) {
-                await client.query(
-                    'ROLLBACK'
-                );
-
-                return res.status(403).json({
-                    sucesso: false,
-                    erro:
-                        `Você está na posição ${indice + 1}. Apenas o primeiro da fila pode assumir a vaga.`
-                });
-            }
-
-            const candidato =
-                fila[indice];
-
-            fila =
-                fila.filter(
-                    (_, i) =>
-                        i !== indice
                 );
 
             const usuario =
                 await client.query(
                     `
-                    SELECT id
+                    SELECT
+                        id,
+                        nome,
+                        whatsapp,
+                        pix,
+                        rg_cnh
+
                     FROM usuarios
-                    WHERE LOWER(email) = LOWER($1)
+
+                    WHERE LOWER(email) =
+                        LOWER($1)
+
                     LIMIT 1
                     `,
                     [
@@ -2200,10 +3019,43 @@ app.post(
                     ]
                 );
 
+            const dadosUsuario =
+                usuario.rows[0]
+                ||
+                {};
+
             const prestadorId =
-                usuario.rows[0]?.id
+                dadosUsuario.id
                 ||
                 null;
+
+            const nomeFinal =
+                prestadorNome
+                ||
+                dadosUsuario.nome
+                ||
+                prestadorEmail;
+
+            const whatsappFinal =
+                prestadorWhatsapp
+                ||
+                dadosUsuario.whatsapp
+                ||
+                '';
+
+            const pixFinal =
+                prestadorPix
+                ||
+                dadosUsuario.pix
+                ||
+                '';
+
+            const rgFinal =
+                rgCnh
+                ||
+                dadosUsuario.rg_cnh
+                ||
+                '';
 
             const atualizado =
                 await client.query(
@@ -2211,14 +3063,26 @@ app.post(
                     UPDATE servicos
 
                     SET
-                        prestador_email = $1,
-                        prestador_id = $2,
-                        prestador_nome = $3,
-                        prestador_pix = $4,
-                        prestador_whatsapp = $5,
-                        prestador_rg_cnh = $6,
+                        prestador_email =
+                            $1,
 
-                        reservas = $7::jsonb,
+                        prestador_id =
+                            $2,
+
+                        prestador_nome =
+                            $3,
+
+                        prestador_pix =
+                            $4,
+
+                        prestador_whatsapp =
+                            $5,
+
+                        prestador_rg_cnh =
+                            $6,
+
+                        reservas =
+                            $7::jsonb,
 
                         data_aceite =
                             CURRENT_TIMESTAMP,
@@ -2289,36 +3153,18 @@ app.post(
                         status =
                             'em_andamento'
 
-                    WHERE id = $8
+                    WHERE id =
+                        $8
 
                     RETURNING *
                     `,
                     [
                         prestadorEmail,
-
                         prestadorId,
-
-                        prestadorNome
-                        ||
-                        candidato.nome
-                        ||
-                        '',
-
-                        prestadorPix
-                        ||
-                        candidato.pix
-                        ||
-                        '',
-
-                        prestadorWhatsapp
-                        ||
-                        candidato.whatsapp
-                        ||
-                        '',
-
-                        candidato.rgCnh
-                        ||
-                        '',
+                        nomeFinal,
+                        pixFinal,
+                        whatsappFinal,
+                        rgFinal,
 
                         JSON.stringify(
                             fila
@@ -2334,13 +3180,15 @@ app.post(
 
             await adicionarMensagemSistema(
                 id,
-                `${prestadorNome || candidato.nome || prestadorEmail} assumiu a vaga como Titular.`
+                `${nomeFinal} assumiu a vaga como Titular.`
             );
 
             await registrarAuditoria(
                 prestadorEmail,
+
                 'ACEITAR_SERVICO',
-                `Prestador assumiu como Titular do serviço #${id}.`
+
+                `Prestador assumiu diretamente como Titular do serviço #${id}.`
             );
 
             io.emit(
@@ -2351,7 +3199,7 @@ app.post(
                 sucesso: true,
 
                 mensagem:
-                    'Você agora é o Titular desta vaga!',
+                    'Você assumiu a vaga como Titular!',
 
                 data_aceite:
                     atualizado.rows[0]
@@ -2365,24 +3213,31 @@ app.post(
             });
 
         } catch (err) {
+
             try {
+
                 await client.query(
                     'ROLLBACK'
                 );
+
             } catch (_) {}
 
             console.error(
-                'Erro ao aceitar vaga:',
+                'Erro ao assumir vaga:',
                 err
             );
 
             return res.status(500).json({
                 sucesso: false,
+
                 erro:
-                    'Erro ao aceitar a vaga.'
+                    'Erro ao assumir a vaga: '
+                    +
+                    err.message
             });
 
         } finally {
+
             client.release();
         }
     }
@@ -2391,7 +3246,7 @@ app.post(
 
 // =====================================================
 // CONFIRMAR PRESENÇA
-// FOTO TIRADA NA HORA PELO INDEX
+// FOTO ENVIADA PELO INDEX / CÂMERA AO VIVO
 // =====================================================
 
 app.post(
@@ -2423,6 +3278,7 @@ app.post(
             );
 
         try {
+
             const result =
                 await pool.query(
                     `
@@ -2434,6 +3290,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
@@ -2447,6 +3304,7 @@ app.post(
             if (
                 !servico.prestador_email
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -2463,6 +3321,7 @@ app.post(
                 !==
                 prestadorEmail
             ) {
+
                 return res.status(403).json({
                     sucesso: false,
                     erro:
@@ -2473,6 +3332,7 @@ app.post(
             if (
                 servico.presenca_confirmada
             ) {
+
                 return res.json({
                     sucesso: true,
                     mensagem:
@@ -2483,6 +3343,7 @@ app.post(
             }
 
             if (!selfie) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -2547,6 +3408,7 @@ app.post(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro ao confirmar presença:',
                 err
@@ -2610,6 +3472,7 @@ app.post(
             );
 
         try {
+
             const result =
                 await pool.query(
                     `
@@ -2621,6 +3484,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
@@ -2640,6 +3504,7 @@ app.post(
                 !==
                 prestadorEmail
             ) {
+
                 return res.status(403).json({
                     sucesso: false,
                     erro:
@@ -2650,6 +3515,7 @@ app.post(
             if (
                 !servico.presenca_confirmada
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -2660,6 +3526,7 @@ app.post(
             if (
                 servico.checkin_hora
             ) {
+
                 return res.status(409).json({
                     sucesso: false,
                     erro:
@@ -2672,6 +3539,7 @@ app.post(
             if (
                 servico.checkout_hora
             ) {
+
                 return res.status(409).json({
                     sucesso: false,
                     erro:
@@ -2680,6 +3548,7 @@ app.post(
             }
 
             if (!foto) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -2753,6 +3622,7 @@ app.post(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro no check-in:',
                 err
@@ -2788,6 +3658,7 @@ app.post(
                 );
 
         try {
+
             const result =
                 await pool.query(
                     `
@@ -2799,6 +3670,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
@@ -2812,6 +3684,7 @@ app.post(
             if (
                 !servico.checkin_hora
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -2822,6 +3695,7 @@ app.post(
             if (
                 servico.checkout_hora
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -2834,6 +3708,7 @@ app.post(
                 &&
                 !servico.intervalo_retorno
             ) {
+
                 return res.status(409).json({
                     sucesso: false,
                     erro:
@@ -2879,6 +3754,7 @@ app.post(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro ao iniciar intervalo:',
                 err
@@ -2914,6 +3790,7 @@ app.post(
                 );
 
         try {
+
             const result =
                 await pool.query(
                     `
@@ -2925,6 +3802,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
@@ -2938,6 +3816,7 @@ app.post(
             if (
                 !servico.intervalo_inicio
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -2948,6 +3827,7 @@ app.post(
             if (
                 servico.intervalo_retorno
             ) {
+
                 return res.status(409).json({
                     sucesso: false,
                     erro:
@@ -2959,9 +3839,11 @@ app.post(
                 `
                 UPDATE servicos
 
-                SET intervalo_retorno = $1
+                SET intervalo_retorno =
+                    $1
 
-                WHERE id = $2
+                WHERE id =
+                    $2
                 `,
                 [
                     hora,
@@ -2987,6 +3869,7 @@ app.post(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro ao retornar do intervalo:',
                 err
@@ -3009,13 +3892,18 @@ app.post(
 
 app.post(
     '/api/servicos/:id/checkout',
-    upload.single('fotoCheckout'),
+
+    upload.single(
+        'fotoCheckout'
+    ),
+
     async (req, res) => {
 
         const id =
             req.params.id;
 
         try {
+
             const arquivo =
                 req.file;
 
@@ -3076,6 +3964,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
@@ -3095,6 +3984,7 @@ app.post(
                 !==
                 prestadorEmail
             ) {
+
                 return res.status(403).json({
                     sucesso: false,
                     erro:
@@ -3105,6 +3995,7 @@ app.post(
             if (
                 !servico.checkin_hora
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3115,6 +4006,7 @@ app.post(
             if (
                 servico.checkout_hora
             ) {
+
                 return res.status(409).json({
                     sucesso: false,
                     erro:
@@ -3129,6 +4021,7 @@ app.post(
                 &&
                 !servico.intervalo_retorno
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3137,6 +4030,7 @@ app.post(
             }
 
             if (!foto) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3241,6 +4135,7 @@ app.post(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro no check-out:',
                 err
@@ -3255,8 +4150,8 @@ app.post(
     }
 );
 // =====================================================
-// PARTE 4 - VALIDAÇÃO, PAGAMENTO, PROMOÇÃO, SAÍDA,
-// EXCLUSÃO, STATUS, SOCKET.IO E ROTAS FINAIS
+// PARTE 4 - VALIDAÇÃO, PAGAMENTO, PROMOÇÃO,
+// SAÍDA DA VAGA, EXCLUSÃO, STATUS E SOCKET.IO
 // =====================================================
 
 
@@ -3272,6 +4167,7 @@ app.post(
             req.params.id;
 
         try {
+
             const result =
                 await pool.query(
                     `
@@ -3283,6 +4179,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
@@ -3294,6 +4191,7 @@ app.post(
                 result.rows[0];
 
             if (!servico.checkout_hora) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3302,6 +4200,7 @@ app.post(
             }
 
             if (servico.validado_empresa) {
+
                 return res.json({
                     sucesso: true,
                     mensagem:
@@ -3337,9 +4236,9 @@ app.post(
             );
 
             await registrarAuditoria(
-                req.body?.usuarioEmail
-                ||
                 req.body?.empresaEmail
+                ||
+                req.body?.usuarioEmail
                 ||
                 servico.empresa_email
                 ||
@@ -3363,6 +4262,7 @@ app.post(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro ao validar serviço:',
                 err
@@ -3418,6 +4318,7 @@ app.post(
             `autorizacao-pagamento-servico-${id}.pdf`;
 
         try {
+
             const result =
                 await pool.query(
                     `
@@ -3429,6 +4330,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
@@ -3448,6 +4350,7 @@ app.post(
                 !==
                 empresaEmail
             ) {
+
                 return res.status(403).json({
                     sucesso: false,
                     erro:
@@ -3456,6 +4359,7 @@ app.post(
             }
 
             if (!servico.checkout_hora) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3464,6 +4368,7 @@ app.post(
             }
 
             if (!servico.presenca_confirmada) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3476,6 +4381,7 @@ app.post(
                 &&
                 !servico.foto_ponto
             ) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3484,6 +4390,7 @@ app.post(
             }
 
             if (!servico.foto_checkout) {
+
                 return res.status(400).json({
                     sucesso: false,
                     erro:
@@ -3491,23 +4398,14 @@ app.post(
                 });
             }
 
-            if (
-                servico.pagamento_autorizado
-            ) {
+            if (servico.pagamento_autorizado) {
+
                 return res.json({
                     sucesso: true,
-
                     mensagem:
                         'O pagamento deste serviço já foi autorizado.',
-
                     pagamento_autorizado:
-                        true,
-
-                    autorizacao_pagamento_arquivo:
-                        servico.autorizacao_pagamento_arquivo,
-
-                    autorizacao_pagamento_nome:
-                        servico.autorizacao_pagamento_nome
+                        true
                 });
             }
 
@@ -3561,7 +4459,7 @@ app.post(
 
             await adicionarMensagemSistema(
                 id,
-                'A empresa autorizou o pagamento do serviço.'
+                'A empresa autorizou o pagamento deste serviço.'
             );
 
             await registrarAuditoria(
@@ -3593,18 +4491,16 @@ app.post(
 
             return res.json({
                 sucesso: true,
-
                 mensagem:
                     'Pagamento autorizado com sucesso!',
-
                 pagamento_autorizado:
                     true,
-
                 servico:
                     atualizado.rows[0]
             });
 
         } catch (err) {
+
             console.error(
                 'Erro ao autorizar pagamento:',
                 err
@@ -3621,419 +4517,7 @@ app.post(
 
 
 // =====================================================
-// EMPRESA ENVIA CONTRATO
-// =====================================================
-
-app.post(
-    '/api/servicos/:id/contrato-empresa',
-    upload.single('contratoEmpresa'),
-    async (req, res) => {
-
-        const id =
-            req.params.id;
-
-        try {
-            const arquivo =
-                req.file;
-
-            const dadosArquivo =
-                (
-                    arquivo
-                        ? `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
-                        : null
-                )
-                ||
-                req.body?.contratoEmpresa
-                ||
-                req.body?.contrato_empresa_arquivo
-                ||
-                null;
-
-            if (!dadosArquivo) {
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'Nenhum contrato foi enviado.'
-                });
-            }
-
-            const result =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM servicos
-                    WHERE id = $1
-                    `,
-                    [id]
-                );
-
-            if (!result.rows.length) {
-                return res.status(404).json({
-                    sucesso: false,
-                    erro:
-                        'Serviço não encontrado.'
-                });
-            }
-
-            const servico =
-                result.rows[0];
-
-            const nomeArquivo =
-                arquivo?.originalname
-                ||
-                req.body?.contratoNome
-                ||
-                req.body?.contrato_nome
-                ||
-                'contrato-empresa';
-
-            const tipoArquivo =
-                arquivo?.mimetype
-                ||
-                req.body?.contratoTipo
-                ||
-                req.body?.contrato_tipo
-                ||
-                'arquivo';
-
-            await pool.query(
-                `
-                UPDATE servicos
-
-                SET
-                    contrato_empresa_arquivo =
-                        $1,
-
-                    contrato_empresa_nome =
-                        $2,
-
-                    contrato_empresa_tipo =
-                        $3,
-
-                    contrato_empresa_enviado_em =
-                        CURRENT_TIMESTAMP
-
-                WHERE id =
-                    $4
-                `,
-                [
-                    dadosArquivo,
-                    nomeArquivo,
-                    tipoArquivo,
-                    id
-                ]
-            );
-
-            await adicionarMensagemSistema(
-                id,
-                `A empresa enviou o contrato "${nomeArquivo}".`
-            );
-
-            await registrarAuditoria(
-                req.body?.usuarioEmail
-                ||
-                req.body?.empresaEmail
-                ||
-                servico.empresa_email
-                ||
-                'empresa',
-
-                'ENVIO_CONTRATO_EMPRESA',
-
-                `Contrato enviado no serviço #${id}.`
-            );
-
-            io.emit(
-                'atualizar_servicos'
-            );
-
-            return res.json({
-                sucesso: true,
-                mensagem:
-                    'Contrato enviado com sucesso!',
-                contrato_nome:
-                    nomeArquivo
-            });
-
-        } catch (err) {
-            console.error(
-                'Erro ao enviar contrato:',
-                err
-            );
-
-            return res.status(500).json({
-                sucesso: false,
-                erro:
-                    'Erro ao enviar contrato.'
-            });
-        }
-    }
-);
-
-
-// =====================================================
-// COMPROVANTE DE PAGAMENTO
-// =====================================================
-
-app.post(
-    '/api/servicos/:id/comprovante-pagamento',
-    upload.single('comprovantePagamento'),
-    async (req, res) => {
-
-        const id =
-            req.params.id;
-
-        try {
-            const arquivo =
-                req.file;
-
-            const dadosArquivo =
-                (
-                    arquivo
-                        ? `data:${arquivo.mimetype};base64,${arquivo.buffer.toString('base64')}`
-                        : null
-                )
-                ||
-                req.body?.comprovantePagamento
-                ||
-                req.body?.comprovante_pagamento_arquivo
-                ||
-                null;
-
-            if (!dadosArquivo) {
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'Nenhum comprovante foi enviado.'
-                });
-            }
-
-            const result =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM servicos
-                    WHERE id = $1
-                    `,
-                    [id]
-                );
-
-            if (!result.rows.length) {
-                return res.status(404).json({
-                    sucesso: false,
-                    erro:
-                        'Serviço não encontrado.'
-                });
-            }
-
-            const servico =
-                result.rows[0];
-
-            if (
-                !servico.pagamento_autorizado
-            ) {
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'O pagamento ainda não foi autorizado.'
-                });
-            }
-
-            const nomeArquivo =
-                arquivo?.originalname
-                ||
-                req.body?.comprovanteNome
-                ||
-                req.body?.comprovante_nome
-                ||
-                'comprovante-pagamento';
-
-            const tipoArquivo =
-                arquivo?.mimetype
-                ||
-                req.body?.comprovanteTipo
-                ||
-                req.body?.comprovante_tipo
-                ||
-                'arquivo';
-
-            await pool.query(
-                `
-                UPDATE servicos
-
-                SET
-                    comprovante_pagamento =
-                        TRUE,
-
-                    comprovante_pagamento_arquivo =
-                        $1,
-
-                    comprovante_pagamento_nome =
-                        $2,
-
-                    comprovante_pagamento_tipo =
-                        $3,
-
-                    comprovante_pagamento_enviado_em =
-                        CURRENT_TIMESTAMP,
-
-                    pagamento_recebido_confirmado =
-                        FALSE,
-
-                    pagamento_recebido_em =
-                        NULL,
-
-                    status =
-                        'pago'
-
-                WHERE id =
-                    $4
-                `,
-                [
-                    dadosArquivo,
-                    nomeArquivo,
-                    tipoArquivo,
-                    id
-                ]
-            );
-
-            await adicionarMensagemSistema(
-                id,
-                `Comprovante de pagamento "${nomeArquivo}" enviado ao prestador.`
-            );
-
-            io.emit(
-                'atualizar_servicos'
-            );
-
-            return res.json({
-                sucesso: true,
-                mensagem:
-                    'Comprovante enviado com sucesso!'
-            });
-
-        } catch (err) {
-            console.error(
-                'Erro ao enviar comprovante:',
-                err
-            );
-
-            return res.status(500).json({
-                sucesso: false,
-                erro:
-                    'Erro ao enviar comprovante.'
-            });
-        }
-    }
-);
-
-
-// =====================================================
-// PRESTADOR CONFIRMA RECEBIMENTO
-// =====================================================
-
-app.post(
-    '/api/servicos/:id/confirmar-recebimento',
-    async (req, res) => {
-
-        const id =
-            req.params.id;
-
-        try {
-            const result =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM servicos
-                    WHERE id = $1
-                    `,
-                    [id]
-                );
-
-            if (!result.rows.length) {
-                return res.status(404).json({
-                    sucesso: false,
-                    erro:
-                        'Serviço não encontrado.'
-                });
-            }
-
-            const servico =
-                result.rows[0];
-
-            if (
-                !servico.comprovante_pagamento_arquivo
-            ) {
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'A empresa ainda não enviou o comprovante de pagamento.'
-                });
-            }
-
-            if (
-                servico.pagamento_recebido_confirmado
-            ) {
-                return res.json({
-                    sucesso: true,
-                    mensagem:
-                        'O recebimento já foi confirmado.'
-                });
-            }
-
-            await pool.query(
-                `
-                UPDATE servicos
-
-                SET
-                    pagamento_recebido_confirmado =
-                        TRUE,
-
-                    pagamento_recebido_em =
-                        CURRENT_TIMESTAMP,
-
-                    status =
-                        'concluido_com_sucesso'
-
-                WHERE id =
-                    $1
-                `,
-                [id]
-            );
-
-            await adicionarMensagemSistema(
-                id,
-                `${req.body?.prestadorNome || servico.prestador_nome || 'O prestador'} confirmou o recebimento do pagamento.`
-            );
-
-            io.emit(
-                'atualizar_servicos'
-            );
-
-            return res.json({
-                sucesso: true,
-                mensagem:
-                    'Recebimento confirmado com sucesso!'
-            });
-
-        } catch (err) {
-            console.error(
-                'Erro ao confirmar recebimento:',
-                err
-            );
-
-            return res.status(500).json({
-                sucesso: false,
-                erro:
-                    'Erro ao confirmar recebimento.'
-            });
-        }
-    }
-);
-
-
-// =====================================================
-// PROMOVER RESERVA PARA TITULAR
+// PROMOVER RESERVA
 // =====================================================
 
 app.post(
@@ -4053,10 +4537,11 @@ app.post(
             );
 
         if (!emailReserva) {
+
             return res.status(400).json({
                 sucesso: false,
                 erro:
-                    'E-mail da reserva não informado.'
+                    'E-mail do reserva não informado.'
             });
         }
 
@@ -4064,6 +4549,7 @@ app.post(
             await pool.connect();
 
         try {
+
             await client.query(
                 'BEGIN'
             );
@@ -4080,6 +4566,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -4110,6 +4597,7 @@ app.post(
                 );
 
             if (indice === -1) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -4130,25 +4618,6 @@ app.post(
                         i !== indice
                 );
 
-            const usuario =
-                await client.query(
-                    `
-                    SELECT id
-                    FROM usuarios
-                    WHERE LOWER(email) =
-                        LOWER($1)
-                    LIMIT 1
-                    `,
-                    [
-                        novoTitular.email
-                    ]
-                );
-
-            const novoPrestadorId =
-                usuario.rows[0]?.id
-                ||
-                null;
-
             await client.query(
                 `
                 UPDATE servicos
@@ -4157,23 +4626,20 @@ app.post(
                     prestador_email =
                         $1,
 
-                    prestador_id =
+                    prestador_nome =
                         $2,
 
-                    prestador_nome =
+                    prestador_whatsapp =
                         $3,
 
                     prestador_pix =
                         $4,
 
-                    prestador_whatsapp =
+                    prestador_rg_cnh =
                         $5,
 
-                    prestador_rg_cnh =
-                        $6,
-
                     reservas =
-                        $7::jsonb,
+                        $6::jsonb,
 
                     data_aceite =
                         CURRENT_TIMESTAMP,
@@ -4182,9 +4648,6 @@ app.post(
                         FALSE,
 
                     selfie_confirmacao =
-                        NULL,
-
-                    documento_comprovante =
                         NULL,
 
                     status_checkin =
@@ -4205,73 +4668,21 @@ app.post(
                     foto_checkout =
                         NULL,
 
-                    checkin_gps =
-                        NULL,
-
-                    checkout_gps =
-                        NULL,
-
-                    intervalo_inicio =
-                        NULL,
-
-                    intervalo_retorno =
-                        NULL,
-
-                    total_horas =
-                        NULL,
-
-                    validado_empresa =
-                        FALSE,
-
-                    validado_em =
-                        NULL,
-
-                    pagamento_autorizado =
-                        FALSE,
-
-                    autorizacao_pagamento_arquivo =
-                        NULL,
-
-                    autorizacao_pagamento_nome =
-                        NULL,
-
-                    autorizacao_pagamento_em =
-                        NULL,
-
-                    autorizacao_pagamento_por =
-                        NULL,
-
                     status =
                         'em_andamento'
 
                 WHERE id =
-                    $8
+                    $7
                 `,
                 [
                     novoTitular.email,
-
-                    novoPrestadorId,
-
-                    novoTitular.nome
-                    ||
-                    '',
-
-                    novoTitular.pix
-                    ||
-                    '',
-
-                    novoTitular.whatsapp
-                    ||
-                    '',
-
-                    novoTitular.rgCnh
-                    ||
-                    '',
-
+                    novoTitular.nome || '',
+                    novoTitular.whatsapp || '',
+                    novoTitular.pix || '',
+                    novoTitular.rgCnh || '',
                     JSON.stringify(
                         fila
                     ),
-
                     id
                 ]
             );
@@ -4292,13 +4703,14 @@ app.post(
             return res.json({
                 sucesso: true,
                 mensagem:
-                    `${novoTitular.nome || novoTitular.email} agora é o Titular da vaga.`,
+                    `${novoTitular.nome || novoTitular.email} agora é o Titular.`,
                 novoTitular,
                 reservasRestantes:
                     fila
             });
 
         } catch (err) {
+
             try {
                 await client.query(
                     'ROLLBACK'
@@ -4317,6 +4729,7 @@ app.post(
             });
 
         } finally {
+
             client.release();
         }
     }
@@ -4324,8 +4737,7 @@ app.post(
 
 
 // =====================================================
-// SUBSTITUIÇÃO AUTOMÁTICA APÓS 30 MINUTOS
-// COMPATIBILIDADE COM O INDEX
+// SUBSTITUIÇÃO AUTOMÁTICA DO TITULAR
 // =====================================================
 
 app.post(
@@ -4340,20 +4752,28 @@ app.post(
             );
 
         try {
+
             const result =
                 await pool.query(
                     `
                     SELECT *
                     FROM servicos
+
                     WHERE LOWER(prestador_email) =
                         LOWER($1)
-                    ORDER BY data_aceite DESC NULLS LAST
+
+                    ORDER BY data_aceite DESC
+                    NULLS LAST
+
                     LIMIT 1
                     `,
-                    [titularAtualId]
+                    [
+                        titularAtualId
+                    ]
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     mensagem:
@@ -4370,6 +4790,7 @@ app.post(
                 );
 
             if (!fila.length) {
+
                 return res.status(409).json({
                     sucesso: false,
                     mensagem:
@@ -4439,7 +4860,7 @@ app.post(
 
             await adicionarMensagemSistema(
                 servico.id,
-                `${novoTitular.nome || novoTitular.email} foi promovido automaticamente após expiração do prazo do Titular anterior.`
+                `${novoTitular.nome || novoTitular.email} foi promovido automaticamente após o prazo do titular anterior.`
             );
 
             io.emit(
@@ -4454,6 +4875,7 @@ app.post(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro na substituição automática:',
                 err
@@ -4462,7 +4884,7 @@ app.post(
             return res.status(500).json({
                 sucesso: false,
                 mensagem:
-                    'Erro interno ao substituir prestador.'
+                    'Erro ao substituir prestador.'
             });
         }
     }
@@ -4488,6 +4910,7 @@ app.post(
             );
 
         if (!prestadorEmail) {
+
             return res.status(400).json({
                 sucesso: false,
                 erro:
@@ -4499,6 +4922,7 @@ app.post(
             await pool.connect();
 
         try {
+
             await client.query(
                 'BEGIN'
             );
@@ -4515,6 +4939,7 @@ app.post(
                 );
 
             if (!result.rows.length) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -4534,6 +4959,7 @@ app.post(
                 ||
                 servico.pagamento_autorizado
             ) {
+
                 await client.query(
                     'ROLLBACK'
                 );
@@ -4541,7 +4967,7 @@ app.post(
                 return res.status(409).json({
                     sucesso: false,
                     erro:
-                        'Não é possível sair desta vaga porque o serviço já foi realizado ou entrou em pagamento.'
+                        'Não é possível sair porque este serviço já foi realizado ou entrou em pagamento.'
                 });
             }
 
@@ -4560,9 +4986,14 @@ app.post(
                         prestadorEmail
                 );
 
+            // =============================================
+            // É RESERVA
+            // =============================================
+
             if (
                 indiceReserva !== -1
             ) {
+
                 const removido =
                     fila[indiceReserva];
 
@@ -4575,8 +5006,12 @@ app.post(
                 await client.query(
                     `
                     UPDATE servicos
-                    SET reservas = $1::jsonb
-                    WHERE id = $2
+
+                    SET reservas =
+                        $1::jsonb
+
+                    WHERE id =
+                        $2
                     `,
                     [
                         JSON.stringify(
@@ -4608,6 +5043,10 @@ app.post(
                 });
             }
 
+            // =============================================
+            // É TITULAR
+            // =============================================
+
             if (
                 normalizarEmail(
                     servico.prestador_email
@@ -4615,9 +5054,11 @@ app.post(
                 ===
                 prestadorEmail
             ) {
+
                 if (
                     fila.length > 0
                 ) {
+
                     const novoTitular =
                         fila[0];
 
@@ -4663,6 +5104,15 @@ app.post(
                                 NULL,
 
                             checkout_hora =
+                                NULL,
+
+                            foto_ponto =
+                                NULL,
+
+                            foto_checkin =
+                                NULL,
+
+                            foto_checkout =
                                 NULL,
 
                             status =
@@ -4714,10 +5164,10 @@ app.post(
                     UPDATE servicos
 
                     SET
-                        prestador_email =
+                        prestador_id =
                             NULL,
 
-                        prestador_id =
+                        prestador_email =
                             NULL,
 
                         prestador_nome =
@@ -4768,6 +5218,24 @@ app.post(
                         checkout_gps =
                             NULL,
 
+                        intervalo_inicio =
+                            NULL,
+
+                        intervalo_retorno =
+                            NULL,
+
+                        total_horas =
+                            NULL,
+
+                        validado_empresa =
+                            FALSE,
+
+                        validado_em =
+                            NULL,
+
+                        pagamento_autorizado =
+                            FALSE,
+
                         status =
                             'ativo'
 
@@ -4812,6 +5280,7 @@ app.post(
             });
 
         } catch (err) {
+
             try {
                 await client.query(
                     'ROLLBACK'
@@ -4830,6 +5299,7 @@ app.post(
             });
 
         } finally {
+
             client.release();
         }
     }
@@ -4848,33 +5318,28 @@ app.delete(
             req.params.id;
 
         try {
+
             const result =
                 await pool.query(
                     `
                     DELETE FROM servicos
-                    WHERE id = $1
+
+                    WHERE id =
+                        $1
+
                     RETURNING id
                     `,
                     [id]
                 );
 
             if (!result.rows.length) {
+
                 return res.status(404).json({
                     sucesso: false,
                     erro:
                         'Serviço não encontrado.'
                 });
             }
-
-            await registrarAuditoria(
-                req.body?.usuarioEmail
-                ||
-                'sistema',
-
-                'DELETAR_SERVICO',
-
-                `Serviço #${id} removido.`
-            );
 
             io.emit(
                 'atualizar_servicos'
@@ -4887,6 +5352,7 @@ app.delete(
             });
 
         } catch (err) {
+
             console.error(
                 'Erro ao excluir serviço:',
                 err
@@ -4903,7 +5369,7 @@ app.delete(
 
 
 // =====================================================
-// STATUS DO SERVIDOR
+// STATUS
 // =====================================================
 
 app.get(
@@ -4911,6 +5377,7 @@ app.get(
     async (req, res) => {
 
         try {
+
             await pool.query(
                 'SELECT 1'
             );
@@ -4926,6 +5393,7 @@ app.get(
             });
 
         } catch (err) {
+
             return res.status(500).json({
                 sucesso: false,
                 servidor:
@@ -4956,6 +5424,7 @@ io.on(
         socket.on(
             'disconnect',
             () => {
+
                 console.log(
                     'Cliente desconectado:',
                     socket.id
@@ -4967,28 +5436,26 @@ io.on(
 
 
 // =====================================================
-// INDEX.HTML
+// INDEX
 // =====================================================
 
 app.get(
     '/',
     (req, res) => {
 
-        return res
-            .status(200)
-            .sendFile(
-                path.join(
-                    __dirname,
-                    'index.html'
-                )
-            );
+        return res.sendFile(
+            path.join(
+                __dirname,
+                'index.html'
+            )
+        );
     }
 );
 
 
 // =====================================================
 // API 404
-// DEVE SER A ÚLTIMA ROTA DA API
+// TEM QUE FICAR POR ÚLTIMO
 // =====================================================
 
 app.use(
@@ -5009,7 +5476,7 @@ app.use(
 
 
 // =====================================================
-// TRATAMENTO DE ERROS
+// ERRO GLOBAL
 // =====================================================
 
 app.use(
@@ -5024,22 +5491,10 @@ app.use(
             err instanceof
             multer.MulterError
         ) {
-            if (
-                err.code ===
-                'LIMIT_FILE_SIZE'
-            ) {
-                return res.status(413).json({
-                    sucesso: false,
-                    erro:
-                        'Arquivo muito grande. Limite máximo: 50 MB.'
-                });
-            }
 
             return res.status(400).json({
                 sucesso: false,
                 erro:
-                    'Erro no upload: '
-                    +
                     err.message
             });
         }
