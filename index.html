@@ -483,27 +483,27 @@
         <div id="secao-auth" class="split-container no-print">
             <div class="hero-section">
                 <h1>Bem-vindo ao <span>RS Connect</span></h1>
-                <p>Plataforma inteligente que conecta empresas a prestadores de serviços com preenchimento em escala: 1 vaga titular e até 2 vagas de reserva/emergência na fila de espera[cite: 1].</p>
+                <p>Plataforma inteligente que conecta empresas a prestadores de serviços com preenchimento em escala: 1 vaga titular e até 2 vagas de reserva/emergência na fila de espera.</p>
                 
                 <div class="feature-box">
                     <div class="feature-icon">👥</div>
                     <div class="feature-text">
                         <h4>Vaga Titular + 2 Reservas de Emergência</h4>
-                        <p>Até 3 profissionais podem se cadastrar por vaga: o 1º assume como titular e o 2º e 3º ficam na fila de emergência prontos para acionamento[cite: 1].</p>
+                        <p>Até 3 profissionais podem se cadastrar por vaga: o 1º assume como titular e o 2º e 3º ficam na fila de emergência prontos para acionamento.</p>
                     </div>
                 </div>
                 <div class="feature-box">
                     <div class="feature-icon">📄</div>
                     <div class="feature-text">
                         <h4>Notas Fiscais & Comprovantes</h4>
-                        <p>Recibo interno do sistema e upload de Nota Fiscal Oficial (MEI / Prefeitura) integrado[cite: 1].</p>
+                        <p>Recibo interno do sistema e upload de Nota Fiscal Oficial (MEI / Prefeitura) integrado.</p>
                     </div>
                 </div>
                 <div class="feature-box">
                     <div class="feature-icon">📍</div>
                     <div class="feature-text">
                         <h4>Geolocalização em Tempo Real</h4>
-                        <p>Acompanhamento de check-in e check-out com coordenadas GPS e fotos[cite: 1].</p>
+                        <p>Acompanhamento de check-in e check-out com coordenadas GPS e fotos.</p>
                     </div>
                 </div>
             </div>
@@ -640,7 +640,7 @@
             </div>
 
             <div id="painel-empresa" class="hidden no-print" style="margin-bottom: 30px; background: #f8fafc; padding: 22px; border-radius: 12px; border: 1px solid var(--border);">
-                <h2>🛠️ Publicar Novo Serviço no Radar (1 Titular + 2 Reservas)[cite: 1]</h2>
+                <h2>🛠️ Publicar Novo Serviço no Radar (1 Titular + 2 Reservas)</h2>
                 <form onsubmit="publicarServico(event)">
                     <div class="grid-duplo">
                         <div class="form-group">
@@ -732,13 +732,13 @@ CLÁUSULA NONA – DO FORO: Fica eleito o foro competente nos termos da legisla�
 
 CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PRESTADOR declara que teve acesso às condições da contratação, ao valor do serviço, às obrigações assumidas e às demais informações apresentadas, manifestando sua concordância de forma livre e consciente. O registro eletrônico do aceite, juntamente com os demais registros da contratação, integrará o histórico da prestação de serviço.</textarea>
                     </div>
-                    <button type="submit" class="btn-success">🔒 Validar Garantia e Publicar (1 Titular + 2 Reservas)[cite: 1]</button>
+                    <button type="submit" class="btn-success">🔒 Validar Garantia e Publicar (1 Titular + 2 Reservas)</button>
                 </form>
             </div>
 
             <div id="painel-gestor-trabalhadores" class="rs-gestor-section no-print hidden">
-                <h2 style="font-size: 18px; margin-top: 0; color: var(--primary);">📋 Gestão de Titular e Fila de Emergência (Até 3 Inscritos)[cite: 1]</h2>
-                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Visualização do trabalhador titular e dos 2 reservas na escala de plantão[cite: 1].</p>
+                <h2 style="font-size: 18px; margin-top: 0; color: var(--primary);">📋 Gestão de Titular e Fila de Emergência (Até 3 Inscritos)</h2>
+                <p style="font-size: 12px; color: var(--text-light); margin-bottom: 15px;">Visualização do trabalhador titular e dos 2 reservas na escala de plantão.</p>
                 
                 <div class="form-group">
                     <input type="text" id="searchWorker" placeholder="🔍 Pesquisar pelo nome completo do trabalhador..." onkeyup="filtrarTrabalhadoresGestor()">
@@ -963,6 +963,24 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         const socket = io();
         let usuarioLogado = JSON.parse(localStorage.getItem('rs_usuario')) || null;
 
+        // =====================================================
+        // COMPARAÇÃO SEGURA DE E-MAIL
+        // Evita o sistema confundir Titular com Reserva quando
+        // houver espaços ou letras maiúsculas/minúsculas.
+        // =====================================================
+        function emailRS(valor) {
+            return String(valor || '')
+                .trim()
+                .toLowerCase();
+        }
+
+        function mesmoEmailRS(a, b) {
+            const emailA = emailRS(a);
+            const emailB = emailRS(b);
+
+            return !!emailA && !!emailB && emailA === emailB;
+        }
+
         document.addEventListener("DOMContentLoaded", () => {
             verificarEstadoSessao();
             carregarServicos();
@@ -1111,7 +1129,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     widgetEmpresaInfo.classList.add('hidden');
                     widgetCarteira.classList.remove('hidden');
                     painelGestorTrabalhadores.classList.add('hidden');
-                    document.getElementById('titulo-radar').innerText = "📡 Radar de Vagas Disponíveis (Titular e Reservas)[cite: 1]";
+                    document.getElementById('titulo-radar').innerText = "📡 Radar de Vagas Disponíveis (Titular e Reservas)";
                 }
             } else {
                 secaoAuth.classList.remove('hidden');
@@ -1154,7 +1172,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 });
                 const data = await res.json();
                 if (res.ok && data.sucesso) {
-                    alert('✅ Vaga publicada com sistema de 1 titular e até 2 reservas de emergência![cite: 1]');
+                    alert('✅ Vaga publicada com sistema de 1 titular e até 2 reservas de emergência!');
                     document.getElementById('srv-titulo').value = '';
                     document.getElementById('srv-local').value = '';
                     document.getElementById('srv-endereco').value = '';
@@ -1306,10 +1324,10 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             } else {
                 const meusServicos = (servicos || []).filter(s => {
                     const reservas = s.reservas || [];
-                    return s.prestador_email === usuarioLogado.email || reservas.some(r => r.email === usuarioLogado.email);
+                    return mesmoEmailRS(s.prestador_email, usuarioLogado.email) || reservas.some(r => mesmoEmailRS(r.email, usuarioLogado.email));
                 });
 
-                const ativos = meusServicos.filter(s => s.prestador_email === usuarioLogado.email);
+                const ativos = meusServicos.filter(s => mesmoEmailRS(s.prestador_email, usuarioLogado.email));
                 if (!ativos.length) {
                     ponto.innerHTML = '<div class="jornada-vazia">Você ainda não possui uma vaga titular ativa para registrar a jornada.</div>';
                     return;
@@ -1368,8 +1386,8 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                 if (usuarioLogado && usuarioLogado.tipo === 'prestador') {
                     servicos.forEach(s => {
                         const listaReservas = s.reservas || [];
-                        const souTitular = (s.prestador_email === usuarioLogado.email);
-                        const souReserva = listaReservas.some(r => r.email === usuarioLogado.email);
+                        const souTitular = mesmoEmailRS(s.prestador_email, usuarioLogado.email);
+                        const souReserva = listaReservas.some(r => mesmoEmailRS(r.email, usuarioLogado.email));
                         if ((souTitular || souReserva) && s.comprovante_pagamento) {
                             saldoTotal += parseFloat(s.valor.toString().replace(',', '.')) || 0;
                         }
@@ -1411,7 +1429,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             trTitular.setAttribute('data-titular-id', s.prestador_email || s.id);
                             trTitular.innerHTML = `
                                 <td><strong>${s.prestador_nome}</strong><br><small style="color:var(--text-light);">Aceite: ${s.data_aceite || 'Registrado'}</small></td>
-                                <td><span class="badge titular">⭐ Vaga Principal (Titular)[cite: 1]</span></td>
+                                <td><span class="badge titular">⭐ Vaga Principal (Titular)</span></td>
                                 <td>${s.titulo} (${s.local})</td>
                                 <td>${s.empresa_nome || usuarioLogado.nome}</td>
                                 <td>R$ ${s.valor}</td>
@@ -1428,7 +1446,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             const trReserva = document.createElement('tr');
                             trReserva.innerHTML = `
                                 <td><strong>${r.nome}</strong><br><small style="color:var(--text-light);">Contato: ${r.whatsapp || 'N/D'}</small></td>
-                                <td><span class="badge reserva">🔄 Reserva ${idx + 1} (Emergência)[cite: 1]</span></td>
+                                <td><span class="badge reserva">🔄 Reserva ${idx + 1} (Emergência)</span></td>
                                 <td>${s.titulo} (${s.local})</td>
                                 <td>${s.empresa_nome || usuarioLogado.nome}</td>
                                 <td>R$ ${s.valor}</td>
@@ -1446,8 +1464,8 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     card.className = 'card-chamado';
                     card.id = 'servico-card-' + s.id;
                     
-                    const souTitular = usuarioLogado.tipo === 'prestador' && s.prestador_email === usuarioLogado.email;
-                    const reservaObj = reservas.find(r => r.email === usuarioLogado.email);
+                    const souTitular = usuarioLogado.tipo === 'prestador' && mesmoEmailRS(s.prestador_email, usuarioLogado.email);
+                    const reservaObj = reservas.find(r => mesmoEmailRS(r.email, usuarioLogado.email));
                     const souReserva = !!reservaObj;
                     const jaCadastrado = souTitular || souReserva;
 
@@ -1488,7 +1506,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         const mensagensFiltradas = (s.mensagens || []).filter(m => {
                             const remetenteEmail = (m.email || '').trim().toLowerCase();
                             if (!remetenteEmail) return true;
-                            return remetenteEmail === empresaEmailServico || remetenteEmail === (s.prestador_email || '').trim().toLowerCase() || reservas.some(r => r.email.trim().toLowerCase() === remetenteEmail);
+                            return remetenteEmail === empresaEmailServico || remetenteEmail === (s.prestador_email || '').trim().toLowerCase() || reservas.some(r => emailRS(r.email) === remetenteEmail);
                         });
 
                         blocoChatHTML = `
@@ -1517,22 +1535,22 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         </div>
                         <p style="margin:4px 0; font-size:13px;">📍 <strong>Local:</strong> ${s.local} - <a href="${linkGoogleMaps}" target="_blank" style="color:var(--accent); text-decoration:underline; font-weight:600;">🗺️ Ver no Mapa (${s.endereco})</a></p>
                         <p style="margin:4px 0; font-size:13px;">📝 <strong>Descrição:</strong> ${s.descricao}</p>
-                        <p style="margin:4px 0 10px 0; font-size:13px;">👥 <strong>Vagas Preenchidas:</strong> <span style="font-weight:bold; color:var(--accent);">${totalInscritos} / 3</span> (1 Titular + 2 Reservas de Emergência)[cite: 1]</p>
+                        <p style="margin:4px 0 10px 0; font-size:13px;">👥 <strong>Vagas Preenchidas:</strong> <span style="font-weight:bold; color:var(--accent);">${totalInscritos} / 3</span> (1 Titular + 2 Reservas de Emergência)</p>
                         
                         ${s.prestador_nome ? `
                             <div class="detalhes-box">
-                                <strong>⭐ Titular da Vaga[cite: 1]:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
+                                <strong>⭐ Titular da Vaga:</strong> ${s.prestador_nome} ${souTitular ? '(Você)' : ''} | <strong>Zap:</strong> ${s.prestador_whatsapp || 'N/D'}
                                 ${estaConfirmado ? `<br><span style="color:var(--success); font-weight:bold;">🟢 Presença Confirmada (Titular Presente)</span>` : `<br><span style="color:var(--warning); font-weight:bold;">⏳ Presença Pendente de Confirmação</span>`}
                                 ${s.contrato_assinado && souTitular ? `<br><span style="color:var(--success); font-weight:bold;">✔ Contrato Assinado & Validado gov.br</span>` : ''}
                                 ${blocoFotosHTML}
                             </div>
-                        ` : '<div class="detalhes-box">⭐ <strong>Titular da Vaga[cite: 1]:</strong> Disponível para o 1º candidato!</div>'}
+                        ` : '<div class="detalhes-box">⭐ <strong>Titular da Vaga:</strong> Disponível para o 1º candidato!</div>'}
 
                         ${reservas.length > 0 ? `
                             <div class="detalhes-box" style="background:#fefce8;">
-                                <strong>🔄 Fila de Reserva / Emergência (Até 2)[cite: 1]:</strong>
+                                <strong>🔄 Fila de Reserva / Emergência (Até 2):</strong>
                                 <ul style="margin:4px 0 0 15px; padding:0; font-size:12px;">
-                                    ${reservas.map((r, i) => `<li>Reserva ${i+1}[cite: 1]: <b>${r.nome}</b> ${r.email === usuarioLogado.email ? '(Você)' : ''}</li>`).join('')}
+                                    ${reservas.map((r, i) => `<li>Reserva ${i+1}: <b>${r.nome}</b> ${mesmoEmailRS(r.email, usuarioLogado.email) ? '(Você)' : ''}</li>`).join('')}
                                 </ul>
                             </div>
                         ` : ''}
@@ -1589,7 +1607,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             </div>
                         ` : ''}
 
-                        ${usuarioLogado.tipo === 'prestador' && !jaCadastrado && !vagaLotada ? `
+                        ${usuarioLogado.tipo === 'prestador' && !souTitular && !souReserva && !jaCadastrado && !vagaLotada ? `
                             <div class="contrato-box">
                                 <h2>Gestão de Contratos</h2>
                                 <p style="font-size: 12px; color: var(--text-light); margin-bottom: 12px;">Baixe seu contrato, assine utilizando o portal oficial do governo e envie o arquivo assinado abaixo.</p>
@@ -1607,7 +1625,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             </div>
                         ` : ''}
 
-                        ${usuarioLogado.tipo === 'prestador' && vagaLotada && !jaCadastrado ? `
+                        ${usuarioLogado.tipo === 'prestador' && !souTitular && !souReserva && vagaLotada && !jaCadastrado ? `
                             <div style="background:#fce8e6; padding:10px; border-radius:8px; font-size:12px; color:var(--danger); text-align:center; margin-top:10px;">
                                 ❌ Vaga Lotada (1 Titular e 2 Reservas já cadastrados).
                             </div>
@@ -1638,9 +1656,9 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
                         ${souTitular && !estaConfirmado ? `
                             <div style="background:#fffbeb; border:1px solid #fde68a; padding:15px; border-radius:10px; margin-top:12px;">
-                                <h4 style="margin:0 0 8px 0; color:#d97706; font-size:14px;">⏰ Confirmação de Presença Necessária</h4>
+                                <h4 style="margin:0 0 8px 0; color:#d97706; font-size:14px;">⭐ Você é o Titular — Confirme sua presença</h4>
                                 <p style="font-size:12px; margin:0 0 10px; color:#92400e;">
-                                    A selfie deve ser tirada agora pela câmera. Não é permitido selecionar imagem da galeria.
+                                    Sua vaga já está confirmada como Titular. Agora tire uma selfie ao vivo para confirmar presença. Não é permitido selecionar imagem da galeria.
                                 </p>
                                 <button
                                     onclick="abrirCameraAoVivo(${s.id}, 'presenca')"
