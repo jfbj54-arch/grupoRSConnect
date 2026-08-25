@@ -1931,6 +1931,33 @@
             }
         }
 
+    
+
+        /* =====================================================
+           CORREÇÃO CRÍTICA DE VISIBILIDADE NO CELULAR
+           Login e sistema nunca aparecem juntos.
+           ===================================================== */
+        #secao-auth.hidden,
+        #secao-sistema-shell.hidden,
+        #secao-sistema.hidden,
+        .rs-app-shell.hidden {
+            display: none !important;
+        }
+
+        @media (max-width: 680px) {
+            #secao-auth.hidden,
+            #secao-sistema-shell.hidden,
+            #secao-sistema.hidden,
+            .rs-app-shell.hidden {
+                display: none !important;
+            }
+
+            /* Quando está deslogado, somente o login aparece. */
+            body.rs-deslogado #secao-sistema-shell {
+                display: none !important;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -2638,6 +2665,11 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
 
         function fazerLogout() {
             localStorage.removeItem('rs_usuario');
+
+            // Limpeza de compatibilidade com versões antigas.
+            // O intervalo agora fica exclusivamente no servidor.
+            localStorage.removeItem('rs_jornada_estados');
+
             usuarioLogado = null;
             verificarEstadoSessao();
         }
@@ -2654,6 +2686,9 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             const painelGestorTrabalhadores = document.getElementById('painel-gestor-trabalhadores');
 
             if (usuarioLogado) {
+                document.body.classList.remove('rs-deslogado');
+                document.body.classList.add('rs-logado');
+
                 secaoAuth.classList.add('hidden');
                 secaoSistema.classList.remove('hidden');
                 if (secaoSistemaShell) secaoSistemaShell.classList.remove('hidden');
@@ -2700,6 +2735,9 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                     document.getElementById('titulo-radar').innerText = "📡 Oportunidades de Serviço";
                 }
             } else {
+                document.body.classList.remove('rs-logado');
+                document.body.classList.add('rs-deslogado');
+
                 secaoAuth.classList.remove('hidden');
                 secaoSistema.classList.add('hidden');
                 if (secaoSistemaShell) secaoSistemaShell.classList.add('hidden');
@@ -2816,26 +2854,174 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         }
 
         function obterEstadoJornadaRS(servico) {
-            const estados = JSON.parse(localStorage.getItem('rs_jornada_estados') || '{}');
-            return estados[String(servico.id)] || {};
+            // Fonte única: dados vindos do servidor/PostgreSQL.
+            // Isso faz celular e computador enxergarem o MESMO estado.
+            const intervaloInicio =
+                servico?.intervalo_inicio ||
+                servico?.intervaloInicio ||
+                null;
+
+            const intervaloRetorno =
+                servico?.intervalo_retorno ||
+                servico?.intervaloRetorno ||
+                null;
+
+            return {
+                intervalo:
+                    Boolean(intervaloInicio) &&
+                    !Boolean(intervaloRetorno),
+
+                intervaloInicio,
+                intervaloRetorno
+            };
         }
 
-        function salvarEstadoJornadaRS(id, dados) {
-            const estados = JSON.parse(localStorage.getItem('rs_jornada_estados') || '{}');
-            estados[String(id)] = { ...(estados[String(id)] || {}), ...dados };
-            localStorage.setItem('rs_jornada_estados', JSON.stringify(estados));
+        async function iniciarIntervaloRS(id) {
+            const servico = (window.rsServicosCache || [])
+                .find(s => String(s.id) === String(id));
+
+            if (!servico) {
+                alert('Serviço não encontrado.');
+                return;
+            }
+
+            const estado = obterEstadoJornadaRS(servico);
+
+            if (estado.intervalo) {
+                alert('O intervalo já está em andamento.');
+                return;
+            }
+
+            if (!servico.checkin_hora && !servico.checkinHora) {
+                alert('Faça o check-in antes de iniciar o intervalo.');
+                return;
+            }
+
+            if (servico.checkout_hora || servico.checkoutHora) {
+                alert('Este serviço já foi finalizado.');
+                return;
+            }
+
+            const agora =
+                new Date().toLocaleTimeString(
+                    'pt-BR',
+                    {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }
+                );
+
+            try {
+                const res = await fetch(
+                    `/api/servicos/${id}/intervalo/iniciar`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            hora: agora,
+                            prestadorEmail:
+                                usuarioLogado?.email || ''
+                        })
+                    }
+                );
+
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(
+                        data.erro ||
+                        'Não foi possível iniciar o intervalo.'
+                    );
+                }
+
+                await carregarServicos();
+
+            } catch (err) {
+                console.error(
+                    'Erro ao iniciar intervalo:',
+                    err
+                );
+
+                alert(
+                    err.message ||
+                    'Erro de conexão ao iniciar intervalo.'
+                );
+            }
         }
 
-        function iniciarIntervaloRS(id) {
-            const agora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            salvarEstadoJornadaRS(id, { intervalo: true, intervaloInicio: agora });
-            atualizarPainelJornadaRS(window.rsServicosCache || []);
-        }
+        async function retornarIntervaloRS(id) {
+            const servico = (window.rsServicosCache || [])
+                .find(s => String(s.id) === String(id));
 
-        function retornarIntervaloRS(id) {
-            const agora = new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'});
-            salvarEstadoJornadaRS(id, { intervalo: false, intervaloRetorno: agora });
-            atualizarPainelJornadaRS(window.rsServicosCache || []);
+            if (!servico) {
+                alert('Serviço não encontrado.');
+                return;
+            }
+
+            const estado = obterEstadoJornadaRS(servico);
+
+            if (!estado.intervaloInicio) {
+                alert('Nenhum intervalo foi iniciado.');
+                return;
+            }
+
+            if (estado.intervaloRetorno) {
+                alert('O retorno do intervalo já foi registrado.');
+                await carregarServicos();
+                return;
+            }
+
+            const agora =
+                new Date().toLocaleTimeString(
+                    'pt-BR',
+                    {
+                        hour: '2-digit',
+                        minute: '2-digit',
+                        second: '2-digit'
+                    }
+                );
+
+            try {
+                const res = await fetch(
+                    `/api/servicos/${id}/intervalo/retornar`,
+                    {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            hora: agora,
+                            prestadorEmail:
+                                usuarioLogado?.email || ''
+                        })
+                    }
+                );
+
+                const data = await res.json().catch(() => ({}));
+
+                if (!res.ok || data.sucesso === false) {
+                    throw new Error(
+                        data.erro ||
+                        'Não foi possível registrar o retorno.'
+                    );
+                }
+
+                await carregarServicos();
+
+            } catch (err) {
+                console.error(
+                    'Erro ao retornar do intervalo:',
+                    err
+                );
+
+                alert(
+                    err.message ||
+                    'Erro de conexão ao retornar do intervalo.'
+                );
+            }
         }
 
         function irParaServicoRS(id) {
@@ -2936,6 +3122,31 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             }
         }
 
+
+
+        // =====================================================
+        // SINCRONIZAÇÃO ENTRE CELULAR E COMPUTADOR
+        // =====================================================
+        document.addEventListener('visibilitychange', () => {
+            if (
+                !document.hidden &&
+                usuarioLogado
+            ) {
+                carregarServicos();
+            }
+        });
+
+        window.addEventListener('focus', () => {
+            if (usuarioLogado) {
+                carregarServicos();
+            }
+        });
+
+        socket.on('atualizar_servicos', () => {
+            if (usuarioLogado) {
+                carregarServicos();
+            }
+        });
 
         // =====================================================
         // DASHBOARD VISUAL - KPIs E BUSCA RÁPIDA
