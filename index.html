@@ -15,7 +15,7 @@
     content="#061523"
   >
 
-  <title>RS Connect - Confirmação e Mapa</title>
+  <title>RS Connect - Jornada Completa</title>
 
   <script src="/socket.io/socket.io.js"></script>
 
@@ -4499,8 +4499,6 @@ function htmlServico(
         servico
       )
       &&
-      !servico?.presenca_confirmada
-      &&
       !finalizado
       &&
       !status.includes(
@@ -4508,16 +4506,100 @@ function htmlServico(
       )
     ) {
 
-      acoes += `
-        <button
-          class="btn btn-primary"
-          onclick="confirmarPresencaServico(
-            ${id}
-          )"
-        >
-          ✅ Confirmar Presença
-        </button>
-      `;
+      if (
+        !servico?.presenca_confirmada
+      ) {
+
+        acoes += `
+          <button
+            class="btn btn-primary"
+            onclick="confirmarPresencaServico(
+              ${id}
+            )"
+          >
+            ✅ Confirmar Presença
+          </button>
+        `;
+      }
+
+
+      if (
+        servico?.presenca_confirmada
+        &&
+        !servico?.checkin_hora
+      ) {
+
+        acoes += `
+          <button
+            class="btn btn-success"
+            onclick="abrirCameraParaJornada(
+              'checkin',
+              ${id}
+            )"
+          >
+            📍 Fazer Check-in
+          </button>
+        `;
+      }
+
+
+      if (
+        servico?.checkin_hora
+        &&
+        !servico?.checkout_hora
+      ) {
+
+        if (
+          servico?.em_intervalo
+        ) {
+
+          acoes += `
+            <button
+              class="btn btn-success"
+              onclick="retornarIntervaloServico(
+                ${id},
+                this
+              )"
+            >
+              ↩ Voltar do Intervalo
+            </button>
+          `;
+
+        } else {
+
+          if (
+            !servico?.intervalo_retorno
+            &&
+            !servico?.intervalo_fim
+          ) {
+
+            acoes += `
+              <button
+                class="btn btn-warning"
+                onclick="iniciarIntervaloServico(
+                  ${id},
+                  this
+                )"
+              >
+                ☕ Iniciar Intervalo
+              </button>
+            `;
+          }
+
+
+          acoes += `
+            <button
+              class="btn btn-danger"
+              onclick="abrirCameraParaJornada(
+                'checkout',
+                ${id}
+              )"
+            >
+              📷 Fazer Check-out
+            </button>
+          `;
+        }
+      }
     }
 
 
@@ -6135,17 +6217,17 @@ async function abrirDetalhesServico(
       </div>
 
 
-      ${
-        urlGoogleMapsServico(
-          servico
-        )
-          ?
-          `
-            <div
-              class="service-actions"
-              style="margin-top:10px;"
-            >
+      <div
+        class="service-actions"
+        style="margin-top:10px;"
+      >
 
+        ${
+          urlGoogleMapsServico(
+            servico
+          )
+            ?
+            `
               <button
                 class="btn btn-dark"
                 onclick="abrirGoogleMapsServico(
@@ -6154,67 +6236,165 @@ async function abrirDetalhesServico(
               >
                 🗺 Abrir no Google Maps
               </button>
+            `
+            :
+            ''
+        }
 
-              ${
-                ehPrestador()
-                &&
-                usuarioEhTitular(
-                  servico
-                )
-                &&
-                !servico?.presenca_confirmada
-                &&
-                !finalizado
-                  ?
-                  `
-                    <button
-                      class="btn btn-primary"
-                      onclick="
-                        $('modalDetalhesServico').classList.add('hidden');
-                        confirmarPresencaServico(${id});
-                      "
-                    >
-                      ✅ Confirmar Presença
-                    </button>
-                  `
-                  :
-                  ''
-              }
 
-            </div>
-          `
-          :
-          (
-            ehPrestador()
-            &&
-            usuarioEhTitular(
-              servico
-            )
-            &&
-            !servico?.presenca_confirmada
-            &&
-            !finalizado
-              ?
-              `
-                <div
-                  class="service-actions"
-                  style="margin-top:10px;"
-                >
-                  <button
-                    class="btn btn-primary"
-                    onclick="
-                      $('modalDetalhesServico').classList.add('hidden');
-                      confirmarPresencaServico(${id});
-                    "
-                  >
-                    ✅ Confirmar Presença
-                  </button>
-                </div>
-              `
-              :
-              ''
+        ${
+          ehPrestador()
+          &&
+          usuarioEhTitular(
+            servico
           )
-      }
+          &&
+          !finalizado
+          &&
+          !servico?.presenca_confirmada
+            ?
+            `
+              <button
+                class="btn btn-primary"
+                onclick="
+                  $('modalDetalhesServico').classList.add('hidden');
+                  confirmarPresencaServico(${id});
+                "
+              >
+                ✅ Confirmar Presença
+              </button>
+            `
+            :
+            ''
+        }
+
+
+        ${
+          ehPrestador()
+          &&
+          usuarioEhTitular(
+            servico
+          )
+          &&
+          !finalizado
+          &&
+          servico?.presenca_confirmada
+          &&
+          !servico?.checkin_hora
+            ?
+            `
+              <button
+                class="btn btn-success"
+                onclick="
+                  $('modalDetalhesServico').classList.add('hidden');
+                  abrirCameraParaJornada('checkin', ${id});
+                "
+              >
+                📍 Fazer Check-in
+              </button>
+            `
+            :
+            ''
+        }
+
+
+        ${
+          ehPrestador()
+          &&
+          usuarioEhTitular(
+            servico
+          )
+          &&
+          !finalizado
+          &&
+          servico?.checkin_hora
+          &&
+          !servico?.checkout_hora
+          &&
+          servico?.em_intervalo
+            ?
+            `
+              <button
+                class="btn btn-success"
+                onclick="
+                  $('modalDetalhesServico').classList.add('hidden');
+                  retornarIntervaloServico(${id}, this);
+                "
+              >
+                ↩ Voltar do Intervalo
+              </button>
+            `
+            :
+            ''
+        }
+
+
+        ${
+          ehPrestador()
+          &&
+          usuarioEhTitular(
+            servico
+          )
+          &&
+          !finalizado
+          &&
+          servico?.checkin_hora
+          &&
+          !servico?.checkout_hora
+          &&
+          !servico?.em_intervalo
+          &&
+          !servico?.intervalo_retorno
+          &&
+          !servico?.intervalo_fim
+            ?
+            `
+              <button
+                class="btn btn-warning"
+                onclick="
+                  $('modalDetalhesServico').classList.add('hidden');
+                  iniciarIntervaloServico(${id}, this);
+                "
+              >
+                ☕ Iniciar Intervalo
+              </button>
+            `
+            :
+            ''
+        }
+
+
+        ${
+          ehPrestador()
+          &&
+          usuarioEhTitular(
+            servico
+          )
+          &&
+          !finalizado
+          &&
+          servico?.checkin_hora
+          &&
+          !servico?.checkout_hora
+          &&
+          !servico?.em_intervalo
+            ?
+            `
+              <button
+                class="btn btn-danger"
+                onclick="
+                  $('modalDetalhesServico').classList.add('hidden');
+                  abrirCameraParaJornada('checkout', ${id});
+                "
+              >
+                📷 Fazer Check-out
+              </button>
+            `
+            :
+            ''
+        }
+
+      </div>
 
 
       ${
@@ -8253,6 +8433,207 @@ async function capturarFotoAoVivo() {
 
 
     carregarJornada();
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+
+  } finally {
+
+    loadingBotao(
+      botao,
+      false
+    );
+  }
+}
+
+
+
+// ============================================================
+// AÇÕES DE JORNADA DIRETO PELO CARD DO SERVIÇO
+// ============================================================
+
+async function iniciarIntervaloServico(
+  servicoId,
+  botao
+) {
+
+  const servico =
+    buscarServicoCache(
+      servicoId
+    );
+
+
+  if (
+    !servico
+    ||
+    !usuarioEhTitular(
+      servico
+    )
+  ) {
+
+    toast(
+      'Serviço inválido para esta jornada.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  loadingBotao(
+    botao,
+    true,
+    'Iniciando...'
+  );
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/servicos/${servico.id}/intervalo/iniciar`,
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              prestador_email:
+                emailUsuario()
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Intervalo iniciado.',
+      'success'
+    );
+
+
+    await carregarServicos(
+      false
+    );
+
+
+    renderizarMeusServicos();
+
+
+    if (
+      $('pageJornada')
+        ?.classList
+        .contains(
+          'active'
+        )
+    ) {
+
+      carregarJornada();
+    }
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+
+  } finally {
+
+    loadingBotao(
+      botao,
+      false
+    );
+  }
+}
+
+
+async function retornarIntervaloServico(
+  servicoId,
+  botao
+) {
+
+  const servico =
+    buscarServicoCache(
+      servicoId
+    );
+
+
+  if (
+    !servico
+    ||
+    !usuarioEhTitular(
+      servico
+    )
+  ) {
+
+    toast(
+      'Serviço inválido para esta jornada.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  loadingBotao(
+    botao,
+    true,
+    'Registrando...'
+  );
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/servicos/${servico.id}/voltar-intervalo`,
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              prestador_email:
+                emailUsuario()
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Retorno do intervalo registrado.',
+      'success'
+    );
+
+
+    await carregarServicos(
+      false
+    );
+
+
+    renderizarMeusServicos();
+
+
+    if (
+      $('pageJornada')
+        ?.classList
+        .contains(
+          'active'
+        )
+    ) {
+
+      carregarJornada();
+    }
 
   } catch (
     erro
@@ -12000,4 +12381,3 @@ console.log(
 
 </body>
 
-</html>
