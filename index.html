@@ -1758,6 +1758,35 @@
             }
         }
 
+    
+
+        /* =====================================================
+           BOTÃO SAIR NA BARRA INFERIOR DO CELULAR
+           ===================================================== */
+
+        .rs-mobile-logout {
+            display: none !important;
+        }
+
+        @media (max-width: 680px) {
+            .rs-side-nav {
+                grid-template-columns: repeat(6, 1fr) !important;
+            }
+
+            .rs-mobile-logout {
+                display: flex !important;
+                color: #ff7b86 !important;
+            }
+
+            .rs-mobile-logout span {
+                color: #ff7b86 !important;
+            }
+
+            .rs-mobile-logout:active {
+                background: rgba(220,38,38,.12) !important;
+            }
+        }
+
     </style>
 </head>
 <body>
@@ -1912,6 +1941,7 @@
                     <button class="rs-nav-item" onclick="rsIrPara('widget-carteira')">$ <span>Financeiro</span></button>
                     <button class="rs-nav-item" onclick="rsIrPara('painel-gestor-trabalhadores')">▤ <span>Relatórios</span></button>
                     <button class="rs-nav-item" onclick="rsIrPara('painel-gestor-trabalhadores')">♙ <span>Profissionais</span></button>
+                    <button class="rs-nav-item rs-mobile-logout" onclick="fazerLogout()">↪ <span>Sair</span></button>
                 </nav>
 
                 <div class="rs-sidebar-spacer"></div>
