@@ -852,6 +852,113 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
         </div>
     </div>
 
+
+    <!-- =====================================================
+         CÂMERA AO VIVO - PROVA TIRADA NA HORA
+         ===================================================== -->
+    <div
+        id="cameraAoVivoModal"
+        style="
+            display:none;
+            position:fixed;
+            inset:0;
+            z-index:99999;
+            background:rgba(0,0,0,.88);
+            align-items:center;
+            justify-content:center;
+            padding:16px;
+        "
+    >
+        <div
+            style="
+                width:min(520px, 100%);
+                background:#0f172a;
+                border-radius:16px;
+                padding:14px;
+                box-shadow:0 18px 60px rgba(0,0,0,.45);
+            "
+        >
+            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; margin-bottom:10px;">
+                <div>
+                    <strong id="cameraAoVivoTitulo" style="color:white; font-size:16px;">Câmera ao vivo</strong>
+                    <div id="cameraAoVivoInstrucao" style="color:#cbd5e1; font-size:11px; margin-top:2px;">
+                        Tire a foto agora.
+                    </div>
+                </div>
+
+                <button
+                    type="button"
+                    onclick="fecharCameraAoVivo()"
+                    style="
+                        width:auto;
+                        padding:7px 10px;
+                        border:none;
+                        border-radius:8px;
+                        background:#334155;
+                        color:white;
+                        cursor:pointer;
+                    "
+                >
+                    ✕ Fechar
+                </button>
+            </div>
+
+            <div
+                style="
+                    position:relative;
+                    overflow:hidden;
+                    border-radius:12px;
+                    background:black;
+                    aspect-ratio:3/4;
+                    max-height:68vh;
+                "
+            >
+                <video
+                    id="cameraAoVivoVideo"
+                    autoplay
+                    playsinline
+                    muted
+                    style="
+                        width:100%;
+                        height:100%;
+                        object-fit:cover;
+                        display:block;
+                    "
+                ></video>
+
+                <canvas
+                    id="cameraAoVivoCanvas"
+                    style="display:none;"
+                ></canvas>
+            </div>
+
+            <div id="cameraAoVivoStatus" style="color:#e2e8f0; font-size:12px; text-align:center; margin-top:10px;">
+                Preparando câmera...
+            </div>
+
+            <button
+                id="cameraAoVivoCapturar"
+                type="button"
+                onclick="capturarFotoAoVivo()"
+                disabled
+                style="
+                    width:100%;
+                    margin-top:10px;
+                    padding:13px;
+                    border:none;
+                    border-radius:10px;
+                    background:#16a34a;
+                    color:white;
+                    font-size:14px;
+                    font-weight:800;
+                    cursor:pointer;
+                "
+            >
+                📸 TIRAR FOTO AGORA
+            </button>
+        </div>
+    </div>
+
     <script>
         const socket = io();
         let usuarioLogado = JSON.parse(localStorage.getItem('rs_usuario')) || null;
@@ -1469,7 +1576,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                             <div style="margin-top:12px; padding:14px; background:#ecfdf5; border:1px solid #86efac; border-radius:10px;">
                                 <strong style="color:#166534;">💳 Pagamento autorizado pela empresa</strong>
                                 <p style="font-size:12px; margin:6px 0 10px; color:#166534;">
-                                    A empresa autorizou o pagamento deste serviço. O relatório contém confirmação de presença, check-in, check-out e fotos registradas.
+                                    A empresa autorizou o pagamento deste serviço. As fotos originais foram registradas diretamente pela câmera no momento da presença, entrada e saída.
                                 </p>
                                 <a
                                     href="${s.autorizacao_pagamento_arquivo}"
@@ -1532,23 +1639,46 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
                         ${souTitular && !estaConfirmado ? `
                             <div style="background:#fffbeb; border:1px solid #fde68a; padding:15px; border-radius:10px; margin-top:12px;">
                                 <h4 style="margin:0 0 8px 0; color:#d97706; font-size:14px;">⏰ Confirmação de Presença Necessária</h4>
-                                <label style="font-size:11px; display:block; margin-bottom:4px;">📸 Enviar Selfie de Confirmação:</label>
-                                <input type="file" id="selfie-confirmacao-${s.id}" accept="image/*" capture="user" style="margin-bottom:10px; background:white;">
-                                <button onclick="confirmarPresencaPrestador(${s.id})" class="btn-success" style="padding:10px;">🟢 CONFIRMAR PRESENÇA COMO TITULAR</button>
+                                <p style="font-size:12px; margin:0 0 10px; color:#92400e;">
+                                    A selfie deve ser tirada agora pela câmera. Não é permitido selecionar imagem da galeria.
+                                </p>
+                                <button
+                                    onclick="abrirCameraAoVivo(${s.id}, 'presenca')"
+                                    class="btn-success"
+                                    style="padding:10px; width:100%;"
+                                >
+                                    🤳 Abrir câmera e confirmar presença
+                                </button>
                             </div>
                         ` : ''}
 
                         ${souTitular && estaConfirmado ? `
-                            <div style="margin-top: 12px; display:flex; flex-direction:column; gap:12px;">
-                                <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
-                                    <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Chegada (Check-in via Câmera)</label>
-                                    <input type="file" id="foto-checkin-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
-                                    <button onclick="realizarCheckinComGPS(${s.id})" style="background:var(--warning); padding:10px; width:100%; font-size:13px;">📍 Registrar Check-in com GPS</button>
+                            <div style="margin-top:12px; display:flex; flex-direction:column; gap:12px;">
+                                <div style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid var(--border);">
+                                    <strong style="font-size:12px; display:block; margin-bottom:6px;">📸 Check-in com câmera ao vivo + GPS</strong>
+                                    <p style="font-size:11px; color:var(--text-light); margin:0 0 8px;">
+                                        A foto será tirada na hora. Não é possível escolher foto da galeria.
+                                    </p>
+                                    <button
+                                        onclick="abrirCameraAoVivo(${s.id}, 'checkin')"
+                                        style="background:var(--warning); padding:10px; width:100%; font-size:13px;"
+                                    >
+                                        📍 Abrir câmera para Check-in
+                                    </button>
                                 </div>
-                                <div style="background:#f8fafc; padding:10px; border-radius:8px; border:1px solid var(--border);">
-                                    <label style="font-size:12px; margin-bottom:4px; display:block;">📸 Foto de Conclusão (Check-out)</label>
-                                    <input type="file" id="foto-checkout-${s.id}" accept="image/*" capture="environment" style="margin-bottom:8px; background:white;">
-                                    <button onclick="realizarCheckout(${s.id})" class="btn-success" style="padding:10px; width:100%; font-size:13px;">✅ Finalizar Check-out</button>
+
+                                <div style="background:#f8fafc; padding:12px; border-radius:8px; border:1px solid var(--border);">
+                                    <strong style="font-size:12px; display:block; margin-bottom:6px;">📸 Check-out com câmera ao vivo + GPS</strong>
+                                    <p style="font-size:11px; color:var(--text-light); margin:0 0 8px;">
+                                        A foto de saída também deve ser tirada na hora.
+                                    </p>
+                                    <button
+                                        onclick="abrirCameraAoVivo(${s.id}, 'checkout')"
+                                        class="btn-success"
+                                        style="padding:10px; width:100%; font-size:13px;"
+                                    >
+                                        ✅ Abrir câmera para Check-out
+                                    </button>
                                 </div>
                             </div>
                         ` : ''}
@@ -1746,102 +1876,519 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             reader.readAsDataURL(inputArquivo.files[0]);
         }
 
-        async function confirmarPresencaPrestador(id) {
-            const inputSelfie = document.getElementById(`selfie-confirmacao-${id}`);
-            if (!inputSelfie.files || inputSelfie.files.length === 0) {
-                alert('Por favor, selecione ou tire a foto da selfie de confirmação!');
+
+        // =====================================================
+        // CÂMERA AO VIVO
+        // A foto nasce da câmera naquele momento.
+        // Não existe seletor de arquivo / galeria neste fluxo.
+        // =====================================================
+
+        let cameraAoVivoStream = null;
+        let cameraAoVivoServicoId = null;
+        let cameraAoVivoTipo = null;
+        let cameraAoVivoCapturando = false;
+
+        async function abrirCameraAoVivo(id, tipo) {
+            cameraAoVivoServicoId = id;
+            cameraAoVivoTipo = tipo;
+            cameraAoVivoCapturando = false;
+
+            const modal = document.getElementById('cameraAoVivoModal');
+            const titulo = document.getElementById('cameraAoVivoTitulo');
+            const instrucao = document.getElementById('cameraAoVivoInstrucao');
+            const status = document.getElementById('cameraAoVivoStatus');
+            const botao = document.getElementById('cameraAoVivoCapturar');
+            const video = document.getElementById('cameraAoVivoVideo');
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                alert('Este navegador não liberou acesso à câmera. Abra o sistema pelo Chrome/Safari atualizado e permita o uso da câmera.');
                 return;
             }
 
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const selfieBase64 = e.target.result;
-                await enviarConfirmacaoServidor(id, selfieBase64);
-            };
-            reader.readAsDataURL(inputSelfie.files[0]);
+            if (tipo === 'presenca') {
+                titulo.textContent = '🤳 Selfie de confirmação';
+                instrucao.textContent = 'Use a câmera frontal. A foto será registrada como prova de presença.';
+            } else if (tipo === 'checkin') {
+                titulo.textContent = '📍 Foto de entrada / Check-in';
+                instrucao.textContent = 'Use a câmera traseira para mostrar o local no momento da chegada.';
+            } else {
+                titulo.textContent = '✅ Foto de saída / Check-out';
+                instrucao.textContent = 'Use a câmera traseira para registrar o local no fim do serviço.';
+            }
+
+            modal.style.display = 'flex';
+            status.textContent = 'Solicitando permissão da câmera...';
+            botao.disabled = true;
+
+            try {
+                fecharStreamCameraAoVivo();
+
+                const facingMode =
+                    tipo === 'presenca'
+                        ? 'user'
+                        : 'environment';
+
+                cameraAoVivoStream =
+                    await navigator.mediaDevices.getUserMedia({
+                        video: {
+                            facingMode: {
+                                ideal: facingMode
+                            },
+                            width: {
+                                ideal: 1280
+                            },
+                            height: {
+                                ideal: 960
+                            }
+                        },
+                        audio: false
+                    });
+
+                video.srcObject = cameraAoVivoStream;
+
+                await video.play();
+
+                status.textContent =
+                    'Câmera pronta. Posicione a imagem e toque em “TIRAR FOTO AGORA”.';
+
+                botao.disabled = false;
+
+            } catch (err) {
+                console.error('Erro ao abrir câmera:', err);
+
+                status.textContent =
+                    'Não foi possível acessar a câmera. Verifique a permissão do navegador.';
+
+                alert(
+                    'Não foi possível abrir a câmera. Autorize o acesso à câmera nas permissões do navegador.'
+                );
+            }
+        }
+
+        function fecharStreamCameraAoVivo() {
+            if (cameraAoVivoStream) {
+                cameraAoVivoStream
+                    .getTracks()
+                    .forEach(track => track.stop());
+
+                cameraAoVivoStream = null;
+            }
+
+            const video =
+                document.getElementById('cameraAoVivoVideo');
+
+            if (video) {
+                video.srcObject = null;
+            }
+        }
+
+        function fecharCameraAoVivo() {
+            fecharStreamCameraAoVivo();
+
+            const modal =
+                document.getElementById('cameraAoVivoModal');
+
+            if (modal) {
+                modal.style.display = 'none';
+            }
+
+            cameraAoVivoServicoId = null;
+            cameraAoVivoTipo = null;
+            cameraAoVivoCapturando = false;
+        }
+
+        function capturarFrameCameraAoVivo() {
+            const video =
+                document.getElementById('cameraAoVivoVideo');
+
+            const canvas =
+                document.getElementById('cameraAoVivoCanvas');
+
+            if (
+                !video ||
+                !video.videoWidth ||
+                !video.videoHeight
+            ) {
+                throw new Error(
+                    'A câmera ainda não está pronta.'
+                );
+            }
+
+            const larguraOriginal =
+                video.videoWidth;
+
+            const alturaOriginal =
+                video.videoHeight;
+
+            const limite =
+                1280;
+
+            let largura =
+                larguraOriginal;
+
+            let altura =
+                alturaOriginal;
+
+            if (
+                largura > limite ||
+                altura > limite
+            ) {
+                const escala =
+                    Math.min(
+                        limite / largura,
+                        limite / altura
+                    );
+
+                largura =
+                    Math.round(
+                        largura * escala
+                    );
+
+                altura =
+                    Math.round(
+                        altura * escala
+                    );
+            }
+
+            canvas.width = largura;
+            canvas.height = altura;
+
+            const ctx =
+                canvas.getContext('2d', {
+                    alpha: false
+                });
+
+            ctx.drawImage(
+                video,
+                0,
+                0,
+                largura,
+                altura
+            );
+
+            // JPEG reduz bastante o tamanho enviado ao servidor,
+            // preservando qualidade suficiente para comprovação.
+            return canvas.toDataURL(
+                'image/jpeg',
+                0.82
+            );
+        }
+
+        function obterGpsAtual() {
+            return new Promise(resolve => {
+                if (!navigator.geolocation) {
+                    resolve('GPS não suportado');
+                    return;
+                }
+
+                navigator.geolocation.getCurrentPosition(
+                    position => {
+                        resolve(
+                            `${position.coords.latitude.toFixed(6)}, ${position.coords.longitude.toFixed(6)}`
+                        );
+                    },
+
+                    () => {
+                        resolve('GPS indisponível');
+                    },
+
+                    {
+                        enableHighAccuracy: true,
+                        timeout: 12000,
+                        maximumAge: 0
+                    }
+                );
+            });
+        }
+
+        async function capturarFotoAoVivo() {
+            if (
+                cameraAoVivoCapturando ||
+                !cameraAoVivoServicoId ||
+                !cameraAoVivoTipo
+            ) {
+                return;
+            }
+
+            const botao =
+                document.getElementById('cameraAoVivoCapturar');
+
+            const status =
+                document.getElementById('cameraAoVivoStatus');
+
+            cameraAoVivoCapturando = true;
+            botao.disabled = true;
+
+            try {
+                const fotoBase64 =
+                    capturarFrameCameraAoVivo();
+
+                const id =
+                    cameraAoVivoServicoId;
+
+                const tipo =
+                    cameraAoVivoTipo;
+
+                status.textContent =
+                    'Foto tirada agora. Salvando no serviço...';
+
+                // Para check-in e check-out, capturamos GPS no mesmo momento.
+                let gps = null;
+
+                if (
+                    tipo === 'checkin' ||
+                    tipo === 'checkout'
+                ) {
+                    status.textContent =
+                        'Foto tirada. Obtendo localização GPS...';
+
+                    gps =
+                        await obterGpsAtual();
+                }
+
+                if (tipo === 'presenca') {
+                    await enviarConfirmacaoServidor(
+                        id,
+                        fotoBase64
+                    );
+                }
+
+                if (tipo === 'checkin') {
+                    await enviarCheckinServidor(
+                        id,
+                        fotoBase64,
+                        gps
+                    );
+                }
+
+                if (tipo === 'checkout') {
+                    await enviarCheckoutServidor(
+                        id,
+                        fotoBase64,
+                        gps
+                    );
+                }
+
+                fecharCameraAoVivo();
+
+            } catch (err) {
+                console.error(
+                    'Erro ao capturar foto ao vivo:',
+                    err
+                );
+
+                status.textContent =
+                    'Não foi possível registrar a foto. Tente novamente.';
+
+                alert(
+                    err.message ||
+                    'Não foi possível registrar a foto.'
+                );
+
+                cameraAoVivoCapturando = false;
+                botao.disabled = false;
+            }
+        }
+
+        // Compatibilidade com chamadas antigas do HTML.
+        // Agora essas funções apenas abrem a câmera ao vivo.
+        async function confirmarPresencaPrestador(id) {
+            return abrirCameraAoVivo(
+                id,
+                'presenca'
+            );
+        }
+
+        async function realizarCheckinComGPS(id) {
+            return abrirCameraAoVivo(
+                id,
+                'checkin'
+            );
+        }
+
+        async function realizarCheckout(id) {
+            return abrirCameraAoVivo(
+                id,
+                'checkout'
+            );
         }
 
         async function enviarConfirmacaoServidor(id, selfie) {
             try {
-                const res = await fetch(`/api/servicos/${id}/confirmar-presenca`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ selfie, presenca_confirmada: true, presencaConfirmada: true })
-                });
-                const data = await res.json();
-                if (res.ok && data.sucesso !== false) {
+                const res =
+                    await fetch(
+                        `/api/servicos/${id}/confirmar-presenca`,
+                        {
+                            method: 'POST',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json'
+                            },
+
+                            body:
+                                JSON.stringify({
+                                    selfie,
+                                    presenca_confirmada:
+                                        true,
+                                    presencaConfirmada:
+                                        true,
+                                    prestadorEmail:
+                                        usuarioLogado?.email || ''
+                                })
+                        }
+                    );
+
+                const data =
+                    await res.json();
+
+                if (
+                    res.ok &&
+                    data.sucesso !== false
+                ) {
+                    alert(
+                        '🟢 Presença confirmada! A selfie foi tirada pela câmera neste momento.'
+                    );
+
                     carregarServicos();
-                    alert('🟢 Presença confirmada como Titular com sucesso!');
-                } else {
-                    alert(data.erro || 'Erro ao confirmar presença.');
+                    return;
                 }
-            } catch(e) { alert('Erro de conexão ao confirmar presença.'); }
-        }
 
-        async function realizarCheckinComGPS(id) {
-            const inputFoto = document.getElementById(`foto-checkin-${id}`);
-            if (!inputFoto.files || inputFoto.files.length === 0) {
-                alert('Por favor, tire a foto da chegada usando a câmera!');
-                return;
+                throw new Error(
+                    data.erro ||
+                    'Erro ao confirmar presença.'
+                );
+
+            } catch (err) {
+                console.error(
+                    'Erro ao confirmar presença:',
+                    err
+                );
+
+                throw err;
             }
-
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                const fotoBase64 = e.target.result;
-                if (navigator.geolocation) {
-                    navigator.geolocation.getCurrentPosition(async (position) => {
-                        const gpsCoords = `${position.coords.latitude.toFixed(5)}, ${position.coords.longitude.toFixed(5)}`;
-                        await enviarCheckinServidor(id, fotoBase64, gpsCoords);
-                    }, () => {
-                        enviarCheckinServidor(id, fotoBase64, "GPS Indisponível");
-                    });
-                } else {
-                    enviarCheckinServidor(id, fotoBase64, "GPS não suportado");
-                }
-            };
-            reader.readAsDataURL(inputFoto.files[0]);
         }
 
         async function enviarCheckinServidor(id, foto, gps) {
-            await fetch(`/api/servicos/${id}/checkin`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto, gps })
-            });
-            carregarServicos();
-            alert(`Check-in registrado! GPS: ${gps}`);
+            try {
+                const res =
+                    await fetch(
+                        `/api/servicos/${id}/checkin`,
+                        {
+                            method: 'POST',
+
+                            headers: {
+                                'Content-Type':
+                                    'application/json'
+                            },
+
+                            body:
+                                JSON.stringify({
+                                    hora:
+                                        new Date()
+                                            .toLocaleTimeString(
+                                                'pt-BR'
+                                            ),
+
+                                    foto,
+
+                                    gps,
+
+                                    prestadorEmail:
+                                        usuarioLogado?.email || ''
+                                })
+                        }
+                    );
+
+                const data =
+                    await res.json();
+
+                if (
+                    res.ok &&
+                    data.sucesso !== false
+                ) {
+                    alert(
+                        `✅ Check-in registrado com foto tirada na hora. GPS: ${gps}`
+                    );
+
+                    carregarServicos();
+                    return;
+                }
+
+                throw new Error(
+                    data.erro ||
+                    'Erro ao registrar check-in.'
+                );
+
+            } catch (err) {
+                console.error(
+                    'Erro no check-in:',
+                    err
+                );
+
+                throw err;
+            }
         }
 
-        async function realizarCheckout(id) {
-            const inputFoto = document.getElementById(`foto-checkout-${id}`);
-            if (!inputFoto.files || inputFoto.files.length === 0) {
-                alert('Por favor, selecione ou tire a foto de conclusão (check-out) antes de finalizar!');
-                return;
-            }
+        async function enviarCheckoutServidor(id, foto, gps) {
+            try {
+                const res =
+                    await fetch(
+                        `/api/servicos/${id}/checkout`,
+                        {
+                            method: 'POST',
 
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                const fotoBase64 = e.target.result;
-                try {
-                    // Chamada corrigida: enviando diretamente para a rota de checkout sem invocar /ponto indevidamente
-                    const res = await fetch(`/api/servicos/${id}/checkout`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ hora: new Date().toLocaleTimeString(), foto: fotoBase64 })
-                    });
-                    const data = await res.json();
-                    
-                    if (res.ok && data.sucesso !== false) {
-                        carregarServicos();
-                        alert('✅ Check-out realizado com sucesso! Serviço finalizado.');
-                    } else { 
-                        alert(data.erro || 'Erro ao realizar check-out.'); 
-                    }
-                } catch (err) { 
-                    alert('Erro de conexão ao finalizar o serviço.'); 
+                            headers: {
+                                'Content-Type':
+                                    'application/json'
+                            },
+
+                            body:
+                                JSON.stringify({
+                                    hora:
+                                        new Date()
+                                            .toLocaleTimeString(
+                                                'pt-BR'
+                                            ),
+
+                                    foto,
+
+                                    gps,
+
+                                    prestadorEmail:
+                                        usuarioLogado?.email || ''
+                                })
+                        }
+                    );
+
+                const data =
+                    await res.json();
+
+                if (
+                    res.ok &&
+                    data.sucesso !== false
+                ) {
+                    alert(
+                        '✅ Check-out realizado com foto tirada na hora e localização registrada.'
+                    );
+
+                    carregarServicos();
+                    return;
                 }
-            };
-            reader.readAsDataURL(inputFoto.files[0]);
+
+                throw new Error(
+                    data.erro ||
+                    'Erro ao realizar check-out.'
+                );
+
+            } catch (err) {
+                console.error(
+                    'Erro no check-out:',
+                    err
+                );
+
+                throw err;
+            }
         }
 
         async function enviarMensagem(id) {
@@ -2098,7 +2645,7 @@ CLÁUSULA DÉCIMA – DO ACEITE FINAL: Ao confirmar o aceite no aplicativo, o PR
             }
 
             if (!confirm(
-                'Autorizar o pagamento deste serviço? Será gerado um PDF com os dados do serviço, selfie de confirmação, foto de entrada e foto de saída.'
+                'Autorizar o pagamento deste serviço? As fotos já foram tiradas pela câmera no momento da execução. O PDF será apenas um relatório administrativo com os registros.'
             )) {
                 return;
             }
