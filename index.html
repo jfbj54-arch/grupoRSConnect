@@ -3256,6 +3256,22 @@ let usuarioAtual =
   null;
 
 
+// Token assinado retornado pelo novo server.js.
+// Ele identifica de verdade quem está logado.
+let authToken =
+  '';
+
+
+// Contexto enviado pelo servidor:
+// gestorRS / empresaCliente / prestador / clienteId
+let privacidadeAtual = {
+  gestorRS: false,
+  empresaCliente: false,
+  prestador: false,
+  clienteId: null
+};
+
+
 let servicosCache =
   [];
 
@@ -3341,28 +3357,70 @@ function emailUsuario() {
 }
 
 
+function tokenUsuario() {
+
+  return texto(
+    authToken
+    ||
+    localStorage.getItem(
+      'rsconnect_token'
+    )
+  );
+}
+
+
+function ehGrupoRS() {
+
+  return Boolean(
+    privacidadeAtual?.gestorRS
+  );
+}
+
+
+function ehEmpresaCliente() {
+
+  return Boolean(
+    privacidadeAtual?.empresaCliente
+  );
+}
+
+
 function ehEmpresa() {
 
-  return (
+  const tipo =
     texto(
       usuarioAtual?.tipo
     )
-      .toLowerCase()
-    ===
-    'empresa'
+      .toLowerCase();
+
+
+  return (
+    tipo === 'empresa'
+    ||
+    ehGrupoRS()
+    ||
+    ehEmpresaCliente()
   );
 }
 
 
 function ehPrestador() {
 
-  return (
+  const tipo =
     texto(
       usuarioAtual?.tipo
     )
-      .toLowerCase()
-    ===
-    'prestador'
+      .toLowerCase();
+
+
+  return (
+    tipo === 'prestador'
+    ||
+    tipo === 'colaborador'
+    ||
+    Boolean(
+      privacidadeAtual?.prestador
+    )
   );
 }
 
@@ -3746,8 +3804,43 @@ async function apiFetch(
   };
 
 
+  // ==========================================================
+  // TOKEN DE PRIVACIDADE
+  // ==========================================================
+
+  const token =
+    tokenUsuario();
+
+
+  if (
+    token &&
+    !headers.Authorization
+  ) {
+
+    headers.Authorization =
+      `Bearer ${token}`;
+  }
+
+
+  // ==========================================================
+  // JSON
+  //
+  // Não definir Content-Type manualmente quando body é
+  // FormData, pois o navegador precisa gerar o boundary.
+  // ==========================================================
+
+  const ehFormData =
+    (
+      typeof FormData !==
+      'undefined'
+      &&
+      opcoes.body instanceof FormData
+    );
+
+
   if (
     opcoes.body &&
+    !ehFormData &&
     !headers[
       'Content-Type'
     ]
@@ -3808,6 +3901,29 @@ async function apiFetch(
     !resposta.ok
   ) {
 
+    // Se uma sessão que já existia expirou, limpamos o token.
+    // No login com senha errada não existe token válido e,
+    // portanto, não derrubamos nada além da tentativa atual.
+    if (
+      resposta.status === 401
+      &&
+      token
+      &&
+      caminho !== '/api/login'
+      &&
+      caminho !== '/api/auth/login'
+    ) {
+
+      localStorage.removeItem(
+        'rsconnect_token'
+      );
+
+
+      authToken =
+        '';
+    }
+
+
     throw new Error(
       data?.erro ||
       data?.error ||
@@ -3818,6 +3934,119 @@ async function apiFetch(
 
 
   return data;
+}
+
+
+// ============================================================
+// ABRIR ARQUIVO PROTEGIDO
+//
+// window.open(url) não envia o header Authorization.
+// Então buscamos o arquivo com token e só depois abrimos.
+// ============================================================
+
+async function abrirArquivoProtegido(
+  caminho
+) {
+
+  try {
+
+    const headers = {};
+
+
+    const token =
+      tokenUsuario();
+
+
+    if (token) {
+
+      headers.Authorization =
+        `Bearer ${token}`;
+    }
+
+
+    const resposta =
+      await fetch(
+        `${API_URL}${caminho}`,
+        {
+          headers
+        }
+      );
+
+
+    if (!resposta.ok) {
+
+      let mensagem =
+        `Erro HTTP ${resposta.status}`;
+
+
+      try {
+
+        const data =
+          await resposta.json();
+
+
+        mensagem =
+          data?.erro ||
+          data?.mensagem ||
+          mensagem;
+
+      } catch {}
+
+
+      throw new Error(
+        mensagem
+      );
+    }
+
+
+    const blob =
+      await resposta.blob();
+
+
+    const url =
+      URL.createObjectURL(
+        blob
+      );
+
+
+    const janela =
+      window.open(
+        url,
+        '_blank',
+        'noopener,noreferrer'
+      );
+
+
+    if (!janela) {
+
+      URL.revokeObjectURL(
+        url
+      );
+
+
+      throw new Error(
+        'Permita pop-ups para abrir o documento.'
+      );
+    }
+
+
+    setTimeout(
+      () =>
+        URL.revokeObjectURL(
+          url
+        ),
+      60000
+    );
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
 }
 
 
@@ -3869,6 +4098,23 @@ async function fazerLogin(
       data;
 
 
+    authToken =
+      texto(
+        data?.token
+      );
+
+
+    privacidadeAtual =
+      data?.privacidade
+      ||
+      {
+        gestorRS: false,
+        empresaCliente: false,
+        prestador: false,
+        clienteId: null
+      };
+
+
     if (
       !usuarioAtual?.email
     ) {
@@ -3879,10 +4125,32 @@ async function fazerLogin(
     }
 
 
+    if (!authToken) {
+
+      throw new Error(
+        'O servidor não retornou o token de segurança. Atualize o server.js antes de usar este INDEX.'
+      );
+    }
+
+
     localStorage.setItem(
       'rsconnect_usuario',
       JSON.stringify(
         usuarioAtual
+      )
+    );
+
+
+    localStorage.setItem(
+      'rsconnect_token',
+      authToken
+    );
+
+
+    localStorage.setItem(
+      'rsconnect_privacidade',
+      JSON.stringify(
+        privacidadeAtual
       )
     );
 
@@ -4043,11 +4311,23 @@ async function entrarNoSistema() {
 
   $('sidebarTipo')
     .textContent =
-      ehEmpresa()
+      ehGrupoRS()
         ?
-        'Empresa'
+        'Grupo RS'
         :
-        'Prestador';
+        (
+          ehEmpresaCliente()
+            ?
+            'Empresa cliente'
+            :
+            (
+              ehEmpresa()
+                ?
+                'Empresa'
+                :
+                'Prestador'
+            )
+        );
 
 
   $('topbarNome')
@@ -4215,8 +4495,30 @@ function sairSistema() {
   );
 
 
+  localStorage.removeItem(
+    'rsconnect_token'
+  );
+
+
+  localStorage.removeItem(
+    'rsconnect_privacidade'
+  );
+
+
   usuarioAtual =
     null;
+
+
+  authToken =
+    '';
+
+
+  privacidadeAtual = {
+    gestorRS: false,
+    empresaCliente: false,
+    prestador: false,
+    clienteId: null
+  };
 
 
   servicosCache =
@@ -4407,6 +4709,11 @@ function conectarSocket() {
       io(
         API_URL,
         {
+          auth: {
+            token:
+              tokenUsuario()
+          },
+
           transports: [
             'websocket',
             'polling'
@@ -4434,15 +4741,11 @@ function conectarSocket() {
         );
 
 
+        // Compatibilidade com o server protegido.
+        // O server ignora qualquer e-mail enviado aqui e usa
+        // exclusivamente o usuário validado pelo token.
         socket.emit(
-          'usuario_online',
-          {
-            email:
-              emailUsuario(),
-
-            tipo:
-              usuarioAtual?.tipo
-          }
+          'identificar_usuario'
         );
       }
     );
@@ -4497,32 +4800,116 @@ async function restaurarSessao() {
       );
 
 
-    if (!salvo) {
+    const tokenSalvo =
+      localStorage.getItem(
+        'rsconnect_token'
+      );
+
+
+    if (
+      !salvo ||
+      !tokenSalvo
+    ) {
+
+      // Quem estava logado na versão antiga precisará entrar
+      // uma única vez para receber o novo token.
+      localStorage.removeItem(
+        'rsconnect_usuario'
+      );
+
+
+      localStorage.removeItem(
+        'rsconnect_token'
+      );
+
+
+      localStorage.removeItem(
+        'rsconnect_privacidade'
+      );
+
+
       return;
     }
 
 
-    const usuario =
+    const usuarioSalvo =
       JSON.parse(
         salvo
       );
 
 
     if (
-      !usuario?.email
+      !usuarioSalvo?.email
     ) {
 
-      localStorage.removeItem(
-        'rsconnect_usuario'
+      throw new Error(
+        'Sessão local inválida.'
       );
-
-
-      return;
     }
 
 
+    authToken =
+      tokenSalvo;
+
+
     usuarioAtual =
-      usuario;
+      usuarioSalvo;
+
+
+    const contextoSalvo =
+      localStorage.getItem(
+        'rsconnect_privacidade'
+      );
+
+
+    if (contextoSalvo) {
+
+      try {
+
+        privacidadeAtual =
+          JSON.parse(
+            contextoSalvo
+          )
+          ||
+          privacidadeAtual;
+
+      } catch {}
+    }
+
+
+    // Confirma a sessão com o novo server.
+    const data =
+      await apiFetch(
+        '/api/auth/sessao'
+      );
+
+
+    usuarioAtual =
+      data?.usuario
+      ||
+      usuarioAtual;
+
+
+    privacidadeAtual =
+      data?.privacidade
+      ||
+      privacidadeAtual;
+
+
+    localStorage.setItem(
+      'rsconnect_usuario',
+      JSON.stringify(
+        usuarioAtual
+      )
+    );
+
+
+    localStorage.setItem(
+      'rsconnect_privacidade',
+      JSON.stringify(
+        privacidadeAtual
+      )
+    );
 
 
     await entrarNoSistema();
@@ -4540,6 +4927,32 @@ async function restaurarSessao() {
     localStorage.removeItem(
       'rsconnect_usuario'
     );
+
+
+    localStorage.removeItem(
+      'rsconnect_token'
+    );
+
+
+    localStorage.removeItem(
+      'rsconnect_privacidade'
+    );
+
+
+    usuarioAtual =
+      null;
+
+
+    authToken =
+      '';
+
+
+    privacidadeAtual = {
+      gestorRS: false,
+      empresaCliente: false,
+      prestador: false,
+      clienteId: null
+    };
   }
 }
 
@@ -14077,7 +14490,25 @@ let jcCameraJornadaId =
 
 function jcEhGestor() {
 
-  return ehEmpresa();
+  // Gestão/visualização da Jornada:
+  // Grupo RS vê todos os clientes;
+  // responsável da empresa cliente vê somente a própria empresa,
+  // porque o SERVER aplica o filtro de cliente_id.
+  return (
+    ehGrupoRS()
+    ||
+    ehEmpresaCliente()
+    ||
+    ehEmpresa()
+  );
+}
+
+
+function jcEhGrupoRS() {
+
+  // Ações administrativas como cadastrar cliente e vincular
+  // colaborador devem ficar restritas ao Grupo RS.
+  return ehGrupoRS();
 }
 
 
@@ -14086,6 +14517,12 @@ function jcAplicarPermissoesJornada() {
 
   const gestor =
     jcEhGestor();
+
+
+  // O servidor é a autoridade final:
+  // - Grupo RS vê todos os clientes;
+  // - empresa cliente vê somente seu próprio cliente;
+  // - colaborador vê somente suas próprias jornadas.
 
 
   $('jcGestaoTopo')
@@ -17474,9 +17911,8 @@ async function jcAbrirDocumentosJornada(
 
                         <button
                           class="btn btn-dark"
-                          onclick="window.open(
-                            '/api/jornada-documentos/${doc.id}/arquivo',
-                            '_blank'
+                          onclick="abrirArquivoProtegido(
+                            '/api/jornada-documentos/${doc.id}/arquivo'
                           )"
                         >
                           Abrir PDF
@@ -17634,6 +18070,11 @@ function jcSelecionarDocumentoJornada(
               method:
                 'POST',
 
+              headers: {
+                Authorization:
+                  `Bearer ${tokenUsuario()}`
+              },
+
               body:
                 form
             }
@@ -17726,6 +18167,11 @@ function jcSelecionarDocumentoAssinado(
             {
               method:
                 'POST',
+
+              headers: {
+                Authorization:
+                  `Bearer ${tokenUsuario()}`
+              },
 
               body:
                 form
