@@ -3799,7 +3799,7 @@ function loadingBotao(
 
 
 // ============================================================
-// SUPABASE — JORNADA DIRETA
+// SUPABASE — JORNADA VIA EDGE FUNCTION
 //
 // IMPORTANTE:
 // Preencha SOMENTE estas duas informações com os dados públicos
@@ -3892,39 +3892,144 @@ function rsObterSupabase() {
 }
 
 
-async function rsLoginSupabase(
-  email,
-  senha
+const RS_JORNADA_EDGE_URL =
+  `${RS_SUPABASE_URL}/functions/v1/rs-jornada`;
+
+
+async function rsJornadaEdgeFetch(
+  caminho,
+  opcoes = {}
 ) {
 
-  const sb =
-    rsObterSupabase();
+  const token =
+    tokenUsuario();
 
 
-  const {
-    data,
-    error
-  } =
-    await sb.auth.signInWithPassword({
-      email:
-        emailNormalizado(
-          email
-        ),
-
-      password:
-        String(
-          senha ||
-          ''
-        )
-    });
-
-
-  if (error) {
+  if (!token) {
 
     throw new Error(
-      'A Jornada usa Supabase Auth. Não foi possível autenticar esta conta no Supabase: '
-      +
-      error.message
+      'Sessão do RS Connect inválida. Entre novamente.'
+    );
+  }
+
+
+  const metodo =
+    String(
+      opcoes.method ||
+      'GET'
+    )
+      .toUpperCase();
+
+
+  let body =
+    null;
+
+
+  if (
+    opcoes.body
+    !==
+    undefined
+    &&
+    opcoes.body
+    !==
+    null
+  ) {
+
+    if (
+      typeof opcoes.body ===
+      'string'
+    ) {
+
+      try {
+
+        body =
+          JSON.parse(
+            opcoes.body
+          );
+
+      } catch {
+
+        body = {
+          valor:
+            opcoes.body
+        };
+      }
+
+    } else {
+
+      body =
+        opcoes.body;
+    }
+  }
+
+
+  const resposta =
+    await fetch(
+      RS_JORNADA_EDGE_URL,
+      {
+        method:
+          'POST',
+
+        headers: {
+          'Content-Type':
+            'application/json',
+
+          'apikey':
+            RS_SUPABASE_PUBLISHABLE_KEY,
+
+          'Authorization':
+            `Bearer ${token}`
+        },
+
+        body:
+          JSON.stringify({
+            caminho,
+            metodo,
+            body
+          })
+      }
+    );
+
+
+  let data =
+    null;
+
+
+  try {
+
+    data =
+      await resposta.json();
+
+  } catch {
+
+    data = {
+      erro:
+        `Erro HTTP ${resposta.status}`
+    };
+  }
+
+
+  if (
+    !resposta.ok
+  ) {
+
+    if (
+      resposta.status ===
+      404
+    ) {
+
+      throw new Error(
+        'A função rs-jornada ainda não foi publicada no Supabase.'
+      );
+    }
+
+
+    throw new Error(
+      data?.erro
+      ||
+      data?.mensagem
+      ||
+      `Erro HTTP ${resposta.status}`
     );
   }
 
@@ -3933,60 +4038,45 @@ async function rsLoginSupabase(
 }
 
 
+async function rsLoginSupabase(
+  email,
+  senha
+) {
+
+  // Não fazemos login no Supabase Auth.
+  // Os usuários continuam usando exclusivamente a conta/senha
+  // já existente no RS Connect / Render.
+  //
+  // A Jornada é autorizada pela Edge Function do Supabase usando
+  // o token do próprio RS Connect.
+  return {
+    usuario:
+      emailNormalizado(
+        email
+      )
+  };
+}
+
+
 async function rsGarantirSessaoSupabase() {
 
-  const sb =
-    rsObterSupabase();
+  // Não existe segunda sessão no Supabase Auth.
+  // Basta existir a sessão/token válido do RS Connect.
+  const token =
+    tokenUsuario();
 
 
-  const {
-    data,
-    error
-  } =
-    await sb.auth.getSession();
-
-
-  if (error) {
-
-    throw error;
-  }
-
-
-  const session =
-    data?.session;
-
-
-  if (!session) {
+  if (!token) {
 
     throw new Error(
-      'Sua sessão da Jornada no Supabase expirou. Entre novamente.'
+      'Sua sessão do RS Connect expirou. Entre novamente.'
     );
   }
 
 
-  const emailSessao =
-    emailNormalizado(
-      session.user?.email
-    );
-
-
-  if (
-    usuarioAtual?.email
-    &&
-    emailSessao !==
-    emailUsuario()
-  ) {
-
-    await sb.auth.signOut();
-
-
-    throw new Error(
-      'A conta do Supabase não corresponde à conta atual do RS Connect. Entre novamente.'
-    );
-  }
-
-
-  return session;
+  return {
+    token
+  };
 }
 
 
@@ -6377,9 +6467,9 @@ async function apiFetch(
 
 
   // ==========================================================
-  // JORNADA DIRETO NO SUPABASE
+  // JORNADA VIA EDGE FUNCTION DO SUPABASE
   //
-  // Essas rotas não vão mais para o Render.
+  // Essas rotas usam o token atual do RS Connect na Edge Function.
   // ==========================================================
 
   if (
@@ -6389,7 +6479,7 @@ async function apiFetch(
     )
   ) {
 
-    return rsJornadaSupabaseApi(
+    return rsJornadaEdgeFetch(
       caminho,
       opcoes
     );
@@ -6699,15 +6789,6 @@ async function fazerLogin(
             })
         }
       );
-
-
-    // A Jornada usa RLS do Supabase.
-    // Portanto a mesma conta precisa estar autenticada
-    // também no Supabase Auth.
-    await rsLoginSupabase(
-      emailLogin,
-      senhaLogin
-    );
 
 
     usuarioAtual =
@@ -7499,10 +7580,6 @@ async function restaurarSessao() {
       await apiFetch(
         '/api/auth/sessao'
       );
-
-
-    // Confirma também a sessão do Supabase usada na Jornada.
-    await rsGarantirSessaoSupabase();
 
 
     usuarioAtual =
