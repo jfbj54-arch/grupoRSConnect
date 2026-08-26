@@ -17190,8 +17190,8 @@ function jcEhGestor() {
 
   // Gestão/visualização da Jornada:
   // Grupo RS vê todos os clientes;
-  // responsável da empresa cliente vê somente a própria empresa,
-  // porque o SERVER aplica o filtro de cliente_id.
+  // empresa cliente vê e administra SOMENTE a própria empresa;
+  // colaborador vê somente a própria jornada.
   return (
     ehGrupoRS()
     ||
@@ -17204,9 +17204,19 @@ function jcEhGestor() {
 
 function jcEhGrupoRS() {
 
-  // Ações administrativas como cadastrar cliente e vincular
-  // colaborador devem ficar restritas ao Grupo RS.
   return ehGrupoRS();
+}
+
+
+function jcPodeVincularColaborador() {
+
+  // Grupo RS pode vincular em qualquer cliente.
+  // Empresa cliente pode vincular somente dentro do próprio cliente.
+  return (
+    ehGrupoRS()
+    ||
+    ehEmpresaCliente()
+  );
 }
 
 
@@ -17224,7 +17234,7 @@ function jcTextoGestaoJornada() {
     ehEmpresaCliente()
   ) {
 
-    return 'Acompanhe somente os colaboradores vinculados à sua empresa, valide entrada e saída e consulte jornadas, horários, valores e documentos permitidos.';
+    return 'Vincule colaboradores somente à sua empresa, acompanhe a jornada deles e valide entrada e saída. Dados de outras empresas permanecem ocultos.';
   }
 
 
@@ -17294,7 +17304,7 @@ function jcAplicarPermissoesJornada() {
   $('jcOwnerGuide')
     ?.classList.toggle(
       'hidden',
-      !grupoRS
+      !gestor
     );
 }
 
@@ -17527,6 +17537,30 @@ async function jcCarregarClientes() {
       data.clientes
       :
       [];
+
+
+  // Defesa adicional no INDEX:
+  // empresa cliente mantém somente o próprio cliente na tela.
+  if (
+    ehEmpresaCliente()
+    &&
+    !ehGrupoRS()
+    &&
+    privacidadeAtual?.clienteId
+  ) {
+
+    jcClientesCache =
+      jcClientesCache.filter(
+        cliente =>
+          Number(
+            cliente.id
+          )
+          ===
+          Number(
+            privacidadeAtual.clienteId
+          )
+      );
+  }
 
 
   jcAtualizarSelectsClientes();
@@ -18282,7 +18316,7 @@ async function jcAbrirCliente(
 
 
       ${
-        jcEhGrupoRS()
+        jcPodeVincularColaborador()
           ?
           `
             <button
@@ -18297,7 +18331,7 @@ async function jcAbrirCliente(
           :
           `
             <span class="small muted">
-              A equipe é administrada pelo Grupo RS.
+              Você pode apenas consultar esta equipe.
             </span>
           `
       }
@@ -18481,16 +18515,52 @@ async function jcVincularColaborador(
 ) {
 
   if (
-    !jcEhGrupoRS()
+    !jcPodeVincularColaborador()
   ) {
 
     toast(
-      'Somente o Grupo RS pode vincular colaboradores aos clientes.',
+      'Você não tem permissão para vincular colaboradores.',
       'error'
     );
 
 
     return;
+  }
+
+
+  // Empresa cliente só pode vincular dentro do próprio cliente.
+  if (
+    ehEmpresaCliente()
+    &&
+    !ehGrupoRS()
+  ) {
+
+    const clientePermitido =
+      Number(
+        privacidadeAtual?.clienteId
+        ||
+        0
+      );
+
+
+    if (
+      clientePermitido
+      &&
+      Number(
+        clienteId
+      )
+      !==
+      clientePermitido
+    ) {
+
+      toast(
+        'Você só pode vincular colaboradores à sua própria empresa.',
+        'error'
+      );
+
+
+      return;
+    }
   }
 
 
