@@ -1013,6 +1013,15 @@
         Criar minha conta
       </button>
 
+      <button
+        class="btn btn-dark"
+        type="button"
+        onclick="abrirRecuperacaoAcesso()"
+        style="margin-left:6px;"
+      >
+        🔐 Recuperar acesso
+      </button>
+
     </div>
 
   </div>
@@ -1592,6 +1601,25 @@
 
               </div>
 
+            </div>
+
+
+            <div
+              class="card"
+              style="margin-top:12px; background:#071827;"
+            >
+              <strong>🎯 Controle completo dos clientes fixos do Grupo RS</strong>
+
+              <div
+                class="small muted"
+                style="margin-top:8px; line-height:1.75;"
+              >
+                Cadastre clientes como <strong>Gratidão</strong>, <strong>SMT</strong>, <strong>PortoX</strong> e os demais contratos fixos; vincule os colaboradores e acompanhe toda a jornada no mesmo lugar.
+                <br><br>
+                <strong>Fluxo:</strong> Grupo RS cadastra cliente → vincula colaborador → colaborador chega → foto + GPS + entrada → responsável do cliente valida → intervalo → retorno → saída → total de horas → valor do dia → documentação/assinatura → arquivamento.
+                <br><br>
+                O histórico preserva empresa, colaborador, função, entrada, intervalo, retorno, saída, horas, valores, fotos, localização, validações e documentos para consulta futura.
+              </div>
             </div>
 
 
@@ -2482,6 +2510,104 @@
 
 
 <!-- =========================================================
+     RECUPERAÇÃO DE ACESSO — SUPORTE RS
+========================================================= -->
+
+<div
+  id="modalRecuperarAcesso"
+  class="modal hidden"
+>
+
+  <div class="modal-box">
+
+    <div class="modal-header">
+
+      <div>
+        <h3 style="margin:0;">🔐 Recuperar acesso</h3>
+        <div class="small muted" style="margin-top:5px;">
+          Redefinição administrativa de senha
+        </div>
+      </div>
+
+      <button
+        class="modal-close"
+        type="button"
+        onclick="fecharRecuperacaoAcesso()"
+      >
+        ✕
+      </button>
+
+    </div>
+
+    <div class="card" style="margin-bottom:12px;">
+      <div class="small muted" style="line-height:1.6;">
+        Esta ferramenta é destinada ao suporte do Grupo RS. A chave administrativa fica somente no Render e não é salva no navegador.
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>E-mail da conta</label>
+      <input
+        id="recuperarEmail"
+        type="email"
+        autocomplete="off"
+        placeholder="cliente@email.com"
+      >
+    </div>
+
+    <div class="form-group">
+      <label>Nova senha</label>
+      <input
+        id="recuperarNovaSenha"
+        type="password"
+        autocomplete="new-password"
+        minlength="6"
+        placeholder="Mínimo 6 caracteres"
+      >
+    </div>
+
+    <div class="form-group">
+      <label>Confirmar nova senha</label>
+      <input
+        id="recuperarConfirmarSenha"
+        type="password"
+        autocomplete="new-password"
+        minlength="6"
+        placeholder="Digite a senha novamente"
+      >
+    </div>
+
+    <div class="form-group">
+      <label>Chave administrativa do Render</label>
+      <input
+        id="recuperarChaveAdmin"
+        type="password"
+        autocomplete="off"
+        placeholder="ADMIN_RESET_KEY"
+      >
+    </div>
+
+    <button
+      id="btnExecutarRecuperacao"
+      class="btn btn-primary btn-block"
+      type="button"
+      onclick="executarRecuperacaoAcesso()"
+    >
+      Redefinir senha
+    </button>
+
+    <div
+      id="resultadoRecuperacao"
+      class="small"
+      style="display:none; margin-top:12px; padding:11px; border-radius:9px; line-height:1.5;"
+    ></div>
+
+  </div>
+
+</div>
+
+
+<!-- =========================================================
      CADASTRO
 ========================================================= -->
 
@@ -3279,6 +3405,294 @@ async function fazerLogin(
     toast(
       erro.message,
       'error'
+    );
+
+  } finally {
+
+    loadingBotao(
+      botao,
+      false
+    );
+  }
+}
+
+
+// ============================================================
+// RECUPERAÇÃO DE ACESSO — SUPORTE RS
+// ============================================================
+
+function abrirRecuperacaoAcesso() {
+
+  const modal =
+    $('modalRecuperarAcesso');
+
+
+  if (!modal) {
+    return;
+  }
+
+
+  const emailLogin =
+    $('loginEmail')?.value ||
+    '';
+
+
+  if ($('recuperarEmail')) {
+    $('recuperarEmail').value =
+      emailLogin;
+  }
+
+
+  if ($('recuperarNovaSenha')) {
+    $('recuperarNovaSenha').value =
+      '';
+  }
+
+
+  if ($('recuperarConfirmarSenha')) {
+    $('recuperarConfirmarSenha').value =
+      '';
+  }
+
+
+  if ($('recuperarChaveAdmin')) {
+    $('recuperarChaveAdmin').value =
+      '';
+  }
+
+
+  if ($('resultadoRecuperacao')) {
+    $('resultadoRecuperacao').style.display =
+      'none';
+  }
+
+
+  modal.classList.remove(
+    'hidden'
+  );
+}
+
+
+function fecharRecuperacaoAcesso() {
+
+  $('modalRecuperarAcesso')
+    ?.classList.add(
+      'hidden'
+    );
+
+
+  if ($('recuperarChaveAdmin')) {
+    $('recuperarChaveAdmin').value =
+      '';
+  }
+}
+
+
+function mostrarResultadoRecuperacao(
+  mensagem,
+  sucesso = false
+) {
+
+  const resultado =
+    $('resultadoRecuperacao');
+
+
+  if (!resultado) {
+    return;
+  }
+
+
+  resultado.style.display =
+    'block';
+
+
+  resultado.style.background =
+    sucesso
+      ?
+      'rgba(19,185,104,.15)'
+      :
+      'rgba(201,59,73,.16)';
+
+
+  resultado.style.border =
+    sucesso
+      ?
+      '1px solid rgba(76,226,146,.28)'
+      :
+      '1px solid rgba(255,119,132,.28)';
+
+
+  resultado.style.color =
+    sucesso
+      ?
+      '#65eca0'
+      :
+      '#ff8994';
+
+
+  resultado.textContent =
+    mensagem;
+}
+
+
+async function executarRecuperacaoAcesso() {
+
+  const email =
+    String(
+      $('recuperarEmail')?.value ||
+      ''
+    )
+      .trim()
+      .toLowerCase();
+
+
+  const novaSenha =
+    String(
+      $('recuperarNovaSenha')?.value ||
+      ''
+    );
+
+
+  const confirmar =
+    String(
+      $('recuperarConfirmarSenha')?.value ||
+      ''
+    );
+
+
+  const chaveAdmin =
+    String(
+      $('recuperarChaveAdmin')?.value ||
+      ''
+    );
+
+
+  const botao =
+    $('btnExecutarRecuperacao');
+
+
+  if (!email) {
+    mostrarResultadoRecuperacao(
+      'Informe o e-mail da conta.'
+    );
+    return;
+  }
+
+
+  if (novaSenha.length < 6) {
+    mostrarResultadoRecuperacao(
+      'A nova senha precisa ter pelo menos 6 caracteres.'
+    );
+    return;
+  }
+
+
+  if (novaSenha !== confirmar) {
+    mostrarResultadoRecuperacao(
+      'As duas senhas não são iguais.'
+    );
+    return;
+  }
+
+
+  if (!chaveAdmin) {
+    mostrarResultadoRecuperacao(
+      'Informe a chave administrativa.'
+    );
+    return;
+  }
+
+
+  loadingBotao(
+    botao,
+    true,
+    'Redefinindo...'
+  );
+
+
+  try {
+
+    const resposta =
+      await fetch(
+        `${API_URL}/api/admin/redefinir-senha`,
+        {
+          method:
+            'POST',
+
+          headers: {
+            'Content-Type':
+              'application/json',
+
+            'x-admin-reset-key':
+              chaveAdmin
+          },
+
+          body:
+            JSON.stringify({
+              email,
+              novaSenha
+            })
+        }
+      );
+
+
+    let dados =
+      {};
+
+
+    try {
+      dados =
+        await resposta.json();
+    } catch {
+      dados =
+        {};
+    }
+
+
+    if (
+      !resposta.ok ||
+      !dados?.sucesso
+    ) {
+      throw new Error(
+        dados?.erro ||
+        dados?.mensagem ||
+        `Não foi possível redefinir a senha (HTTP ${resposta.status}).`
+      );
+    }
+
+
+    mostrarResultadoRecuperacao(
+      '✅ Senha redefinida com sucesso. A conta já pode entrar com a nova senha.',
+      true
+    );
+
+
+    if ($('loginEmail')) {
+      $('loginEmail').value =
+        email;
+    }
+
+
+    if ($('loginSenha')) {
+      $('loginSenha').value =
+        novaSenha;
+    }
+
+
+    $('recuperarChaveAdmin').value =
+      '';
+
+
+    toast(
+      'Acesso recuperado com sucesso.',
+      'success'
+    );
+
+  } catch (erro) {
+
+    mostrarResultadoRecuperacao(
+      erro.message ||
+      'Erro ao recuperar acesso.'
     );
 
   } finally {
