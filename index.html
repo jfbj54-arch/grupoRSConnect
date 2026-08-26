@@ -2454,7 +2454,7 @@
 
 
 <!-- =========================================================
-     RECUPERAÇÃO DE ACESSO — SEM EXPOR ADMIN_RESET_KEY
+     RECUPERAÇÃO DE ACESSO — AUTOATENDIMENTO POR E-MAIL
 ========================================================= -->
 <div id="modalRecuperacaoUsuario" class="modal hidden">
   <div class="modal-box">
@@ -2462,25 +2462,89 @@
       <div>
         <h3 style="margin:0;">🔐 Recuperar acesso</h3>
         <div class="small muted" style="margin-top:4px;">
-          A chave administrativa nunca é exibida ao cliente.
+          Receba um código de 6 números no seu próprio e-mail.
         </div>
       </div>
       <button class="modal-close" onclick="fecharRecuperacaoUsuario()">✕</button>
     </div>
 
-    <div class="form-group">
-      <label>E-mail da conta</label>
-      <input id="recUsuarioEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com">
+    <div id="recEtapaEmail">
+      <div class="form-group">
+        <label>E-mail da conta</label>
+        <input
+          id="recUsuarioEmail"
+          type="email"
+          autocomplete="email"
+          placeholder="seuemail@exemplo.com"
+        >
+      </div>
+
+      <div class="jc-help-note">
+        Digite o mesmo e-mail usado no cadastro do RS Connect. Se a conta existir,
+        enviaremos um código temporário com validade de 15 minutos.
+      </div>
+
+      <button
+        id="btnRecEnviarCodigo"
+        class="btn btn-primary btn-block"
+        style="margin-top:12px;"
+        onclick="solicitarCodigoRecuperacao()"
+      >
+        📧 Enviar código
+      </button>
     </div>
 
-    <div class="jc-help-note">
-      Por segurança, a redefinição é concluída pelo suporte do Grupo RS. Informe seu e-mail e envie a solicitação.
-      Nenhuma chave interna do sistema precisa ser digitada por você.
-    </div>
+    <div id="recEtapaCodigo" class="hidden">
+      <div class="form-group">
+        <label>Código de 6 números</label>
+        <input
+          id="recUsuarioCodigo"
+          type="text"
+          inputmode="numeric"
+          maxlength="6"
+          autocomplete="one-time-code"
+          placeholder="000000"
+        >
+      </div>
 
-    <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="prepararSolicitacaoRecuperacao()">
-      Solicitar recuperação
-    </button>
+      <div class="form-group">
+        <label>Nova senha</label>
+        <input
+          id="recUsuarioNovaSenha"
+          type="password"
+          minlength="6"
+          autocomplete="new-password"
+          placeholder="Mínimo de 6 caracteres"
+        >
+      </div>
+
+      <div class="form-group">
+        <label>Confirmar nova senha</label>
+        <input
+          id="recUsuarioConfirmarSenha"
+          type="password"
+          minlength="6"
+          autocomplete="new-password"
+          placeholder="Repita a nova senha"
+        >
+      </div>
+
+      <button
+        id="btnRecRedefinirSenha"
+        class="btn btn-success btn-block"
+        onclick="confirmarRecuperacaoSenha()"
+      >
+        ✅ Criar nova senha
+      </button>
+
+      <button
+        class="btn btn-dark btn-block"
+        style="margin-top:8px;"
+        onclick="voltarEtapaEmailRecuperacao()"
+      >
+        ← Voltar / reenviar código
+      </button>
+    </div>
 
     <div id="recUsuarioResultado" class="small muted" style="margin-top:10px;"></div>
   </div>
@@ -16937,43 +17001,261 @@ setTimeout(
 
 
 // ============================================================
-// RECUPERAÇÃO DE ACESSO — CLIENTE NÃO VÊ CHAVE ADMINISTRATIVA
+// RECUPERAÇÃO DE ACESSO — AUTOATENDIMENTO POR E-MAIL
+// SERVER:
+// POST /api/auth/esqueci-senha
+// POST /api/auth/redefinir-senha
 // ============================================================
 
 function abrirRecuperacaoUsuario() {
   const modal = $('modalRecuperacaoUsuario');
-  if (!modal) return;
-  $('recUsuarioEmail').value = $('loginEmail')?.value || '';
-  $('recUsuarioResultado').textContent = '';
-  modal.classList.remove('hidden');
-}
 
-function fecharRecuperacaoUsuario() {
-  $('modalRecuperacaoUsuario')?.classList.add('hidden');
-}
-
-async function prepararSolicitacaoRecuperacao() {
-  const email = emailNormalizado($('recUsuarioEmail')?.value);
-  const out = $('recUsuarioResultado');
-  if (!email) {
-    out.textContent = 'Informe o e-mail cadastrado.';
+  if (!modal) {
     return;
   }
 
-  try {
-    const resposta = await apiFetch('/api/conta/existe', {
-      method: 'POST',
-      body: JSON.stringify({ email })
-    });
+  $('recUsuarioEmail').value =
+    $('loginEmail')?.value || '';
 
-    // Não revelamos detalhes desnecessários da conta.
-    out.innerHTML = resposta?.existe
-      ? '✅ Solicitação preparada. Informe ao suporte do Grupo RS este e-mail: <strong>' + escapeHtml(email) + '</strong>.'
-      : 'Se este e-mail estiver cadastrado, o suporte do Grupo RS poderá redefinir o acesso.';
+  $('recUsuarioCodigo').value = '';
+  $('recUsuarioNovaSenha').value = '';
+  $('recUsuarioConfirmarSenha').value = '';
+  $('recUsuarioResultado').textContent = '';
+
+  $('recEtapaEmail')?.classList.remove('hidden');
+  $('recEtapaCodigo')?.classList.add('hidden');
+
+  modal.classList.remove('hidden');
+}
+
+
+function fecharRecuperacaoUsuario() {
+  $('modalRecuperacaoUsuario')
+    ?.classList.add('hidden');
+}
+
+
+function voltarEtapaEmailRecuperacao() {
+  $('recEtapaCodigo')
+    ?.classList.add('hidden');
+
+  $('recEtapaEmail')
+    ?.classList.remove('hidden');
+
+  $('recUsuarioResultado').textContent =
+    'Você pode reenviar um novo código para o mesmo e-mail.';
+}
+
+
+async function solicitarCodigoRecuperacao() {
+  const email =
+    emailNormalizado(
+      $('recUsuarioEmail')?.value
+    );
+
+  const out =
+    $('recUsuarioResultado');
+
+  const botao =
+    $('btnRecEnviarCodigo');
+
+
+  if (!email) {
+    out.textContent =
+      'Informe o e-mail cadastrado.';
+
+    return;
+  }
+
+
+  try {
+    loadingBotao(
+      botao,
+      true,
+      'Enviando...'
+    );
+
+
+    const resposta =
+      await apiFetch(
+        '/api/auth/esqueci-senha',
+        {
+          method: 'POST',
+
+          body: JSON.stringify({
+            email
+          })
+        }
+      );
+
+
+    out.textContent =
+      resposta?.mensagem ||
+      'Se a conta estiver cadastrada, o código será enviado por e-mail.';
+
+
+    $('recEtapaEmail')
+      ?.classList.add('hidden');
+
+    $('recEtapaCodigo')
+      ?.classList.remove('hidden');
+
+
+    setTimeout(
+      () => {
+        $('recUsuarioCodigo')
+          ?.focus();
+      },
+      120
+    );
+
   } catch (erro) {
-    out.textContent = erro.message || 'Não foi possível verificar o acesso agora.';
+    out.textContent =
+      erro.message ||
+      'Não foi possível enviar o código agora.';
+
+  } finally {
+    loadingBotao(
+      botao,
+      false
+    );
   }
 }
+
+
+async function confirmarRecuperacaoSenha() {
+  const email =
+    emailNormalizado(
+      $('recUsuarioEmail')?.value
+    );
+
+  const codigo =
+    texto(
+      $('recUsuarioCodigo')?.value
+    )
+      .replace(/\D/g, '')
+      .slice(0, 6);
+
+  const novaSenha =
+    texto(
+      $('recUsuarioNovaSenha')?.value
+    );
+
+  const confirmar =
+    texto(
+      $('recUsuarioConfirmarSenha')?.value
+    );
+
+  const out =
+    $('recUsuarioResultado');
+
+  const botao =
+    $('btnRecRedefinirSenha');
+
+
+  if (!email) {
+    out.textContent =
+      'Informe o e-mail da conta.';
+
+    return;
+  }
+
+
+  if (!/^\d{6}$/.test(codigo)) {
+    out.textContent =
+      'Digite o código de 6 números enviado ao seu e-mail.';
+
+    return;
+  }
+
+
+  if (novaSenha.length < 6) {
+    out.textContent =
+      'A nova senha precisa ter no mínimo 6 caracteres.';
+
+    return;
+  }
+
+
+  if (novaSenha !== confirmar) {
+    out.textContent =
+      'As duas senhas não são iguais.';
+
+    return;
+  }
+
+
+  try {
+    loadingBotao(
+      botao,
+      true,
+      'Salvando...'
+    );
+
+
+    const resposta =
+      await apiFetch(
+        '/api/auth/redefinir-senha',
+        {
+          method: 'POST',
+
+          body: JSON.stringify({
+            email,
+            codigo,
+            novaSenha
+          })
+        }
+      );
+
+
+    out.innerHTML =
+      '✅ ' +
+      escapeHtml(
+        resposta?.mensagem ||
+        'Senha redefinida com sucesso.'
+      );
+
+
+    if ($('loginEmail')) {
+      $('loginEmail').value =
+        email;
+    }
+
+
+    $('recUsuarioCodigo').value = '';
+    $('recUsuarioNovaSenha').value = '';
+    $('recUsuarioConfirmarSenha').value = '';
+
+
+    setTimeout(
+      () => {
+        fecharRecuperacaoUsuario();
+
+        $('loginSenha')
+          ?.focus();
+      },
+      1400
+    );
+
+  } catch (erro) {
+    out.textContent =
+      erro.message ||
+      'Não foi possível redefinir a senha.';
+
+  } finally {
+    loadingBotao(
+      botao,
+      false
+    );
+  }
+}
+
+
+// Compatibilidade com chamadas antigas do próprio INDEX.
+async function prepararSolicitacaoRecuperacao() {
+  return solicitarCodigoRecuperacao();
+}
+
 
 function abrirSuporteSenha() {
   $('supAdminEmail').value = emailUsuario();
