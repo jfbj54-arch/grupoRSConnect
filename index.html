@@ -15,7 +15,7 @@
     content="#061523"
   >
 
-  <title>RS Connect - Jornada Completa</title>
+  <title>RS Connect - Gestão de Jornada dos Clientes</title>
 
   <script src="/socket.io/socket.io.js"></script>
 
@@ -728,7 +728,195 @@
       }
     }
 
-  </style>
+  
+    /* ========================================================
+       GESTÃO DE JORNADA — CLIENTES FIXOS
+    ======================================================== */
+
+    .jc-shell {
+      display: grid;
+      gap: 12px;
+    }
+
+    .jc-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+      margin: 10px 0 14px;
+    }
+
+    .jc-tabs button.active {
+      background: #147fe0;
+      border-color: #147fe0;
+    }
+
+    .jc-kpis {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0,1fr));
+      gap: 9px;
+      margin-bottom: 12px;
+    }
+
+    .jc-kpi {
+      background: #081d30;
+      border: 1px solid #153b58;
+      border-radius: 12px;
+      padding: 12px;
+    }
+
+    .jc-kpi span {
+      display: block;
+      color: #89a1b7;
+      font-size: 10px;
+    }
+
+    .jc-kpi strong {
+      display: block;
+      margin-top: 6px;
+      font-size: 21px;
+    }
+
+    .jc-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: end;
+      margin-bottom: 12px;
+    }
+
+    .jc-toolbar .form-group {
+      margin: 0;
+      min-width: 160px;
+      flex: 1;
+    }
+
+    .jc-table-wrap {
+      width: 100%;
+      overflow-x: auto;
+      -webkit-overflow-scrolling: touch;
+      border: 1px solid #153b58;
+      border-radius: 12px;
+    }
+
+    .jc-table {
+      width: 100%;
+      min-width: 1080px;
+      border-collapse: collapse;
+      background: #071827;
+    }
+
+    .jc-table th,
+    .jc-table td {
+      border-bottom: 1px solid #15344c;
+      padding: 9px 8px;
+      text-align: left;
+      font-size: 10px;
+      white-space: nowrap;
+      vertical-align: top;
+    }
+
+    .jc-table th {
+      color: #8db4d3;
+      background: #091f33;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    .jc-table tr:last-child td {
+      border-bottom: 0;
+    }
+
+    .jc-clientes-grid {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0,1fr));
+      gap: 10px;
+    }
+
+    .jc-client-card {
+      background: #081d30;
+      border: 1px solid #153b58;
+      border-radius: 12px;
+      padding: 13px;
+    }
+
+    .jc-client-card.active {
+      border-color: #168cff;
+      box-shadow: 0 0 0 1px rgba(22,140,255,.25);
+    }
+
+    .jc-mini-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 5px;
+      margin-top: 8px;
+    }
+
+    .jc-mini-actions .btn {
+      padding: 7px 9px;
+      font-size: 10px;
+    }
+
+    .jc-fixed-card {
+      border: 1px solid #1a5479;
+      background: linear-gradient(180deg,#08243b,#071827);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 12px;
+    }
+
+    .jc-fixed-head {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      align-items: flex-start;
+    }
+
+    .jc-times {
+      display: grid;
+      grid-template-columns: repeat(5,minmax(0,1fr));
+      gap: 7px;
+      margin: 10px 0;
+    }
+
+    .jc-time {
+      background: #061522;
+      border: 1px solid #153b58;
+      padding: 9px;
+      border-radius: 9px;
+    }
+
+    .jc-time small {
+      color: #7fa0ba;
+      display: block;
+    }
+
+    .jc-time strong {
+      display: block;
+      margin-top: 4px;
+      font-size: 11px;
+    }
+
+    @media (max-width: 980px) {
+      .jc-kpis {
+        grid-template-columns: repeat(2, minmax(0,1fr));
+      }
+
+      .jc-clientes-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .jc-times {
+        grid-template-columns: repeat(2,minmax(0,1fr));
+      }
+
+      .jc-toolbar {
+        display: grid;
+        grid-template-columns: 1fr;
+      }
+    }
+
+</style>
 
 </head>
 
@@ -1346,6 +1534,302 @@
         id="pageJornada"
         class="page"
       >
+
+        <!-- =================================================
+             GESTÃO DE JORNADA — CLIENTES FIXOS GRUPO RS
+        ================================================== -->
+
+        <div
+          id="jornadaClientesRS"
+          class="jc-shell"
+        >
+
+          <div class="card">
+
+            <div
+              style="
+                display:flex;
+                justify-content:space-between;
+                align-items:flex-start;
+                gap:10px;
+                flex-wrap:wrap;
+              "
+            >
+
+              <div>
+
+                <h3
+                  class="section-title"
+                  style="margin-bottom:5px;"
+                >
+                  🏢 Gestão de Jornada dos Clientes
+                </h3>
+
+                <div class="small muted">
+                  Clientes fixos • colaboradores • ponto • validação • horas • valores • documentos • histórico
+                </div>
+
+              </div>
+
+              <div class="service-actions">
+
+                <button
+                  id="btnJcNovoCliente"
+                  class="btn btn-primary"
+                  type="button"
+                  onclick="jcAbrirCadastroCliente()"
+                >
+                  + Cadastrar cliente
+                </button>
+
+                <button
+                  class="btn btn-dark"
+                  type="button"
+                  onclick="jcCarregarTudo(true)"
+                >
+                  ↻ Atualizar
+                </button>
+
+              </div>
+
+            </div>
+
+
+            <div class="jc-tabs">
+
+              <button
+                id="jcTabHoje"
+                class="btn btn-primary active"
+                onclick="jcAbrirSubaba('hoje')"
+              >
+                📍 Jornada do Dia
+              </button>
+
+              <button
+                id="jcTabClientes"
+                class="btn btn-dark"
+                onclick="jcAbrirSubaba('clientes')"
+              >
+                🏢 Clientes
+              </button>
+
+              <button
+                id="jcTabHistorico"
+                class="btn btn-dark"
+                onclick="jcAbrirSubaba('historico')"
+              >
+                🗃 Histórico
+              </button>
+
+              <button
+                id="jcTabDocumentos"
+                class="btn btn-dark"
+                onclick="jcAbrirSubaba('documentos')"
+              >
+                📄 Documentos
+              </button>
+
+            </div>
+
+          </div>
+
+
+          <!-- VISÃO DO COLABORADOR FIXO -->
+          <div
+            id="jcMinhaJornada"
+            class="hidden"
+          ></div>
+
+
+          <!-- GESTÃO GRUPO RS -->
+          <div
+            id="jcGestao"
+            class="hidden"
+          >
+
+            <div
+              id="jcSubHoje"
+              class="jc-subaba"
+            >
+
+              <div class="card">
+
+                <div class="jc-toolbar">
+
+                  <div class="form-group">
+
+                    <label>Empresa cliente</label>
+
+                    <select
+                      id="jcSelectClienteHoje"
+                      onchange="jcSelecionarClienteHoje()"
+                    >
+                      <option value="">
+                        Selecione
+                      </option>
+                    </select>
+
+                  </div>
+
+
+                  <div class="form-group">
+
+                    <label>Data</label>
+
+                    <input
+                      id="jcDataHoje"
+                      type="date"
+                      onchange="jcCarregarAcompanhamento()"
+                    >
+
+                  </div>
+
+
+                  <button
+                    class="btn btn-dark"
+                    onclick="jcCarregarAcompanhamento()"
+                  >
+                    Buscar
+                  </button>
+
+                </div>
+
+
+                <div
+                  id="jcKpis"
+                  class="jc-kpis"
+                ></div>
+
+
+                <div
+                  id="jcAcompanhamento"
+                ></div>
+
+              </div>
+
+
+              <div
+                id="jcFechamento"
+                class="card"
+                style="margin-top:12px;"
+              ></div>
+
+            </div>
+
+
+            <div
+              id="jcSubClientes"
+              class="jc-subaba hidden"
+            >
+
+              <div
+                id="jcListaClientes"
+                class="jc-clientes-grid"
+              ></div>
+
+
+              <div
+                id="jcPainelCliente"
+                class="card hidden"
+                style="margin-top:12px;"
+              ></div>
+
+            </div>
+
+
+            <div
+              id="jcSubHistorico"
+              class="jc-subaba hidden"
+            >
+
+              <div class="card">
+
+                <div class="jc-toolbar">
+
+                  <div class="form-group">
+
+                    <label>Cliente</label>
+
+                    <select
+                      id="jcHistoricoCliente"
+                      onchange="jcHistoricoClienteMudou()"
+                    ></select>
+
+                  </div>
+
+
+                  <div class="form-group">
+
+                    <label>Colaborador</label>
+
+                    <select id="jcHistoricoColaborador">
+
+                      <option value="">
+                        Todos
+                      </option>
+
+                    </select>
+
+                  </div>
+
+
+                  <button
+                    class="btn btn-primary"
+                    onclick="jcCarregarHistorico()"
+                  >
+                    Pesquisar
+                  </button>
+
+                </div>
+
+
+                <div id="jcHistoricoResultado"></div>
+
+              </div>
+
+            </div>
+
+
+            <div
+              id="jcSubDocumentos"
+              class="jc-subaba hidden"
+            >
+
+              <div class="card">
+
+                <strong>
+                  📄 Documentação digital da Jornada
+                </strong>
+
+                <div
+                  class="small muted"
+                  style="margin-top:6px; line-height:1.6;"
+                >
+                  Os documentos ficam vinculados à jornada do colaborador.
+                  O PDF pode ser aberto, assinado no GOV.BR e depois arquivado novamente como documento assinado.
+                </div>
+
+                <div
+                  id="jcDocumentosResultado"
+                  style="margin-top:12px;"
+                ></div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+
+
+        <div
+          id="jornadaServicoAvulsoTitulo"
+          class="small muted"
+          style="margin:15px 0 8px;"
+        >
+          Jornada de serviços/vagas
+        </div>
 
         <div id="jornadaSemServico">
 
@@ -3704,13 +4188,68 @@ function usuarioEhTitular(
   servico
 ) {
 
-  return (
+  const emailTitular =
     prestadorEmailServico(
       servico
+    );
+
+
+  const meuEmail =
+    emailUsuario();
+
+
+  // 1. Forma principal: e-mail do Titular.
+  if (
+    emailTitular
+    &&
+    meuEmail
+    &&
+    emailTitular ===
+    meuEmail
+  ) {
+
+    return true;
+  }
+
+
+  // 2. Compatibilidade com serviços antigos:
+  // alguns registros possuem prestador_nome/titular_nome,
+  // mas não possuem prestador_email corretamente preenchido.
+  const nomeTitular =
+    texto(
+      servico?.prestador_nome ||
+      servico?.titular_nome ||
+      servico?.prestadorNome ||
+      servico?.titularNome
     )
-    ===
-    emailUsuario()
-  );
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
+
+  const meuNome =
+    texto(
+      usuarioAtual?.nome
+    )
+      .toLowerCase()
+      .replace(/\s+/g, ' ')
+      .trim();
+
+
+  if (
+    nomeTitular
+    &&
+    meuNome
+    &&
+    nomeTitular ===
+    meuNome
+  ) {
+
+    return true;
+  }
+
+
+  return false;
 }
 
 
@@ -4753,6 +5292,98 @@ function htmlServico(
   }
 
 
+  // ==========================================================
+  // PAINEL DA JORNADA DO TITULAR
+  // ==========================================================
+
+  let painelJornadaTitular =
+    '';
+
+
+  if (
+    contexto ===
+    'meus'
+    &&
+    ehPrestador()
+    &&
+    usuarioEhTitular(
+      servico
+    )
+    &&
+    !finalizado
+    &&
+    !status.includes(
+      'cancel'
+    )
+  ) {
+
+    let etapa =
+      'Aguardando confirmação';
+
+
+    if (
+      servico?.presenca_confirmada
+      &&
+      !servico?.checkin_hora
+    ) {
+
+      etapa =
+        'Presença confirmada • faça o Check-in';
+    }
+
+
+    if (
+      servico?.checkin_hora
+      &&
+      !servico?.checkout_hora
+      &&
+      !servico?.em_intervalo
+    ) {
+
+      etapa =
+        'Jornada em andamento';
+    }
+
+
+    if (
+      servico?.em_intervalo
+    ) {
+
+      etapa =
+        'Em intervalo • registre o retorno';
+    }
+
+
+    painelJornadaTitular = `
+
+      <div
+        style="
+          margin-top:12px;
+          padding:11px 12px;
+          border:1px solid #1e5f8c;
+          background:#08243b;
+          border-radius:10px;
+        "
+      >
+
+        <strong>
+          ⏱ Ações da Jornada — Titular
+        </strong>
+
+        <div
+          class="small muted"
+          style="margin-top:5px;"
+        >
+          ${escapeHtml(
+            etapa
+          )}
+        </div>
+
+      </div>
+    `;
+  }
+
+
   return `
 
     <div class="service-card">
@@ -5006,6 +5637,9 @@ function htmlServico(
         </div>
 
       </div>
+
+
+      ${painelJornadaTitular}
 
 
       ${
@@ -12376,8 +13010,3785 @@ console.log(
 // FIM DO JAVASCRIPT
 // ============================================================
 
+
+
+
+// ============================================================
+// GESTÃO DE JORNADA — CLIENTES FIXOS GRUPO RS
+// ============================================================
+
+let jcClientesCache =
+  [];
+
+
+let jcClienteSelecionado =
+  null;
+
+
+let jcJornadasHojeCache =
+  [];
+
+
+let jcMinhaJornadaCache =
+  [];
+
+
+let jcCameraJornadaId =
+  null;
+
+
+function jcEhGestor() {
+
+  return ehEmpresa();
+}
+
+
+function jcDataLocalHoje() {
+
+  const agora =
+    new Date();
+
+
+  const ano =
+    agora.getFullYear();
+
+
+  const mes =
+    String(
+      agora.getMonth() + 1
+    )
+      .padStart(
+        2,
+        '0'
+      );
+
+
+  const dia =
+    String(
+      agora.getDate()
+    )
+      .padStart(
+        2,
+        '0'
+      );
+
+
+  return `${ano}-${mes}-${dia}`;
+}
+
+
+function jcHora(
+  valor
+) {
+
+  if (!valor) {
+    return '-';
+  }
+
+
+  try {
+
+    return new Date(
+      valor
+    )
+      .toLocaleTimeString(
+        'pt-BR',
+        {
+          hour:
+            '2-digit',
+
+          minute:
+            '2-digit'
+        }
+      );
+
+  } catch {
+
+    return '-';
+  }
+}
+
+
+function jcStatusBadge(
+  status
+) {
+
+  const s =
+    texto(
+      status
+    )
+      .toUpperCase();
+
+
+  if (
+    s ===
+    'PRESENTE'
+  ) {
+
+    return 'badge-green';
+  }
+
+
+  if (
+    s ===
+    'EM_INTERVALO'
+  ) {
+
+    return 'badge-yellow';
+  }
+
+
+  if (
+    s ===
+    'ENCERRADO'
+  ) {
+
+    return 'badge-blue';
+  }
+
+
+  return 'badge-red';
+}
+
+
+function jcStatusTexto(
+  status
+) {
+
+  const s =
+    texto(
+      status
+    )
+      .toUpperCase();
+
+
+  const mapa = {
+
+    AUSENTE:
+      'Ausente',
+
+    PRESENTE:
+      'Presente',
+
+    EM_INTERVALO:
+      'Em intervalo',
+
+    ENCERRADO:
+      'Encerrado'
+  };
+
+
+  return mapa[s] || s || 'Ausente';
+}
+
+
+function jcUrlMaps(
+  item
+) {
+
+  if (
+    item?.cliente_latitude
+    &&
+    item?.cliente_longitude
+  ) {
+
+    return (
+      'https://www.google.com/maps/search/?api=1&query='
+      +
+      encodeURIComponent(
+        `${item.cliente_latitude},${item.cliente_longitude}`
+      )
+    );
+  }
+
+
+  const endereco =
+    [
+      item?.cliente_endereco,
+      item?.cliente_cidade,
+      item?.cliente_uf
+    ]
+      .filter(Boolean)
+      .join(', ');
+
+
+  return endereco
+    ?
+    (
+      'https://www.google.com/maps/search/?api=1&query='
+      +
+      encodeURIComponent(
+        endereco
+      )
+    )
+    :
+    '';
+}
+
+
+function jcAbrirMaps(
+  jornada
+) {
+
+  const url =
+    jcUrlMaps(
+      jornada
+    );
+
+
+  if (!url) {
+
+    toast(
+      'O endereço deste cliente ainda não foi cadastrado.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  window.open(
+    url,
+    '_blank',
+    'noopener,noreferrer'
+  );
+}
+
+
+async function jcCarregarClientes() {
+
+  const data =
+    await apiFetch(
+      '/api/jornada-clientes'
+    );
+
+
+  jcClientesCache =
+    Array.isArray(
+      data?.clientes
+    )
+      ?
+      data.clientes
+      :
+      [];
+
+
+  jcAtualizarSelectsClientes();
+
+
+  jcRenderizarClientes();
+
+
+  return jcClientesCache;
+}
+
+
+function jcAtualizarSelectsClientes() {
+
+  const selects = [
+
+    $('jcSelectClienteHoje'),
+
+    $('jcHistoricoCliente')
+  ];
+
+
+  selects.forEach(
+    select => {
+
+      if (!select) {
+        return;
+      }
+
+
+      const valorAtual =
+        select.value;
+
+
+      select.innerHTML = `
+
+        <option value="">
+          Selecione
+        </option>
+
+        ${
+          jcClientesCache
+            .map(
+              cliente => `
+
+                <option
+                  value="${cliente.id}"
+                >
+                  ${escapeHtml(
+                    cliente.nome
+                  )}
+                </option>
+              `
+            )
+            .join('')
+        }
+      `;
+
+
+      if (
+        valorAtual
+        &&
+        jcClientesCache.some(
+          c =>
+            Number(
+              c.id
+            )
+            ===
+            Number(
+              valorAtual
+            )
+        )
+      ) {
+
+        select.value =
+          valorAtual;
+      }
+    }
+  );
+}
+
+
+async function jcCarregarTudo(
+  aviso = false
+) {
+
+  try {
+
+    if (
+      jcEhGestor()
+    ) {
+
+      await jcCarregarClientes();
+
+
+      $('jcGestao')
+        ?.classList.remove(
+          'hidden'
+        );
+
+
+      $('jcMinhaJornada')
+        ?.classList.add(
+          'hidden'
+        );
+
+
+      $('jornadaSemServico')
+        ?.classList.add(
+          'hidden'
+        );
+
+
+      $('jornadaConteudo')
+        ?.classList.add(
+          'hidden'
+        );
+
+
+      $('jornadaServicoAvulsoTitulo')
+        ?.classList.add(
+          'hidden'
+        );
+
+
+      if (
+        !$('jcDataHoje').value
+      ) {
+
+        $('jcDataHoje').value =
+          jcDataLocalHoje();
+      }
+
+
+      if (
+        !jcClienteSelecionado
+        &&
+        jcClientesCache.length
+      ) {
+
+        jcClienteSelecionado =
+          jcClientesCache[0];
+
+
+        $('jcSelectClienteHoje').value =
+          String(
+            jcClienteSelecionado.id
+          );
+      }
+
+
+      if (
+        jcClienteSelecionado
+      ) {
+
+        await jcCarregarAcompanhamento();
+      }
+
+    } else {
+
+      $('jcGestao')
+        ?.classList.add(
+          'hidden'
+        );
+
+
+      $('jcMinhaJornada')
+        ?.classList.remove(
+          'hidden'
+        );
+
+
+      $('jornadaServicoAvulsoTitulo')
+        ?.classList.remove(
+          'hidden'
+        );
+
+
+      await jcCarregarMinhaJornada();
+    }
+
+
+    if (
+      aviso
+    ) {
+
+      toast(
+        'Jornada atualizada.',
+        'success'
+      );
+    }
+
+  } catch (
+    erro
+  ) {
+
+    console.error(
+      'Gestão Jornada:',
+      erro
+    );
+
+
+    if (
+      aviso
+    ) {
+
+      toast(
+        erro.message,
+        'error'
+      );
+    }
+  }
+}
+
+
+function jcAbrirSubaba(
+  nome
+) {
+
+  [
+    'hoje',
+    'clientes',
+    'historico',
+    'documentos'
+  ]
+    .forEach(
+      item => {
+
+        $(
+          `jcSub${
+            item
+              .charAt(0)
+              .toUpperCase()
+            +
+            item.slice(1)
+          }`
+        )
+          ?.classList.toggle(
+            'hidden',
+            item !== nome
+          );
+
+
+        $(
+          `jcTab${
+            item
+              .charAt(0)
+              .toUpperCase()
+            +
+            item.slice(1)
+          }`
+        )
+          ?.classList.toggle(
+            'active',
+            item === nome
+          );
+      }
+    );
+
+
+  if (
+    nome ===
+    'clientes'
+  ) {
+
+    jcRenderizarClientes();
+  }
+
+
+  if (
+    nome ===
+    'documentos'
+  ) {
+
+    jcRenderizarDocumentosGestao();
+  }
+}
+
+
+function jcRenderizarClientes() {
+
+  const container =
+    $('jcListaClientes');
+
+
+  if (!container) {
+    return;
+  }
+
+
+  if (
+    !jcClientesCache.length
+  ) {
+
+    container.innerHTML = `
+
+      <div class="card">
+
+        <strong>
+          Nenhum cliente cadastrado.
+        </strong>
+
+        <div
+          class="small muted"
+          style="margin-top:6px;"
+        >
+          Cadastre Gratidão, SMT, PortoX e os demais clientes do Grupo RS.
+        </div>
+
+      </div>
+    `;
+
+
+    return;
+  }
+
+
+  container.innerHTML =
+    jcClientesCache
+      .map(
+        cliente => `
+
+          <div
+            class="jc-client-card ${
+              Number(
+                jcClienteSelecionado?.id
+              )
+              ===
+              Number(
+                cliente.id
+              )
+                ?
+                'active'
+                :
+                ''
+            }"
+          >
+
+            <strong>
+              🏢
+              ${escapeHtml(
+                cliente.nome
+              )}
+            </strong>
+
+
+            <div
+              class="small muted"
+              style="
+                margin-top:6px;
+                line-height:1.6;
+              "
+            >
+
+              👥
+              ${
+                Number(
+                  cliente.colaboradores_ativos ||
+                  0
+                )
+              }
+              colaboradores
+
+              ${
+                cliente.cidade
+                  ?
+                  `
+                    <br>
+                    📍
+                    ${escapeHtml(
+                      cliente.cidade
+                    )}
+                  `
+                  :
+                  ''
+              }
+
+              ${
+                cliente.responsavel_nome
+                  ?
+                  `
+                    <br>
+                    👤
+                    ${escapeHtml(
+                      cliente.responsavel_nome
+                    )}
+                  `
+                  :
+                  ''
+              }
+
+            </div>
+
+
+            <div class="jc-mini-actions">
+
+              <button
+                class="btn btn-primary"
+                onclick="jcAbrirCliente(
+                  ${cliente.id}
+                )"
+              >
+                Abrir gestão
+              </button>
+
+            </div>
+
+          </div>
+        `
+      )
+      .join('');
+}
+
+
+async function jcAbrirCadastroCliente() {
+
+  if (
+    !jcEhGestor()
+  ) {
+
+    return;
+  }
+
+
+  const nome =
+    window.prompt(
+      'Nome da empresa cliente (ex.: Gratidão):'
+    );
+
+
+  if (
+    nome ===
+    null
+    ||
+    !texto(
+      nome
+    )
+  ) {
+
+    return;
+  }
+
+
+  const endereco =
+    window.prompt(
+      'Endereço completo do cliente:',
+      ''
+    );
+
+
+  if (
+    endereco ===
+    null
+  ) {
+
+    return;
+  }
+
+
+  const cidade =
+    window.prompt(
+      'Cidade:',
+      ''
+    );
+
+
+  const responsavel =
+    window.prompt(
+      'Nome do responsável/recepcionista do cliente:',
+      ''
+    );
+
+
+  const responsavelEmail =
+    window.prompt(
+      'E-mail do responsável que poderá validar a jornada:',
+      ''
+    );
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        '/api/jornada-clientes',
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              nome:
+                texto(
+                  nome
+                ),
+
+              endereco:
+                endereco ||
+                '',
+
+              cidade:
+                cidade ||
+                '',
+
+              responsavel_nome:
+                responsavel ||
+                '',
+
+              responsavel_email:
+                responsavelEmail ||
+                '',
+
+              criado_por:
+                emailUsuario()
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Cliente cadastrado.',
+      'success'
+    );
+
+
+    await jcCarregarClientes();
+
+
+    if (
+      data?.cliente
+    ) {
+
+      await jcAbrirCliente(
+        data.cliente.id
+      );
+    }
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+async function jcAbrirCliente(
+  clienteId
+) {
+
+  jcClienteSelecionado =
+    jcClientesCache.find(
+      cliente =>
+        Number(
+          cliente.id
+        )
+        ===
+        Number(
+          clienteId
+        )
+    )
+    ||
+    null;
+
+
+  if (
+    !jcClienteSelecionado
+  ) {
+
+    return;
+  }
+
+
+  $('jcSelectClienteHoje').value =
+    String(
+      clienteId
+    );
+
+
+  jcRenderizarClientes();
+
+
+  const painel =
+    $('jcPainelCliente');
+
+
+  painel.classList.remove(
+    'hidden'
+  );
+
+
+  painel.innerHTML = `
+
+    <div class="sectionHead">
+
+      <div>
+
+        <h3
+          class="section-title"
+          style="margin-bottom:5px;"
+        >
+          ${escapeHtml(
+            jcClienteSelecionado.nome
+          )}
+        </h3>
+
+        <div class="small muted">
+
+          ${
+            escapeHtml(
+              [
+                jcClienteSelecionado.endereco,
+                jcClienteSelecionado.cidade,
+                jcClienteSelecionado.uf
+              ]
+                .filter(Boolean)
+                .join(', ')
+            )
+            ||
+            'Endereço não informado'
+          }
+
+        </div>
+
+      </div>
+
+
+      <button
+        class="btn btn-primary"
+        onclick="jcVincularColaborador(
+          ${clienteId}
+        )"
+      >
+        + Vincular colaborador
+      </button>
+
+    </div>
+
+
+    <div
+      id="jcColaboradoresCliente"
+      style="margin-top:12px;"
+    >
+      Carregando...
+    </div>
+  `;
+
+
+  await jcCarregarColaboradoresCliente(
+    clienteId
+  );
+}
+
+
+async function jcCarregarColaboradoresCliente(
+  clienteId
+) {
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-clientes/${clienteId}/colaboradores`
+      );
+
+
+    const lista =
+      Array.isArray(
+        data?.colaboradores
+      )
+        ?
+        data.colaboradores
+        :
+        [];
+
+
+    const container =
+      $('jcColaboradoresCliente');
+
+
+    if (!container) {
+      return lista;
+    }
+
+
+    container.innerHTML =
+      lista.length
+        ?
+        `
+
+          <div class="jc-table-wrap">
+
+            <table class="jc-table">
+
+              <thead>
+
+                <tr>
+
+                  <th>Colaborador</th>
+                  <th>E-mail</th>
+                  <th>Função</th>
+                  <th>Horário</th>
+                  <th>Valor</th>
+                  <th>Ações</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                ${
+                  lista
+                    .map(
+                      item => `
+
+                        <tr>
+
+                          <td>
+                            ${escapeHtml(
+                              item.colaborador_nome
+                            )}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(
+                              item.colaborador_email
+                            )}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(
+                              item.funcao ||
+                              '-'
+                            )}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(
+                              item.horario_previsto ||
+                              '-'
+                            )}
+                          </td>
+
+                          <td>
+                            ${
+                              item.valor_tipo ===
+                              'hora'
+                                ?
+                                `${moeda(
+                                  item.valor_base
+                                )}/h`
+                                :
+                                `${moeda(
+                                  item.valor_base
+                                )}/dia`
+                            }
+                          </td>
+
+                          <td>
+
+                            <button
+                              class="btn btn-danger"
+                              onclick="jcRemoverColaborador(
+                                ${clienteId},
+                                ${item.id}
+                              )"
+                            >
+                              Remover
+                            </button>
+
+                          </td>
+
+                        </tr>
+                      `
+                    )
+                    .join('')
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+        `
+        :
+        `
+          <div class="empty">
+            Nenhum colaborador vinculado.
+          </div>
+        `;
+
+
+    return lista;
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+
+
+    return [];
+  }
+}
+
+
+async function jcVincularColaborador(
+  clienteId
+) {
+
+  const nome =
+    window.prompt(
+      'Nome do colaborador:'
+    );
+
+
+  if (
+    nome ===
+    null
+    ||
+    !texto(
+      nome
+    )
+  ) {
+
+    return;
+  }
+
+
+  const email =
+    window.prompt(
+      'E-mail usado pelo colaborador para entrar no RS Connect:'
+    );
+
+
+  if (
+    email ===
+    null
+    ||
+    !texto(
+      email
+    )
+  ) {
+
+    return;
+  }
+
+
+  const funcao =
+    window.prompt(
+      'Função (ex.: Auxiliar de limpeza):',
+      ''
+    );
+
+
+  const horario =
+    window.prompt(
+      'Horário previsto de entrada (ex.: 08:00):',
+      '08:00'
+    );
+
+
+  const valor =
+    window.prompt(
+      'Valor da diária:',
+      '0'
+    );
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-clientes/${clienteId}/colaboradores`,
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              colaborador_nome:
+                texto(
+                  nome
+                ),
+
+              colaborador_email:
+                texto(
+                  email
+                ),
+
+              funcao:
+                funcao ||
+                '',
+
+              horario_previsto:
+                horario ||
+                '',
+
+              valor_tipo:
+                'dia',
+
+              valor_base:
+                valor ||
+                0,
+
+              criado_por:
+                emailUsuario()
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Colaborador vinculado.',
+      'success'
+    );
+
+
+    await jcCarregarClientes();
+
+
+    await jcAbrirCliente(
+      clienteId
+    );
+
+
+    await jcCarregarAcompanhamento();
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+async function jcRemoverColaborador(
+  clienteId,
+  id
+) {
+
+  if (
+    !window.confirm(
+      'Remover este colaborador do cliente? O histórico anterior será mantido.'
+    )
+  ) {
+
+    return;
+  }
+
+
+  try {
+
+    await apiFetch(
+      `/api/jornada-clientes/${clienteId}/colaboradores/${id}`,
+      {
+        method:
+          'DELETE'
+      }
+    );
+
+
+    toast(
+      'Colaborador removido. O histórico foi preservado.',
+      'success'
+    );
+
+
+    await jcCarregarClientes();
+
+
+    await jcAbrirCliente(
+      clienteId
+    );
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+async function jcSelecionarClienteHoje() {
+
+  const id =
+    Number(
+      $('jcSelectClienteHoje').value
+    );
+
+
+  jcClienteSelecionado =
+    jcClientesCache.find(
+      item =>
+        Number(
+          item.id
+        )
+        ===
+        id
+    )
+    ||
+    null;
+
+
+  await jcCarregarAcompanhamento();
+}
+
+
+async function jcCarregarAcompanhamento() {
+
+  if (
+    !jcEhGestor()
+  ) {
+
+    return;
+  }
+
+
+  const clienteId =
+    Number(
+      $('jcSelectClienteHoje')?.value ||
+      jcClienteSelecionado?.id ||
+      0
+    );
+
+
+  if (!clienteId) {
+
+    $('jcAcompanhamento').innerHTML = `
+
+      <div class="empty">
+        Selecione uma empresa cliente.
+      </div>
+    `;
+
+
+    return;
+  }
+
+
+  jcClienteSelecionado =
+    jcClientesCache.find(
+      c =>
+        Number(
+          c.id
+        )
+        ===
+        clienteId
+    )
+    ||
+    jcClienteSelecionado;
+
+
+  const dataSelecionada =
+    $('jcDataHoje').value
+    ||
+    jcDataLocalHoje();
+
+
+  $('jcAcompanhamento').innerHTML = `
+
+    <div class="empty">
+      Carregando acompanhamento...
+    </div>
+  `;
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-clientes/${clienteId}/jornadas?data=${
+          encodeURIComponent(
+            dataSelecionada
+          )
+        }`
+      );
+
+
+    jcJornadasHojeCache =
+      Array.isArray(
+        data?.jornadas
+      )
+        ?
+        data.jornadas
+        :
+        [];
+
+
+    jcRenderizarKpis(
+      jcJornadasHojeCache
+    );
+
+
+    jcRenderizarAcompanhamento(
+      jcJornadasHojeCache
+    );
+
+
+    jcRenderizarFechamento(
+      data?.fechamento ||
+      null
+    );
+
+  } catch (
+    erro
+  ) {
+
+    $('jcAcompanhamento').innerHTML = `
+
+      <div class="card">
+
+        <strong>
+          Não foi possível carregar o acompanhamento.
+        </strong>
+
+        <div
+          class="small muted"
+          style="margin-top:6px;"
+        >
+          ${escapeHtml(
+            erro.message
+          )}
+        </div>
+
+      </div>
+    `;
+  }
+}
+
+
+function jcRenderizarKpis(
+  jornadas
+) {
+
+  const presentes =
+    jornadas.filter(
+      j =>
+        Boolean(
+          j.entrada_em
+        )
+        &&
+        !j.saida_em
+    )
+      .length;
+
+
+  const ausentes =
+    jornadas.filter(
+      j =>
+        !j.entrada_em
+    )
+      .length;
+
+
+  const encerrados =
+    jornadas.filter(
+      j =>
+        Boolean(
+          j.saida_em
+        )
+    )
+      .length;
+
+
+  const horas =
+    jornadas.reduce(
+      (
+        total,
+        j
+      ) =>
+        total
+        +
+        Number(
+          j.total_horas ||
+          0
+        ),
+      0
+    );
+
+
+  const valor =
+    jornadas.reduce(
+      (
+        total,
+        j
+      ) =>
+        total
+        +
+        Number(
+          j.valor_gerado ||
+          0
+        ),
+      0
+    );
+
+
+  $('jcKpis').innerHTML = `
+
+    <div class="jc-kpi">
+      <span>Colaboradores</span>
+      <strong>${jornadas.length}</strong>
+    </div>
+
+    <div class="jc-kpi">
+      <span>Presentes</span>
+      <strong>${presentes}</strong>
+    </div>
+
+    <div class="jc-kpi">
+      <span>Ausentes</span>
+      <strong>${ausentes}</strong>
+    </div>
+
+    <div class="jc-kpi">
+      <span>Horas fechadas</span>
+      <strong>${horas.toFixed(2)}h</strong>
+    </div>
+
+    <div class="jc-kpi">
+      <span>Valor do dia</span>
+      <strong>${moeda(valor)}</strong>
+    </div>
+  `;
+}
+
+
+function jcRenderizarAcompanhamento(
+  jornadas
+) {
+
+  const container =
+    $('jcAcompanhamento');
+
+
+  if (
+    !jornadas.length
+  ) {
+
+    container.innerHTML = `
+
+      <div class="empty">
+        Nenhum colaborador cadastrado neste cliente.
+      </div>
+    `;
+
+
+    return;
+  }
+
+
+  container.innerHTML = `
+
+    <div class="jc-table-wrap">
+
+      <table class="jc-table">
+
+        <thead>
+
+          <tr>
+
+            <th>Status</th>
+            <th>Colaborador</th>
+            <th>Função</th>
+            <th>H. Inicial</th>
+            <th>Entrada</th>
+            <th>Intervalo</th>
+            <th>Retorno</th>
+            <th>Saída</th>
+            <th>H. Trab.</th>
+            <th>Valor</th>
+            <th>Validação</th>
+            <th>Ações</th>
+
+          </tr>
+
+        </thead>
+
+        <tbody>
+
+          ${
+            jornadas
+              .map(
+                jornada => `
+
+                  <tr>
+
+                    <td>
+
+                      <span
+                        class="badge ${jcStatusBadge(
+                          jornada.status
+                        )}"
+                      >
+                        ${escapeHtml(
+                          jcStatusTexto(
+                            jornada.status
+                          )
+                        )}
+                      </span>
+
+                    </td>
+
+                    <td>
+                      <strong>
+                        ${escapeHtml(
+                          jornada.colaborador_nome
+                        )}
+                      </strong>
+
+                      <div class="small muted">
+                        ${escapeHtml(
+                          jornada.colaborador_email
+                        )}
+                      </div>
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        jornada.funcao ||
+                        '-'
+                      )}
+                    </td>
+
+                    <td>
+                      ${escapeHtml(
+                        jornada.horario_previsto ||
+                        '-'
+                      )}
+                    </td>
+
+                    <td>
+                      ${jcHora(
+                        jornada.entrada_em
+                      )}
+                      ${
+                        jornada.entrada_foto
+                          ?
+                          '<br>📸'
+                          :
+                          ''
+                      }
+                    </td>
+
+                    <td>
+                      ${jcHora(
+                        jornada.intervalo_inicio_em
+                      )}
+                    </td>
+
+                    <td>
+                      ${jcHora(
+                        jornada.intervalo_retorno_em
+                      )}
+                    </td>
+
+                    <td>
+                      ${jcHora(
+                        jornada.saida_em
+                      )}
+                      ${
+                        jornada.saida_foto
+                          ?
+                          '<br>📸'
+                          :
+                          ''
+                      }
+                    </td>
+
+                    <td>
+                      ${
+                        Number(
+                          jornada.total_horas ||
+                          0
+                        )
+                          .toFixed(
+                            2
+                          )
+                      }h
+                    </td>
+
+                    <td>
+                      ${moeda(
+                        jornada.valor_gerado ||
+                        0
+                      )}
+                    </td>
+
+                    <td>
+
+                      ${
+                        jornada.entrada_em
+                          ?
+                          (
+                            jornada.entrada_validada
+                              ?
+                              '✅ Entrada'
+                              :
+                              `
+                                <button
+                                  class="btn btn-success"
+                                  onclick="jcValidarJornada(
+                                    ${jornada.id},
+                                    'entrada'
+                                  )"
+                                >
+                                  Validar entrada
+                                </button>
+                              `
+                          )
+                          :
+                          '-'
+                      }
+
+                      ${
+                        jornada.saida_em
+                          ?
+                          (
+                            jornada.saida_validada
+                              ?
+                              '<br>✅ Saída'
+                              :
+                              `
+                                <br>
+                                <button
+                                  class="btn btn-success"
+                                  onclick="jcValidarJornada(
+                                    ${jornada.id},
+                                    'saida'
+                                  )"
+                                >
+                                  Validar saída
+                                </button>
+                              `
+                          )
+                          :
+                          ''
+                      }
+
+                    </td>
+
+                    <td>
+
+                      <button
+                        class="btn btn-dark"
+                        onclick="jcAbrirDetalhesJornada(
+                          ${jornada.id}
+                        )"
+                      >
+                        Abrir
+                      </button>
+
+                    </td>
+
+                  </tr>
+                `
+              )
+              .join('')
+          }
+
+        </tbody>
+
+      </table>
+
+    </div>
+  `;
+}
+
+
+function jcRenderizarFechamento(
+  fechamento
+) {
+
+  const container =
+    $('jcFechamento');
+
+
+  if (
+    !container
+  ) {
+
+    return;
+  }
+
+
+  if (
+    fechamento?.confirmado
+  ) {
+
+    container.innerHTML = `
+
+      <span class="badge badge-green">
+        ✅ DIA CONFIRMADO
+      </span>
+
+      <div
+        class="small muted"
+        style="margin-top:8px;"
+      >
+        Confirmado por
+        ${escapeHtml(
+          fechamento.confirmado_por ||
+          'RS'
+        )}
+        em
+        ${escapeHtml(
+          formatarDataHora(
+            fechamento.confirmado_em
+          )
+        )}
+      </div>
+    `;
+
+
+    return;
+  }
+
+
+  container.innerHTML = `
+
+    <strong>
+      ✅ Validação do Fechamento Diário
+    </strong>
+
+    <div
+      class="small muted"
+      style="
+        margin-top:6px;
+        line-height:1.6;
+      "
+    >
+      Confira colaboradores, horários e valores antes de confirmar.
+      Depois do fechamento, a jornada fica arquivada.
+    </div>
+
+    <textarea
+      id="jcObservacaoFechamento"
+      placeholder="Observações ou inconsistências..."
+      style="margin-top:10px;"
+    ></textarea>
+
+    <button
+      class="btn btn-warning"
+      style="margin-top:10px;"
+      onclick="jcFecharDia()"
+    >
+      ✅ Confirmar Dia
+    </button>
+  `;
+}
+
+
+async function jcValidarJornada(
+  jornadaId,
+  tipo
+) {
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-fixa/${jornadaId}/validar`,
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              tipo,
+
+              validador_email:
+                emailUsuario()
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Registro validado.',
+      'success'
+    );
+
+
+    await jcCarregarAcompanhamento();
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+async function jcFecharDia() {
+
+  if (
+    !jcClienteSelecionado
+  ) {
+
+    return;
+  }
+
+
+  if (
+    !window.confirm(
+      'Confirmar e arquivar o dia deste cliente?'
+    )
+  ) {
+
+    return;
+  }
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-clientes/${jcClienteSelecionado.id}/fechar-dia`,
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              data:
+                $('jcDataHoje').value
+                ||
+                jcDataLocalHoje(),
+
+              confirmado_por:
+                emailUsuario(),
+
+              observacoes:
+                $('jcObservacaoFechamento')?.value
+                ||
+                ''
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Dia confirmado.',
+      'success'
+    );
+
+
+    await jcCarregarAcompanhamento();
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+async function jcHistoricoClienteMudou() {
+
+  const clienteId =
+    Number(
+      $('jcHistoricoCliente').value
+    );
+
+
+  const select =
+    $('jcHistoricoColaborador');
+
+
+  select.innerHTML = `
+
+    <option value="">
+      Todos
+    </option>
+  `;
+
+
+  if (!clienteId) {
+    return;
+  }
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-clientes/${clienteId}/colaboradores`
+      );
+
+
+    const lista =
+      data?.colaboradores ||
+      [];
+
+
+    select.innerHTML +=
+      lista
+        .map(
+          item => `
+
+            <option
+              value="${escapeHtml(
+                item.colaborador_email
+              )}"
+            >
+              ${escapeHtml(
+                item.colaborador_nome
+              )}
+            </option>
+          `
+        )
+        .join('');
+
+  } catch {}
+}
+
+
+async function jcCarregarHistorico() {
+
+  const clienteId =
+    Number(
+      $('jcHistoricoCliente').value
+    );
+
+
+  if (!clienteId) {
+
+    toast(
+      'Selecione o cliente.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  const email =
+    $('jcHistoricoColaborador').value;
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-clientes/${clienteId}/historico?colaborador_email=${
+          encodeURIComponent(
+            email
+          )
+        }&limite=500`
+      );
+
+
+    const lista =
+      data?.jornadas ||
+      [];
+
+
+    $('jcHistoricoResultado').innerHTML =
+      lista.length
+        ?
+        `
+
+          <div class="jc-table-wrap">
+
+            <table class="jc-table">
+
+              <thead>
+
+                <tr>
+
+                  <th>Data</th>
+                  <th>Colaborador</th>
+                  <th>Função</th>
+                  <th>Entrada</th>
+                  <th>Intervalo</th>
+                  <th>Retorno</th>
+                  <th>Saída</th>
+                  <th>Horas</th>
+                  <th>Valor</th>
+                  <th>Status</th>
+                  <th>Abrir</th>
+
+                </tr>
+
+              </thead>
+
+              <tbody>
+
+                ${
+                  lista
+                    .map(
+                      jornada => `
+
+                        <tr>
+
+                          <td>
+                            ${formatarData(
+                              jornada.data
+                            )}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(
+                              jornada.colaborador_nome
+                            )}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(
+                              jornada.funcao ||
+                              '-'
+                            )}
+                          </td>
+
+                          <td>
+                            ${jcHora(
+                              jornada.entrada_em
+                            )}
+                          </td>
+
+                          <td>
+                            ${jcHora(
+                              jornada.intervalo_inicio_em
+                            )}
+                          </td>
+
+                          <td>
+                            ${jcHora(
+                              jornada.intervalo_retorno_em
+                            )}
+                          </td>
+
+                          <td>
+                            ${jcHora(
+                              jornada.saida_em
+                            )}
+                          </td>
+
+                          <td>
+                            ${
+                              Number(
+                                jornada.total_horas ||
+                                0
+                              )
+                                .toFixed(
+                                  2
+                                )
+                            }h
+                          </td>
+
+                          <td>
+                            ${moeda(
+                              jornada.valor_gerado ||
+                              0
+                            )}
+                          </td>
+
+                          <td>
+                            ${escapeHtml(
+                              jcStatusTexto(
+                                jornada.status
+                              )
+                            )}
+                          </td>
+
+                          <td>
+
+                            <button
+                              class="btn btn-dark"
+                              onclick="jcAbrirDetalhesJornada(
+                                ${jornada.id}
+                              )"
+                            >
+                              Abrir
+                            </button>
+
+                          </td>
+
+                        </tr>
+                      `
+                    )
+                    .join('')
+                }
+
+              </tbody>
+
+            </table>
+
+          </div>
+        `
+        :
+        `
+          <div class="empty">
+            Nenhuma jornada encontrada.
+          </div>
+        `;
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+async function jcCarregarMinhaJornada() {
+
+  const container =
+    $('jcMinhaJornada');
+
+
+  if (!container) {
+    return;
+  }
+
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-colaborador/${
+          encodeURIComponent(
+            emailUsuario()
+          )
+        }/hoje`
+      );
+
+
+    jcMinhaJornadaCache =
+      data?.jornadas ||
+      [];
+
+
+    if (
+      !jcMinhaJornadaCache.length
+    ) {
+
+      container.innerHTML = `
+
+        <div class="card">
+
+          <strong>
+            Nenhuma jornada de cliente fixo para hoje.
+          </strong>
+
+          <div
+            class="small muted"
+            style="margin-top:6px;"
+          >
+            Se você estiver em uma vaga avulsa, utilize a Jornada de serviços logo abaixo.
+          </div>
+
+        </div>
+      `;
+
+
+      return;
+    }
+
+
+    container.innerHTML =
+      jcMinhaJornadaCache
+        .map(
+          jornada =>
+            jcHtmlMinhaJornada(
+              jornada
+            )
+        )
+        .join('');
+
+  } catch (
+    erro
+  ) {
+
+    container.innerHTML = `
+
+      <div class="card">
+
+        <strong>
+          Não foi possível carregar a jornada dos clientes.
+        </strong>
+
+        <div class="small muted">
+          ${escapeHtml(
+            erro.message
+          )}
+        </div>
+
+      </div>
+    `;
+  }
+}
+
+
+function jcHtmlMinhaJornada(
+  jornada
+) {
+
+  const emIntervalo =
+    Boolean(
+      jornada.intervalo_inicio_em
+    )
+    &&
+    !jornada.intervalo_retorno_em;
+
+
+  let acoes =
+    '';
+
+
+  if (
+    !jornada.entrada_em
+    &&
+    !jornada.fechada
+  ) {
+
+    acoes += `
+
+      <button
+        class="btn btn-success"
+        onclick="jcAbrirCamera(
+          'checkin',
+          ${jornada.id}
+        )"
+      >
+        📸 Fazer Check-in
+      </button>
+    `;
+  }
+
+
+  if (
+    jornada.entrada_em
+    &&
+    !jornada.saida_em
+    &&
+    !emIntervalo
+    &&
+    !jornada.intervalo_inicio_em
+  ) {
+
+    acoes += `
+
+      <button
+        class="btn btn-warning"
+        onclick="jcIniciarIntervalo(
+          ${jornada.id}
+        )"
+      >
+        ☕ Iniciar Intervalo
+      </button>
+    `;
+  }
+
+
+  if (
+    emIntervalo
+  ) {
+
+    acoes += `
+
+      <button
+        class="btn btn-success"
+        onclick="jcRetornarIntervalo(
+          ${jornada.id}
+        )"
+      >
+        ↩ Voltar do Intervalo
+      </button>
+    `;
+  }
+
+
+  if (
+    jornada.entrada_em
+    &&
+    !jornada.saida_em
+    &&
+    !emIntervalo
+  ) {
+
+    acoes += `
+
+      <button
+        class="btn btn-danger"
+        onclick="jcAbrirCamera(
+          'checkout',
+          ${jornada.id}
+        )"
+      >
+        📷 Registrar Saída
+      </button>
+    `;
+  }
+
+
+  const maps =
+    jcUrlMaps(
+      jornada
+    );
+
+
+  if (
+    maps
+  ) {
+
+    acoes += `
+
+      <button
+        class="btn btn-dark"
+        onclick="window.open(
+          '${maps}',
+          '_blank',
+          'noopener,noreferrer'
+        )"
+      >
+        🗺 Google Maps
+      </button>
+    `;
+  }
+
+
+  acoes += `
+
+    <button
+      class="btn btn-dark"
+      onclick="jcAbrirDocumentosJornada(
+        ${jornada.id}
+      )"
+    >
+      📄 Documentos
+    </button>
+  `;
+
+
+  return `
+
+    <div class="jc-fixed-card">
+
+      <div class="jc-fixed-head">
+
+        <div>
+
+          <span class="badge badge-blue">
+            CLIENTE FIXO
+          </span>
+
+          <h3
+            style="
+              margin:8px 0 4px;
+            "
+          >
+            ${escapeHtml(
+              jornada.cliente_nome
+            )}
+          </h3>
+
+          <div class="small muted">
+
+            👤
+            ${escapeHtml(
+              jornada.colaborador_nome
+            )}
+
+            <br>
+
+            🧰
+            ${escapeHtml(
+              jornada.funcao ||
+              '-'
+            )}
+
+            <br>
+
+            📍
+            ${escapeHtml(
+              [
+                jornada.cliente_endereco,
+                jornada.cliente_cidade,
+                jornada.cliente_uf
+              ]
+                .filter(Boolean)
+                .join(', ')
+              ||
+              'Endereço não informado'
+            )}
+
+          </div>
+
+        </div>
+
+
+        <span
+          class="badge ${jcStatusBadge(
+            jornada.status
+          )}"
+        >
+          ${escapeHtml(
+            jcStatusTexto(
+              jornada.status
+            )
+          )}
+        </span>
+
+      </div>
+
+
+      <div class="jc-times">
+
+        <div class="jc-time">
+          <small>Entrada</small>
+          <strong>${jcHora(jornada.entrada_em)}</strong>
+        </div>
+
+        <div class="jc-time">
+          <small>Intervalo</small>
+          <strong>${jcHora(jornada.intervalo_inicio_em)}</strong>
+        </div>
+
+        <div class="jc-time">
+          <small>Retorno</small>
+          <strong>${jcHora(jornada.intervalo_retorno_em)}</strong>
+        </div>
+
+        <div class="jc-time">
+          <small>Saída</small>
+          <strong>${jcHora(jornada.saida_em)}</strong>
+        </div>
+
+        <div class="jc-time">
+          <small>Total / Valor</small>
+          <strong>
+            ${
+              Number(
+                jornada.total_horas ||
+                0
+              )
+                .toFixed(
+                  2
+                )
+            }h
+            •
+            ${moeda(
+              jornada.valor_gerado ||
+              0
+            )}
+          </strong>
+        </div>
+
+      </div>
+
+
+      <div class="small muted">
+
+        ${
+          jornada.entrada_em
+            ?
+            (
+              jornada.entrada_validada
+                ?
+                '✅ Entrada validada pelo cliente/RS'
+                :
+                '⏳ Entrada aguardando validação'
+            )
+            :
+            '⚪ Entrada ainda não registrada'
+        }
+
+        ${
+          jornada.saida_em
+            ?
+            (
+              jornada.saida_validada
+                ?
+                '<br>✅ Saída validada pelo cliente/RS'
+                :
+                '<br>⏳ Saída aguardando validação'
+            )
+            :
+            ''
+        }
+
+      </div>
+
+
+      <div class="service-actions">
+        ${acoes}
+      </div>
+
+    </div>
+  `;
+}
+
+
+function jcAbrirCamera(
+  acao,
+  jornadaId
+) {
+
+  jcCameraJornadaId =
+    Number(
+      jornadaId
+    );
+
+
+  cameraAcaoAtual =
+    `jc_${acao}`;
+
+
+  cameraServicoId =
+    null;
+
+
+  cameraLocalizacao =
+    null;
+
+
+  $('tituloModalCamera').textContent =
+    acao ===
+    'checkin'
+      ?
+      '📸 Entrada — Cliente Fixo'
+      :
+      '📷 Saída — Cliente Fixo';
+
+
+  $('cameraStatusGps').textContent =
+    '📍 Buscando localização...';
+
+
+  $('modalCamera').classList.remove(
+    'hidden'
+  );
+
+
+  (async () => {
+
+    try {
+
+      cameraLocalizacao =
+        await obterLocalizacaoAtual();
+
+
+      $('cameraStatusGps').innerHTML = `
+
+        ✅ Localização capturada
+
+        <br>
+
+        Precisão aproximada:
+        ${
+          Math.round(
+            Number(
+              cameraLocalizacao.precisao ||
+              0
+            )
+          )
+        } metros
+      `;
+
+
+      cameraStream =
+        await navigator
+          .mediaDevices
+          .getUserMedia({
+            video: {
+              facingMode:
+                'user'
+            },
+
+            audio:
+              false
+          });
+
+
+      $('cameraVideo').srcObject =
+        cameraStream;
+
+
+      await $('cameraVideo').play();
+
+    } catch (
+      erro
+    ) {
+
+      fecharCamera();
+
+
+      toast(
+        erro.message,
+        'error'
+      );
+    }
+  })();
+}
+
+
+async function jcRegistrarFotoCamera(
+  foto
+) {
+
+  if (
+    !jcCameraJornadaId
+    ||
+    !cameraLocalizacao
+  ) {
+
+    throw new Error(
+      'Jornada ou localização inválida.'
+    );
+  }
+
+
+  const acao =
+    cameraAcaoAtual ===
+    'jc_checkin'
+      ?
+      'checkin'
+      :
+      'checkout';
+
+
+  const data =
+    await apiFetch(
+      `/api/jornada-fixa/${jcCameraJornadaId}/${acao}`,
+      {
+        method:
+          'POST',
+
+        body:
+          JSON.stringify({
+            colaborador_email:
+              emailUsuario(),
+
+            foto,
+
+            latitude:
+              cameraLocalizacao.latitude,
+
+            longitude:
+              cameraLocalizacao.longitude,
+
+            precisao:
+              cameraLocalizacao.precisao
+          })
+      }
+    );
+
+
+  jcCameraJornadaId =
+    null;
+
+
+  return data;
+}
+
+
+async function jcIniciarIntervalo(
+  jornadaId
+) {
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-fixa/${jornadaId}/intervalo/iniciar`,
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              colaborador_email:
+                emailUsuario()
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Intervalo iniciado.',
+      'success'
+    );
+
+
+    await jcCarregarMinhaJornada();
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+async function jcRetornarIntervalo(
+  jornadaId
+) {
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-fixa/${jornadaId}/intervalo/retornar`,
+        {
+          method:
+            'POST',
+
+          body:
+            JSON.stringify({
+              colaborador_email:
+                emailUsuario()
+            })
+        }
+      );
+
+
+    toast(
+      data.mensagem ||
+      'Retorno registrado.',
+      'success'
+    );
+
+
+    await jcCarregarMinhaJornada();
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+function jcBuscarJornadaCache(
+  jornadaId
+) {
+
+  return (
+    jcJornadasHojeCache.find(
+      j =>
+        Number(
+          j.id
+        )
+        ===
+        Number(
+          jornadaId
+        )
+    )
+    ||
+    jcMinhaJornadaCache.find(
+      j =>
+        Number(
+          j.id
+        )
+        ===
+        Number(
+          jornadaId
+        )
+    )
+    ||
+    null
+  );
+}
+
+
+async function jcAbrirDetalhesJornada(
+  jornadaId
+) {
+
+  const jornada =
+    jcBuscarJornadaCache(
+      jornadaId
+    );
+
+
+  if (!jornada) {
+
+    toast(
+      'Jornada não encontrada.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  let modal =
+    $('jcModalDetalhes');
+
+
+  if (!modal) {
+
+    modal =
+      document.createElement(
+        'div'
+      );
+
+
+    modal.id =
+      'jcModalDetalhes';
+
+
+    modal.className =
+      'modal';
+
+
+    document.body.appendChild(
+      modal
+    );
+  }
+
+
+  modal.classList.remove(
+    'hidden'
+  );
+
+
+  modal.innerHTML = `
+
+    <div class="modal-box modal-lg">
+
+      <div class="modal-header">
+
+        <h3>
+          ${escapeHtml(
+            jornada.colaborador_nome
+          )}
+        </h3>
+
+        <button
+          class="modal-close"
+          onclick="$('jcModalDetalhes').classList.add('hidden')"
+        >
+          ✕
+        </button>
+
+      </div>
+
+
+      <div class="grid grid-2">
+
+        <div class="card">
+
+          <strong>
+            Empresa
+          </strong>
+
+          <div class="small muted">
+            ${escapeHtml(
+              jcClienteSelecionado?.nome ||
+              jornada.cliente_nome ||
+              '-'
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="card">
+
+          <strong>
+            Função
+          </strong>
+
+          <div class="small muted">
+            ${escapeHtml(
+              jornada.funcao ||
+              '-'
+            )}
+          </div>
+
+        </div>
+
+
+        <div class="card">
+
+          <strong>
+            Entrada
+          </strong>
+
+          <div class="small muted">
+            ${jcHora(jornada.entrada_em)}
+            ${
+              jornada.entrada_foto
+                ?
+                '<br>📸 Foto registrada'
+                :
+                ''
+            }
+          </div>
+
+        </div>
+
+
+        <div class="card">
+
+          <strong>
+            Saída
+          </strong>
+
+          <div class="small muted">
+            ${jcHora(jornada.saida_em)}
+            ${
+              jornada.saida_foto
+                ?
+                '<br>📸 Foto registrada'
+                :
+                ''
+            }
+          </div>
+
+        </div>
+
+
+        <div class="card">
+
+          <strong>
+            Horas trabalhadas
+          </strong>
+
+          <div class="small muted">
+            ${
+              Number(
+                jornada.total_horas ||
+                0
+              )
+                .toFixed(
+                  2
+                )
+            }h
+          </div>
+
+        </div>
+
+
+        <div class="card">
+
+          <strong>
+            Valor gerado
+          </strong>
+
+          <div class="service-value">
+            ${moeda(
+              jornada.valor_gerado ||
+              0
+            )}
+          </div>
+
+        </div>
+
+      </div>
+
+
+      <div class="service-actions">
+
+        <button
+          class="btn btn-dark"
+          onclick="jcAbrirDocumentosJornada(
+            ${jornada.id}
+          )"
+        >
+          📄 Documentos / Contrato
+        </button>
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+async function jcAbrirDocumentosJornada(
+  jornadaId
+) {
+
+  try {
+
+    const data =
+      await apiFetch(
+        `/api/jornada-fixa/${jornadaId}/documentos`
+      );
+
+
+    const docs =
+      data?.documentos ||
+      [];
+
+
+    let modal =
+      $('jcModalDocumentos');
+
+
+    if (!modal) {
+
+      modal =
+        document.createElement(
+          'div'
+        );
+
+
+      modal.id =
+        'jcModalDocumentos';
+
+
+      modal.className =
+        'modal';
+
+
+      document.body.appendChild(
+        modal
+      );
+    }
+
+
+    modal.classList.remove(
+      'hidden'
+    );
+
+
+    modal.innerHTML = `
+
+      <div class="modal-box modal-lg">
+
+        <div class="modal-header">
+
+          <h3>
+            📄 Documentos da Jornada
+          </h3>
+
+          <button
+            class="modal-close"
+            onclick="$('jcModalDocumentos').classList.add('hidden')"
+          >
+            ✕
+          </button>
+
+        </div>
+
+
+        ${
+          jcEhGestor()
+            ?
+            `
+              <button
+                class="btn btn-primary"
+                onclick="jcSelecionarDocumentoJornada(
+                  ${jornadaId}
+                )"
+              >
+                + Enviar PDF
+              </button>
+            `
+            :
+            ''
+        }
+
+
+        <div
+          style="margin-top:12px;"
+        >
+
+          ${
+            docs.length
+              ?
+              docs
+                .map(
+                  doc => `
+
+                    <div class="service-card">
+
+                      <strong>
+                        ${escapeHtml(
+                          doc.nome
+                        )}
+                      </strong>
+
+                      <div
+                        class="small muted"
+                        style="margin-top:5px;"
+                      >
+                        ${
+                          escapeHtml(
+                            doc.tipo ||
+                            'DOCUMENTO'
+                          )
+                        }
+                        •
+                        ${
+                          escapeHtml(
+                            doc.assinatura_status ||
+                            'NAO_ASSINADO'
+                          )
+                        }
+                      </div>
+
+                      <div class="service-actions">
+
+                        <button
+                          class="btn btn-dark"
+                          onclick="window.open(
+                            '/api/jornada-documentos/${doc.id}/arquivo',
+                            '_blank'
+                          )"
+                        >
+                          Abrir PDF
+                        </button>
+
+                        ${
+                          !jcEhGestor()
+                          &&
+                          doc.assinatura_status !==
+                          'ASSINADO'
+                            ?
+                            `
+                              <button
+                                class="btn btn-primary"
+                                onclick="window.open(
+                                  'https://www.gov.br/pt-br/servicos/assinatura-eletronica',
+                                  '_blank',
+                                  'noopener,noreferrer'
+                                )"
+                              >
+                                🇧🇷 Assinar no GOV.BR
+                              </button>
+
+                              <button
+                                class="btn btn-success"
+                                onclick="jcSelecionarDocumentoAssinado(
+                                  ${doc.id},
+                                  ${jornadaId}
+                                )"
+                              >
+                                ✅ Enviar assinado
+                              </button>
+                            `
+                            :
+                            ''
+                        }
+
+                      </div>
+
+                    </div>
+                  `
+                )
+                .join('')
+              :
+              `
+                <div class="empty">
+                  Nenhum documento vinculado.
+                </div>
+              `
+          }
+
+        </div>
+
+      </div>
+    `;
+
+  } catch (
+    erro
+  ) {
+
+    toast(
+      erro.message,
+      'error'
+    );
+  }
+}
+
+
+function jcCriarInputPdf(
+  callback
+) {
+
+  const input =
+    document.createElement(
+      'input'
+    );
+
+
+  input.type =
+    'file';
+
+
+  input.accept =
+    'application/pdf,.pdf';
+
+
+  input.className =
+    'hidden';
+
+
+  input.onchange =
+    callback;
+
+
+  document.body.appendChild(
+    input
+  );
+
+
+  input.click();
+
+
+  setTimeout(
+    () =>
+      input.remove(),
+    60000
+  );
+}
+
+
+function jcSelecionarDocumentoJornada(
+  jornadaId
+) {
+
+  jcCriarInputPdf(
+    async event => {
+
+      const arquivo =
+        event.target.files?.[0];
+
+
+      if (!arquivo) {
+        return;
+      }
+
+
+      const form =
+        new FormData();
+
+
+      form.append(
+        'arquivo',
+        arquivo
+      );
+
+
+      form.append(
+        'tipo',
+        'CONTRATO'
+      );
+
+
+      form.append(
+        'criado_por',
+        emailUsuario()
+      );
+
+
+      try {
+
+        const resposta =
+          await fetch(
+            `/api/jornada-fixa/${jornadaId}/documentos`,
+            {
+              method:
+                'POST',
+
+              body:
+                form
+            }
+          );
+
+
+        const data =
+          await resposta
+            .json()
+            .catch(
+              () => ({})
+            );
+
+
+        if (
+          !resposta.ok
+        ) {
+
+          throw new Error(
+            data.erro
+            ||
+            `Erro HTTP ${resposta.status}`
+          );
+        }
+
+
+        toast(
+          data.mensagem ||
+          'Documento enviado.',
+          'success'
+        );
+
+
+        await jcAbrirDocumentosJornada(
+          jornadaId
+        );
+
+      } catch (
+        erro
+      ) {
+
+        toast(
+          erro.message,
+          'error'
+        );
+      }
+    }
+  );
+}
+
+
+function jcSelecionarDocumentoAssinado(
+  documentoId,
+  jornadaId
+) {
+
+  jcCriarInputPdf(
+    async event => {
+
+      const arquivo =
+        event.target.files?.[0];
+
+
+      if (!arquivo) {
+        return;
+      }
+
+
+      const form =
+        new FormData();
+
+
+      form.append(
+        'arquivo',
+        arquivo
+      );
+
+
+      form.append(
+        'assinado_por',
+        emailUsuario()
+      );
+
+
+      try {
+
+        const resposta =
+          await fetch(
+            `/api/jornada-documentos/${documentoId}/assinado`,
+            {
+              method:
+                'POST',
+
+              body:
+                form
+            }
+          );
+
+
+        const data =
+          await resposta
+            .json()
+            .catch(
+              () => ({})
+            );
+
+
+        if (
+          !resposta.ok
+        ) {
+
+          throw new Error(
+            data.erro
+            ||
+            `Erro HTTP ${resposta.status}`
+          );
+        }
+
+
+        toast(
+          data.mensagem ||
+          'Documento assinado arquivado.',
+          'success'
+        );
+
+
+        await jcAbrirDocumentosJornada(
+          jornadaId
+        );
+
+      } catch (
+        erro
+      ) {
+
+        toast(
+          erro.message,
+          'error'
+        );
+      }
+    }
+  );
+}
+
+
+function jcRenderizarDocumentosGestao() {
+
+  const container =
+    $('jcDocumentosResultado');
+
+
+  if (!container) {
+    return;
+  }
+
+
+  container.innerHTML = `
+
+    <div class="small muted">
+
+      Abra uma jornada em
+      <strong>Jornada do Dia</strong>
+      ou
+      <strong>Histórico</strong>
+      e selecione
+      <strong>Documentos / Contrato</strong>.
+
+      <br><br>
+
+      Fluxo:
+      PDF do Grupo RS/cliente →
+      colaborador abre o PDF →
+      Assinar no GOV.BR →
+      envia o PDF assinado →
+      arquivo permanece vinculado à jornada.
+
+    </div>
+  `;
+}
+
+
+// ============================================================
+// INTEGRAR FOTO/GPS DO CLIENTE FIXO AO MODAL EXISTENTE
+// ============================================================
+
+const capturarFotoAoVivoBaseJC =
+  capturarFotoAoVivo;
+
+
+capturarFotoAoVivo =
+  async function() {
+
+    if (
+      cameraAcaoAtual !==
+      'jc_checkin'
+      &&
+      cameraAcaoAtual !==
+      'jc_checkout'
+    ) {
+
+      return capturarFotoAoVivoBaseJC();
+    }
+
+
+    const botao =
+      $('btnCapturarFoto');
+
+
+    loadingBotao(
+      botao,
+      true,
+      'Registrando...'
+    );
+
+
+    try {
+
+      if (
+        !cameraLocalizacao
+      ) {
+
+        throw new Error(
+          'A localização ainda não foi capturada.'
+        );
+      }
+
+
+      const video =
+        $('cameraVideo');
+
+
+      const canvas =
+        $('cameraCanvas');
+
+
+      if (
+        !video?.videoWidth
+        ||
+        !video?.videoHeight
+      ) {
+
+        throw new Error(
+          'A câmera ainda não está pronta.'
+        );
+      }
+
+
+      const larguraMax =
+        720;
+
+
+      const escala =
+        Math.min(
+          1,
+          larguraMax /
+          video.videoWidth
+        );
+
+
+      canvas.width =
+        Math.round(
+          video.videoWidth *
+          escala
+        );
+
+
+      canvas.height =
+        Math.round(
+          video.videoHeight *
+          escala
+        );
+
+
+      const ctx =
+        canvas.getContext(
+          '2d'
+        );
+
+
+      ctx.save();
+
+
+      ctx.translate(
+        canvas.width,
+        0
+      );
+
+
+      ctx.scale(
+        -1,
+        1
+      );
+
+
+      ctx.drawImage(
+        video,
+        0,
+        0,
+        canvas.width,
+        canvas.height
+      );
+
+
+      ctx.restore();
+
+
+      const foto =
+        canvas.toDataURL(
+          'image/jpeg',
+          0.78
+        );
+
+
+      const resposta =
+        await jcRegistrarFotoCamera(
+          foto
+        );
+
+
+      fecharCamera();
+
+
+      toast(
+        resposta.mensagem ||
+        'Jornada registrada.',
+        'success'
+      );
+
+
+      await jcCarregarMinhaJornada();
+
+    } catch (
+      erro
+    ) {
+
+      toast(
+        erro.message,
+        'error'
+      );
+
+    } finally {
+
+      loadingBotao(
+        botao,
+        false
+      );
+    }
+  };
+
+
+// ============================================================
+// QUANDO ABRIR "JORNADA", CARREGAR O NOVO MÓDULO TAMBÉM
+// ============================================================
+
+const abrirPaginaBaseJC =
+  abrirPagina;
+
+
+abrirPagina =
+  async function(
+    pagina
+  ) {
+
+    await abrirPaginaBaseJC(
+      pagina
+    );
+
+
+    if (
+      pagina ===
+      'jornada'
+    ) {
+
+      await jcCarregarTudo(
+        false
+      );
+    }
+  };
+
+
+// ============================================================
+// SOCKET
+// ============================================================
+
+setTimeout(
+  () => {
+
+    if (!socket) {
+      return;
+    }
+
+
+    socket.on(
+      'jornada_clientes_atualizada',
+      async () => {
+
+        if (
+          $('pageJornada')
+            ?.classList
+            .contains(
+              'active'
+            )
+        ) {
+
+          await jcCarregarTudo(
+            false
+          );
+        }
+      }
+    );
+
+  },
+  1200
+);
+
+
 </script>
 
 
 </body>
 
+</html>
