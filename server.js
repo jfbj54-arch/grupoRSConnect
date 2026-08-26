@@ -359,6 +359,107 @@ function verificarSenha(
 
 
 // ============================================================
+// RECUPERAÇÃO DE SENHA POR E-MAIL
+// AUTOATENDIMENTO — SEM CHAVE ADMINISTRATIVA
+// ============================================================
+
+function hashCodigoRecuperacao(email, codigo) {
+    const segredo =
+        process.env.RESET_TOKEN_SECRET ||
+        process.env.DATABASE_URL ||
+        'rs-connect-reset';
+
+    return crypto
+        .createHmac('sha256', segredo)
+        .update(`${normalizarEmail(email)}:${String(codigo).trim()}`)
+        .digest('hex');
+}
+
+
+async function enviarEmailRecuperacao(email, codigo) {
+    const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+
+    const remetente = String(
+        process.env.EMAIL_FROM ||
+        'RS Connect <noreply@seudominio.com.br>'
+    ).trim();
+
+    if (!apiKey) {
+        throw new Error(
+            'RESEND_API_KEY não configurada no Render.'
+        );
+    }
+
+    const resposta = await fetch(
+        'https://api.resend.com/emails',
+        {
+            method: 'POST',
+
+            headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json'
+            },
+
+            body: JSON.stringify({
+                from: remetente,
+
+                to: [
+                    normalizarEmail(email)
+                ],
+
+                subject:
+                    'Código de recuperação — RS Connect',
+
+                html: `
+                    <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px">
+                        <h2 style="margin-bottom:8px">RS Connect</h2>
+
+                        <p>
+                            Recebemos uma solicitação para redefinir a senha da sua conta.
+                        </p>
+
+                        <div style="
+                            font-size:32px;
+                            font-weight:800;
+                            letter-spacing:8px;
+                            padding:18px;
+                            margin:20px 0;
+                            text-align:center;
+                            border-radius:12px;
+                            background:#f2f6fb;
+                        ">
+                            ${codigo}
+                        </div>
+
+                        <p>
+                            Este código expira em <strong>15 minutos</strong>.
+                        </p>
+
+                        <p>
+                            Se você não solicitou a recuperação, ignore esta mensagem.
+                        </p>
+
+                        <p style="color:#6b7280;font-size:12px">
+                            Grupo RS Connect — Gestão Profissional de Serviços
+                        </p>
+                    </div>
+                `
+            })
+        }
+    );
+
+    const respostaTexto =
+        await resposta.text();
+
+    if (!resposta.ok) {
+        throw new Error(
+            `Falha ao enviar e-mail de recuperação: ${respostaTexto}`
+        );
+    }
+}
+
+
+// ============================================================
 // AUDITORIA
 // ============================================================
 
@@ -896,6 +997,35 @@ async function criarTabelas() {
 
                 criado_em TIMESTAMP
                     DEFAULT CURRENT_TIMESTAMP
+            );
+
+
+            CREATE TABLE IF NOT EXISTS recuperacao_senha (
+                id BIGSERIAL PRIMARY KEY,
+
+                email TEXT NOT NULL,
+
+                codigo_hash TEXT NOT NULL,
+
+                usado BOOLEAN
+                    DEFAULT FALSE,
+
+                tentativas INTEGER
+                    DEFAULT 0,
+
+                expira_em TIMESTAMPTZ
+                    NOT NULL,
+
+                criado_em TIMESTAMPTZ
+                    DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS
+                idx_recuperacao_senha_email
+
+            ON recuperacao_senha (
+                LOWER(email),
+                criado_em DESC
             );
         `);
 
@@ -1667,75 +1797,58 @@ async function recalcularJornadaCliente(
 
 
 // ============================================================
+// FIM DA PARTE 1
+// COLE A PARTE 2 IMEDIATAMENTE ABAIXO
+// ============================================================
+// ============================================================
+// PARTE 2 — LOGIN + RECUPERAÇÃO DE ACESSO
+// COLE IMEDIATAMENTE ABAIXO DA PARTE 1
+// ============================================================
+
+
+// ============================================================
 // HEALTH
 // ============================================================
 
-app.get(
-    '/api/health',
+app.get('/api/health', async (req, res) => {
+    try {
 
-    async (req, res) => {
+        await pool.query('SELECT 1');
 
-        try {
+        return res.json({
+            sucesso: true,
+            sistema: 'RS Connect',
+            banco: 'online',
+            horario: horaAtualRS()
+        });
 
-            await pool.query(
-                'SELECT 1'
-            );
+    } catch (err) {
 
-
-            return res.json({
-                sucesso: true,
-
-                sistema:
-                    'RS Connect',
-
-                banco:
-                    'online',
-
-                horario:
-                    horaAtualRS()
-            });
-
-        } catch (err) {
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-
-                    banco:
-                        'offline'
-                });
-        }
+        return res.status(500).json({
+            sucesso: false,
+            banco: 'offline'
+        });
     }
-);
+});
 
 
 // ============================================================
-// CADASTRO
+// CADASTRO DE USUÁRIO
 // ============================================================
 
-async function cadastrarUsuarioRS(
-    req,
-    res
-) {
+async function cadastrarUsuarioRS(req, res) {
 
-    const dados =
-        req.body || {};
-
+    const dados = req.body || {};
 
     const email =
         normalizarEmail(
             dados.email
         );
 
-
     const nome =
         String(
-            dados.nome ||
-            ''
-        )
-            .trim();
-
+            dados.nome || ''
+        ).trim();
 
     const senha =
         String(
@@ -1751,30 +1864,23 @@ async function cadastrarUsuarioRS(
         !senha
     ) {
 
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'Nome, e-mail e senha são obrigatórios.'
-            });
+        return res.status(400).json({
+            sucesso: false,
+            erro:
+                'Nome, e-mail e senha são obrigatórios.'
+        });
     }
 
 
     if (
-        senha.length <
-        6
+        senha.length < 6
     ) {
 
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'A senha precisa ter no mínimo 6 caracteres.'
-            });
+        return res.status(400).json({
+            sucesso: false,
+            erro:
+                'A senha precisa ter no mínimo 6 caracteres.'
+        });
     }
 
 
@@ -1803,14 +1909,11 @@ async function cadastrarUsuarioRS(
             existente.rows.length
         ) {
 
-            return res
-                .status(409)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'Este e-mail já está cadastrado.'
-                });
+            return res.status(409).json({
+                sucesso: false,
+                erro:
+                    'Este e-mail já está cadastrado.'
+            });
         }
 
 
@@ -1904,8 +2007,7 @@ async function cadastrarUsuarioRS(
 
         if (
             String(
-                dados.tipo ||
-                ''
+                dados.tipo || ''
             )
                 .toLowerCase()
             ===
@@ -1922,10 +2024,7 @@ async function cadastrarUsuarioRS(
                     $1
                 )
 
-                ON CONFLICT (
-                    email
-                )
-
+                ON CONFLICT (email)
                 DO NOTHING
                 `,
                 [
@@ -1943,10 +2042,18 @@ async function cadastrarUsuarioRS(
         delete usuario.senha;
 
 
+        await registrarAuditoria(
+            email,
+            'CADASTRO',
+            'Novo usuário cadastrado.'
+        );
+
+
         return res.json({
             sucesso: true,
             usuario
         });
+
 
     } catch (err) {
 
@@ -1956,14 +2063,11 @@ async function cadastrarUsuarioRS(
         );
 
 
-        return res
-            .status(500)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'Erro ao cadastrar usuário.'
-            });
+        return res.status(500).json({
+            sucesso: false,
+            erro:
+                'Erro ao cadastrar usuário.'
+        });
     }
 }
 
@@ -1988,12 +2092,20 @@ app.post(
 
 // ============================================================
 // LOGIN
+//
+// IMPORTANTE:
+// SENHAS ANTIGAS CONTINUAM FUNCIONANDO.
+//
+// Se estiver em texto antigo:
+// 1. compara normalmente;
+// 2. permite entrar;
+// 3. transforma em scrypt automaticamente.
+//
+// Assim NÃO precisamos redefinir a senha
+// dos prestadores que ainda possuem a senha antiga intacta.
 // ============================================================
 
-async function loginUsuarioRS(
-    req,
-    res
-) {
+async function loginUsuarioRS(req, res) {
 
     const email =
         normalizarEmail(
@@ -2014,14 +2126,11 @@ async function loginUsuarioRS(
         !senha
     ) {
 
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'Informe e-mail e senha.'
-            });
+        return res.status(400).json({
+            sucesso: false,
+            erro:
+                'Informe e-mail e senha.'
+        });
     }
 
 
@@ -2055,14 +2164,11 @@ async function loginUsuarioRS(
             );
 
 
-            return res
-                .status(401)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'E-mail ou senha incorretos.'
-                });
+            return res.status(401).json({
+                sucesso: false,
+                erro:
+                    'E-mail ou senha incorretos.'
+            });
         }
 
 
@@ -2086,18 +2192,21 @@ async function loginUsuarioRS(
             );
 
 
-            return res
-                .status(401)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'E-mail ou senha incorretos.'
-                });
+            return res.status(401).json({
+                sucesso: false,
+                erro:
+                    'E-mail ou senha incorretos.'
+            });
         }
 
 
-        // MIGRA SENHAS ANTIGAS
+        // ====================================================
+        // MIGRAÇÃO AUTOMÁTICA
+        //
+        // Se a senha ainda estiver no formato antigo,
+        // o usuário entra normalmente e o servidor converte.
+        // ====================================================
+
         if (
             !senhaEstaProtegida(
                 usuarioBanco.senha
@@ -2115,12 +2224,10 @@ async function loginUsuarioRS(
                 UPDATE usuarios
 
                 SET
-                    senha =
-                        $1
+                    senha = $1
 
                 WHERE
-                    id =
-                        $2
+                    id = $2
                 `,
                 [
                     hash,
@@ -2130,7 +2237,7 @@ async function loginUsuarioRS(
 
 
             console.log(
-                `🔐 Senha antiga migrada: ${email}`
+                `🔐 Senha antiga migrada automaticamente: ${email}`
             );
         }
 
@@ -2160,6 +2267,7 @@ async function loginUsuarioRS(
             usuario
         });
 
+
     } catch (err) {
 
         console.error(
@@ -2168,14 +2276,11 @@ async function loginUsuarioRS(
         );
 
 
-        return res
-            .status(500)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'Erro interno no login.'
-            });
+        return res.status(500).json({
+            sucesso: false,
+            erro:
+                'Erro interno no login.'
+        });
     }
 }
 
@@ -2196,10 +2301,7 @@ app.post(
 // ALTERAR A PRÓPRIA SENHA
 // ============================================================
 
-async function alterarSenhaRS(
-    req,
-    res
-) {
+async function alterarSenhaRS(req, res) {
 
     const email =
         normalizarEmail(
@@ -2229,30 +2331,23 @@ async function alterarSenhaRS(
         !novaSenha
     ) {
 
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'Informe e-mail, senha atual e nova senha.'
-            });
+        return res.status(400).json({
+            sucesso: false,
+            erro:
+                'Informe e-mail, senha atual e nova senha.'
+        });
     }
 
 
     if (
-        novaSenha.length <
-        6
+        novaSenha.length < 6
     ) {
 
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'A nova senha precisa ter no mínimo 6 caracteres.'
-            });
+        return res.status(400).json({
+            sucesso: false,
+            erro:
+                'A nova senha precisa ter no mínimo 6 caracteres.'
+        });
     }
 
 
@@ -2281,14 +2376,11 @@ async function alterarSenhaRS(
             !resultado.rows.length
         ) {
 
-            return res
-                .status(404)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'Usuário não encontrado.'
-                });
+            return res.status(404).json({
+                sucesso: false,
+                erro:
+                    'Usuário não encontrado.'
+            });
         }
 
 
@@ -2303,14 +2395,11 @@ async function alterarSenhaRS(
             )
         ) {
 
-            return res
-                .status(401)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'Senha atual incorreta.'
-                });
+            return res.status(401).json({
+                sucesso: false,
+                erro:
+                    'Senha atual incorreta.'
+            });
         }
 
 
@@ -2325,12 +2414,10 @@ async function alterarSenhaRS(
             UPDATE usuarios
 
             SET
-                senha =
-                    $1
+                senha = $1
 
             WHERE
-                id =
-                    $2
+                id = $2
             `,
             [
                 hash,
@@ -2348,10 +2435,10 @@ async function alterarSenhaRS(
 
         return res.json({
             sucesso: true,
-
             mensagem:
                 'Senha alterada com sucesso.'
         });
+
 
     } catch (err) {
 
@@ -2361,14 +2448,11 @@ async function alterarSenhaRS(
         );
 
 
-        return res
-            .status(500)
-            .json({
-                sucesso: false,
-
-                erro:
-                    'Erro ao alterar senha.'
-            });
+        return res.status(500).json({
+            sucesso: false,
+            erro:
+                'Erro ao alterar senha.'
+        });
     }
 }
 
@@ -2386,13 +2470,742 @@ app.post(
 
 
 // ============================================================
-// RECUPERAÇÃO SEGURA PELO ADMINISTRADOR
+// ESQUECI MINHA SENHA
 //
-// NO RENDER:
-// ADMIN_EMAIL = email da conta administradora
+// AUTOATENDIMENTO:
 //
-// O ADMIN CONFIRMA A PRÓPRIA SENHA.
-// NÃO EXISTE ADMIN_RESET_KEY NA TELA.
+// PRESTADOR
+// ↓
+// DIGITA E-MAIL
+// ↓
+// RECEBE CÓDIGO
+// ↓
+// DIGITA CÓDIGO
+// ↓
+// CRIA NOVA SENHA
+//
+// NÃO PRECISA FALAR COM O SUPORTE.
+// ============================================================
+
+app.post(
+    '/api/auth/esqueci-senha',
+
+    async (req, res) => {
+
+        const email =
+            normalizarEmail(
+                req.body?.email
+            );
+
+
+        if (!email) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'Informe o e-mail da conta.'
+            });
+        }
+
+
+        try {
+
+            const usuarioRes =
+                await pool.query(
+                    `
+                    SELECT
+                        id,
+                        nome,
+                        email
+
+                    FROM usuarios
+
+                    WHERE
+                        LOWER(TRIM(email))
+                        =
+                        LOWER(TRIM($1))
+
+                    LIMIT 1
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            // =================================================
+            // NÃO REVELA SE O E-MAIL EXISTE
+            // =================================================
+
+            if (
+                !usuarioRes.rows.length
+            ) {
+
+                return res.json({
+                    sucesso: true,
+                    mensagem:
+                        'Se o e-mail estiver cadastrado, você receberá um código de recuperação.'
+                });
+            }
+
+
+            // =================================================
+            // LIMITAR SOLICITAÇÕES
+            // Máximo: 3 códigos em 15 minutos.
+            // =================================================
+
+            const limiteRes =
+                await pool.query(
+                    `
+                    SELECT
+                        COUNT(*)::int
+                        AS total
+
+                    FROM recuperacao_senha
+
+                    WHERE
+                        LOWER(email)
+                        =
+                        LOWER($1)
+
+                    AND
+                        criado_em >
+                        CURRENT_TIMESTAMP
+                        -
+                        INTERVAL '15 minutes'
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            const totalRecentes =
+                Number(
+                    limiteRes.rows[0]?.total ||
+                    0
+                );
+
+
+            if (
+                totalRecentes >= 3
+            ) {
+
+                return res.status(429).json({
+                    sucesso: false,
+                    erro:
+                        'Muitas solicitações. Aguarde alguns minutos antes de tentar novamente.'
+                });
+            }
+
+
+            // =================================================
+            // CÓDIGO DE 6 NÚMEROS
+            // =================================================
+
+            const codigo =
+                String(
+                    crypto.randomInt(
+                        100000,
+                        1000000
+                    )
+                );
+
+
+            const codigoHash =
+                hashCodigoRecuperacao(
+                    email,
+                    codigo
+                );
+
+
+            // =================================================
+            // INVALIDAR CÓDIGOS ANTERIORES
+            // =================================================
+
+            await pool.query(
+                `
+                UPDATE recuperacao_senha
+
+                SET
+                    usado = TRUE
+
+                WHERE
+                    LOWER(email)
+                    =
+                    LOWER($1)
+
+                AND
+                    usado = FALSE
+                `,
+                [
+                    email
+                ]
+            );
+
+
+            // =================================================
+            // SALVAR NOVO CÓDIGO
+            // =================================================
+
+            await pool.query(
+                `
+                INSERT INTO recuperacao_senha (
+                    email,
+                    codigo_hash,
+                    usado,
+                    tentativas,
+                    expira_em
+                )
+
+                VALUES (
+                    $1,
+                    $2,
+                    FALSE,
+                    0,
+                    CURRENT_TIMESTAMP
+                    +
+                    INTERVAL '15 minutes'
+                )
+                `,
+                [
+                    email,
+                    codigoHash
+                ]
+            );
+
+
+            // =================================================
+            // ENVIAR E-MAIL
+            // =================================================
+
+            try {
+
+                await enviarEmailRecuperacao(
+                    email,
+                    codigo
+                );
+
+
+            } catch (emailErr) {
+
+                console.error(
+                    '❌ Envio recuperação:',
+                    emailErr
+                );
+
+
+                await pool.query(
+                    `
+                    UPDATE recuperacao_senha
+
+                    SET
+                        usado = TRUE
+
+                    WHERE
+                        LOWER(email)
+                        =
+                        LOWER($1)
+
+                    AND
+                        codigo_hash = $2
+
+                    AND
+                        usado = FALSE
+                    `,
+                    [
+                        email,
+                        codigoHash
+                    ]
+                );
+
+
+                return res.status(503).json({
+                    sucesso: false,
+                    erro:
+                        'O envio de recuperação por e-mail ainda não está configurado.'
+                });
+            }
+
+
+            await registrarAuditoria(
+                email,
+                'SOLICITAR_RECUPERACAO_SENHA',
+                'Código de recuperação solicitado.'
+            );
+
+
+            console.log(
+                `📧 Código de recuperação enviado para ${email}`
+            );
+
+
+            return res.json({
+                sucesso: true,
+                mensagem:
+                    'Código enviado para seu e-mail. Ele expira em 15 minutos.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Esqueci senha:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Não foi possível iniciar a recuperação de senha.'
+            });
+        }
+    }
+);
+
+
+// ============================================================
+// ALIAS PARA INDEX ANTIGO
+// ============================================================
+
+app.post(
+    '/api/esqueci-senha',
+
+    async (req, res, next) => {
+
+        req.url =
+            '/api/auth/esqueci-senha';
+
+        return next();
+    }
+);
+
+
+// ============================================================
+// REDEFINIR SENHA COM CÓDIGO
+// ============================================================
+
+app.post(
+    '/api/auth/redefinir-senha',
+
+    async (req, res) => {
+
+        const email =
+            normalizarEmail(
+                req.body?.email
+            );
+
+
+        const codigo =
+            String(
+                req.body?.codigo ||
+                ''
+            )
+                .trim();
+
+
+        const novaSenha =
+            String(
+                req.body?.novaSenha ||
+                req.body?.nova_senha ||
+                ''
+            );
+
+
+        if (
+            !email ||
+            !codigo ||
+            !novaSenha
+        ) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'Informe e-mail, código e nova senha.'
+            });
+        }
+
+
+        if (
+            !/^\d{6}$/.test(
+                codigo
+            )
+        ) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'O código deve conter 6 números.'
+            });
+        }
+
+
+        if (
+            novaSenha.length < 6
+        ) {
+
+            return res.status(400).json({
+                sucesso: false,
+                erro:
+                    'A nova senha precisa ter no mínimo 6 caracteres.'
+            });
+        }
+
+
+        try {
+
+            const tokenRes =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM recuperacao_senha
+
+                    WHERE
+                        LOWER(email)
+                        =
+                        LOWER($1)
+
+                    AND
+                        usado = FALSE
+
+                    ORDER BY
+                        criado_em DESC
+
+                    LIMIT 1
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            const token =
+                tokenRes.rows[0];
+
+
+            if (!token) {
+
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Código inválido ou já utilizado.'
+                });
+            }
+
+
+            // =================================================
+            // VERIFICAR EXPIRAÇÃO
+            // =================================================
+
+            if (
+                new Date(
+                    token.expira_em
+                )
+                <
+                new Date()
+            ) {
+
+                await pool.query(
+                    `
+                    UPDATE recuperacao_senha
+
+                    SET
+                        usado = TRUE
+
+                    WHERE
+                        id = $1
+                    `,
+                    [
+                        token.id
+                    ]
+                );
+
+
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Este código expirou. Solicite um novo código.'
+                });
+            }
+
+
+            // =================================================
+            // MÁXIMO DE 5 TENTATIVAS
+            // =================================================
+
+            if (
+                Number(
+                    token.tentativas ||
+                    0
+                )
+                >= 5
+            ) {
+
+                await pool.query(
+                    `
+                    UPDATE recuperacao_senha
+
+                    SET
+                        usado = TRUE
+
+                    WHERE
+                        id = $1
+                    `,
+                    [
+                        token.id
+                    ]
+                );
+
+
+                return res.status(429).json({
+                    sucesso: false,
+                    erro:
+                        'Número máximo de tentativas atingido. Solicite um novo código.'
+                });
+            }
+
+
+            const codigoHash =
+                hashCodigoRecuperacao(
+                    email,
+                    codigo
+                );
+
+
+            let hashCorreto =
+                false;
+
+
+            try {
+
+                const bufferBanco =
+                    Buffer.from(
+                        token.codigo_hash,
+                        'hex'
+                    );
+
+
+                const bufferDigitado =
+                    Buffer.from(
+                        codigoHash,
+                        'hex'
+                    );
+
+
+                hashCorreto =
+                    (
+                        bufferBanco.length ===
+                        bufferDigitado.length
+                    )
+                    &&
+                    crypto.timingSafeEqual(
+                        bufferBanco,
+                        bufferDigitado
+                    );
+
+
+            } catch {
+
+                hashCorreto =
+                    false;
+            }
+
+
+            if (
+                !hashCorreto
+            ) {
+
+                await pool.query(
+                    `
+                    UPDATE recuperacao_senha
+
+                    SET
+                        tentativas =
+                            tentativas + 1
+
+                    WHERE
+                        id = $1
+                    `,
+                    [
+                        token.id
+                    ]
+                );
+
+
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Código incorreto.'
+                });
+            }
+
+
+            // =================================================
+            // BUSCAR USUÁRIO
+            // =================================================
+
+            const usuarioRes =
+                await pool.query(
+                    `
+                    SELECT
+                        id,
+                        nome,
+                        email
+
+                    FROM usuarios
+
+                    WHERE
+                        LOWER(TRIM(email))
+                        =
+                        LOWER(TRIM($1))
+
+                    LIMIT 1
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            const usuario =
+                usuarioRes.rows[0];
+
+
+            if (!usuario) {
+
+                return res.status(404).json({
+                    sucesso: false,
+                    erro:
+                        'Conta não encontrada.'
+                });
+            }
+
+
+            const novaSenhaHash =
+                gerarHashSenha(
+                    novaSenha
+                );
+
+
+            // =================================================
+            // TRANSAÇÃO SEGURA
+            // =================================================
+
+            const client =
+                await pool.connect();
+
+
+            try {
+
+                await client.query(
+                    'BEGIN'
+                );
+
+
+                await client.query(
+                    `
+                    UPDATE usuarios
+
+                    SET
+                        senha = $1
+
+                    WHERE
+                        id = $2
+                    `,
+                    [
+                        novaSenhaHash,
+                        usuario.id
+                    ]
+                );
+
+
+                await client.query(
+                    `
+                    UPDATE recuperacao_senha
+
+                    SET
+                        usado = TRUE
+
+                    WHERE
+                        LOWER(email)
+                        =
+                        LOWER($1)
+
+                    AND
+                        usado = FALSE
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+                await client.query(
+                    'COMMIT'
+                );
+
+
+            } catch (txErr) {
+
+                await client.query(
+                    'ROLLBACK'
+                );
+
+
+                throw txErr;
+
+
+            } finally {
+
+                client.release();
+            }
+
+
+            await registrarAuditoria(
+                email,
+                'REDEFINIR_SENHA_AUTOATENDIMENTO',
+                'Senha redefinida pelo próprio usuário através do código de recuperação.'
+            );
+
+
+            console.log(
+                `✅ Senha recuperada pelo próprio usuário: ${email}`
+            );
+
+
+            return res.json({
+                sucesso: true,
+                mensagem:
+                    'Senha redefinida com sucesso. Você já pode entrar no RS Connect.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Redefinir senha:',
+                err
+            );
+
+
+            return res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Não foi possível redefinir a senha.'
+            });
+        }
+    }
+);
+
+
+// ============================================================
+// RECUPERAÇÃO ADMINISTRATIVA
+//
+// É SÓ UMA SEGUNDA OPÇÃO DE EMERGÊNCIA.
+// OS MAIS DE MIL PRESTADORES NÃO DEPENDEM DISSO.
+//
+// ADMIN_EMAIL FICA NO RENDER.
 // ============================================================
 
 app.post(
@@ -2438,14 +3251,11 @@ app.post(
                 !adminPermitido
             ) {
 
-                return res
-                    .status(503)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'ADMIN_EMAIL não configurado no Render.'
-                    });
+                return res.status(503).json({
+                    sucesso: false,
+                    erro:
+                        'ADMIN_EMAIL não configurado no Render.'
+                });
             }
 
 
@@ -2453,18 +3263,14 @@ app.post(
                 !adminEmail ||
                 !adminSenha ||
                 !alvoEmail ||
-                novaSenha.length <
-                6
+                novaSenha.length < 6
             ) {
 
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Preencha os dados e use uma nova senha com no mínimo 6 caracteres.'
-                    });
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Preencha os dados corretamente.'
+                });
             }
 
 
@@ -2473,14 +3279,11 @@ app.post(
                 adminPermitido
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Administrador não autorizado.'
-                    });
+                return res.status(403).json({
+                    sucesso: false,
+                    erro:
+                        'Administrador não autorizado.'
+                });
             }
 
 
@@ -2521,14 +3324,11 @@ app.post(
                 )
             ) {
 
-                return res
-                    .status(401)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Senha atual do administrador incorreta.'
-                    });
+                return res.status(401).json({
+                    sucesso: false,
+                    erro:
+                        'Senha atual do administrador incorreta.'
+                });
             }
 
 
@@ -2561,14 +3361,11 @@ app.post(
 
             if (!alvo) {
 
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Conta não encontrada.'
-                    });
+                return res.status(404).json({
+                    sucesso: false,
+                    erro:
+                        'Conta não encontrada.'
+                });
             }
 
 
@@ -2583,12 +3380,10 @@ app.post(
                 UPDATE usuarios
 
                 SET
-                    senha =
-                        $1
+                    senha = $1
 
                 WHERE
-                    id =
-                        $2
+                    id = $2
                 `,
                 [
                     hash,
@@ -2599,9 +3394,7 @@ app.post(
 
             await registrarAuditoria(
                 adminEmail,
-
                 'RESET_SENHA_SUPORTE',
-
                 `Acesso redefinido para ${alvoEmail}.`
             );
 
@@ -2629,6 +3422,7 @@ app.post(
                 }
             });
 
+
         } catch (err) {
 
             console.error(
@@ -2637,21 +3431,18 @@ app.post(
             );
 
 
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao redefinir o acesso.'
-                });
+            return res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao redefinir o acesso.'
+            });
         }
     }
 );
 
 
 // ============================================================
-// CONSULTAR SE CONTA EXISTE
+// CONSULTAR SE A CONTA EXISTE
 // ============================================================
 
 app.post(
@@ -2669,14 +3460,11 @@ app.post(
 
             if (!email) {
 
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Informe o e-mail.'
-                    });
+                return res.status(400).json({
+                    sucesso: false,
+                    erro:
+                        'Informe o e-mail.'
+                });
             }
 
 
@@ -2708,23 +3496,38 @@ app.post(
                 sucesso: true,
 
                 existe:
-                    resultado.rows.length >
-                    0
+                    resultado.rows.length > 0
             });
+
 
         } catch (err) {
 
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
+            console.error(
+                '❌ Consultar conta:',
+                err
+            );
 
-                    erro:
-                        'Erro ao consultar conta.'
-                });
+
+            return res.status(500).json({
+                sucesso: false,
+                erro:
+                    'Erro ao consultar conta.'
+            });
         }
     }
 );
+
+
+// ============================================================
+// FIM DA PARTE 2
+// COLE A PARTE 3 IMEDIATAMENTE ABAIXO
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// PARTE 3
+// SERVIÇOS + RADAR + TITULAR + RESERVAS
+// PRESENÇA + CHECK-IN
+// ============================================================
 
 
 // ============================================================
@@ -2739,20 +3542,17 @@ app.get(
         try {
 
             const resultado =
-                await pool.query(
-                    `
+                await pool.query(`
                     SELECT *
                     FROM servicos
-
-                    ORDER BY
-                        id DESC
-                    `
-                );
+                    ORDER BY id DESC
+                `);
 
 
             return res.json(
                 resultado.rows
             );
+
 
         } catch (err) {
 
@@ -2766,7 +3566,6 @@ app.get(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao buscar serviços.'
                 });
@@ -2776,7 +3575,7 @@ app.get(
 
 
 // ============================================================
-// SERVIÇO INDIVIDUAL
+// BUSCAR SERVIÇO INDIVIDUAL
 // ============================================================
 
 app.get(
@@ -2800,7 +3599,6 @@ app.get(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -2812,13 +3610,19 @@ app.get(
                 servico
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Buscar serviço:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao buscar serviço.'
                 });
@@ -2862,6 +3666,7 @@ app.post(
                     dados.recorrencia ||
                     'unico'
                 )
+                    .trim()
                     .toLowerCase();
 
 
@@ -2875,28 +3680,26 @@ app.post(
             ) {
 
                 valorTotal =
-                    valorUnitario *
-                    4;
+                    valorUnitario * 4;
+            }
 
-            } else if (
+
+            if (
                 recorrencia ===
                 'quinzenal'
             ) {
 
                 valorTotal =
-                    valorUnitario *
-                    2;
+                    valorUnitario * 2;
             }
 
 
             const taxa =
-                valorTotal *
-                0.10;
+                valorTotal * 0.10;
 
 
             const valorLiquido =
-                valorTotal -
-                taxa;
+                valorTotal - taxa;
 
 
             let empresaNome =
@@ -2936,6 +3739,30 @@ app.post(
                     empresaRes.rows[0]?.nome ||
                     '';
             }
+
+
+            const dataHorario =
+                dados.dataHorario ||
+                dados.data_horario ||
+                (
+                    dados.data &&
+                    (
+                        dados.horario ||
+                        dados.horario_inicio
+                    )
+
+                        ?
+
+                        `${dados.data}T${
+                            dados.horario ||
+                            dados.horario_inicio
+                        }`
+
+                        :
+
+                        dados.data ||
+                        'A combinar'
+                );
 
 
             const resultado =
@@ -3003,27 +3830,7 @@ app.post(
 
                         valorTotal,
 
-                        dados.dataHorario ||
-                        dados.data_horario ||
-                        (
-                            dados.data &&
-                            (
-                                dados.horario ||
-                                dados.horario_inicio
-                            )
-
-                                ?
-
-                                `${dados.data}T${
-                                    dados.horario ||
-                                    dados.horario_inicio
-                                }`
-
-                                :
-
-                                dados.data ||
-                                'A combinar'
-                        ),
+                        dataHorario,
 
                         dados.horarioFim ||
                         dados.horario_fim ||
@@ -3090,8 +3897,11 @@ app.post(
 
             return res.json({
                 sucesso: true,
+                mensagem:
+                    'Serviço publicado com sucesso.',
                 servico
             });
+
 
         } catch (err) {
 
@@ -3105,7 +3915,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao publicar serviço: ' +
                         err.message
@@ -3117,6 +3926,11 @@ app.post(
 
 // ============================================================
 // ACEITAR VAGA
+//
+// REGRA:
+// 1 TITULAR
+// +
+// 2 RESERVAS
 // ============================================================
 
 app.post(
@@ -3144,7 +3958,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -3159,28 +3972,31 @@ app.post(
                 );
 
 
-            const prestadorNome =
+            let prestadorNome =
                 String(
                     req.body?.prestadorNome ||
                     req.body?.prestador_nome ||
-                    prestadorEmail
-                );
+                    ''
+                )
+                    .trim();
 
 
-            const prestadorPix =
+            let prestadorPix =
                 String(
                     req.body?.prestadorPix ||
                     req.body?.prestador_pix ||
                     ''
-                );
+                )
+                    .trim();
 
 
-            const prestadorWhatsapp =
+            let prestadorWhatsapp =
                 String(
                     req.body?.prestadorWhatsapp ||
                     req.body?.prestador_whatsapp ||
                     ''
-                );
+                )
+                    .trim();
 
 
             if (!prestadorEmail) {
@@ -3189,11 +4005,70 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Prestador não informado.'
                     });
             }
+
+
+            // Busca informações do usuário
+            // caso o INDEX não tenha enviado tudo.
+            const usuarioRes =
+                await pool.query(
+                    `
+                    SELECT
+                        id,
+                        nome,
+                        pix,
+                        whatsapp
+
+                    FROM usuarios
+
+                    WHERE
+                        LOWER(TRIM(email))
+                        =
+                        LOWER(TRIM($1))
+
+                    LIMIT 1
+                    `,
+                    [
+                        prestadorEmail
+                    ]
+                );
+
+
+            const usuario =
+                usuarioRes.rows[0];
+
+
+            if (!usuario) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Prestador não encontrado no cadastro.'
+                    });
+            }
+
+
+            prestadorNome =
+                prestadorNome ||
+                usuario.nome ||
+                prestadorEmail;
+
+
+            prestadorPix =
+                prestadorPix ||
+                usuario.pix ||
+                '';
+
+
+            prestadorWhatsapp =
+                prestadorWhatsapp ||
+                usuario.whatsapp ||
+                '';
 
 
             const statusServico =
@@ -3201,29 +4076,29 @@ app.post(
                     servico.status ||
                     ''
                 )
+                    .trim()
                     .toLowerCase();
 
 
+            const statusBloqueados = [
+                'cancelado',
+                'finalizado',
+                'validado',
+                'pago',
+                'encerrado'
+            ];
+
+
             if (
-                statusServico ===
-                'cancelado'
-
-                ||
-
-                statusServico ===
-                'finalizado'
-
-                ||
-
-                statusServico ===
-                'pago'
+                statusBloqueados.includes(
+                    statusServico
+                )
             ) {
 
                 return res
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Esta vaga não está mais disponível.'
                     });
@@ -3236,6 +4111,7 @@ app.post(
                 );
 
 
+            // Já é titular
             if (
                 normalizarEmail(
                     servico.prestador_email
@@ -3248,32 +4124,39 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Você já é o Titular desta vaga.'
                     });
             }
 
 
+            // Já está na reserva
             const jaReserva =
                 reservas.some(
-                    reserva =>
-                        normalizarEmail(
-                            typeof reserva ===
-                            'string'
+                    reserva => {
 
-                                ?
+                        const emailReserva =
+                            normalizarEmail(
+                                typeof reserva ===
+                                'string'
 
-                                reserva
+                                    ?
 
-                                :
+                                    reserva
 
-                                reserva.email ||
-                                reserva.prestadorEmail ||
-                                reserva.prestador_email
-                        )
-                        ===
-                        prestadorEmail
+                                    :
+
+                                    reserva.email ||
+                                    reserva.prestadorEmail ||
+                                    reserva.prestador_email
+                            );
+
+
+                        return (
+                            emailReserva ===
+                            prestadorEmail
+                        );
+                    }
                 );
 
 
@@ -3283,14 +4166,17 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Você já está na reserva desta vaga.'
                     });
             }
 
 
-            // TITULAR
+            // =================================================
+            // NÃO POSSUI TITULAR
+            // ENTÃO O PRIMEIRO PRESTADOR VIRA TITULAR.
+            // =================================================
+
             if (
                 !servico.prestador_email
             ) {
@@ -3313,32 +4199,28 @@ app.post(
                             prestador_whatsapp =
                                 $4,
 
-                            prestador_id = (
-                                SELECT id
-                                FROM usuarios
-
-                                WHERE
-                                    LOWER(TRIM(email))
-                                    =
-                                    LOWER(TRIM($1))
-
-                                LIMIT 1
-                            ),
+                            prestador_id =
+                                $5,
 
                             status =
                                 'aguardando_confirmacao'
 
                         WHERE
-                            id =
-                            $5
+                            id = $6
 
                         RETURNING *
                         `,
                         [
                             prestadorEmail,
+
                             prestadorNome,
+
                             prestadorPix,
+
                             prestadorWhatsapp,
+
+                            usuario.id,
+
                             servicoId
                         ]
                     );
@@ -3353,6 +4235,16 @@ app.post(
 
                 emitirAtualizacao(
                     servicoId
+                );
+
+
+                io.emit(
+                    'vaga_atualizada',
+                    {
+                        servicoId,
+                        titular:
+                            prestadorEmail
+                    }
                 );
 
 
@@ -3371,17 +4263,19 @@ app.post(
             }
 
 
-            // RESERVAS
+            // =================================================
+            // TITULAR JÁ EXISTE
+            // ENTRAR NA RESERVA
+            // =================================================
+
             if (
-                reservas.length >=
-                2
+                reservas.length >= 2
             ) {
 
                 return res
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Esta vaga já possui Titular e duas Reservas.'
                     });
@@ -3389,7 +4283,6 @@ app.post(
 
 
             reservas.push({
-
                 email:
                     prestadorEmail,
 
@@ -3418,8 +4311,7 @@ app.post(
                             $1::jsonb
 
                     WHERE
-                        id =
-                        $2
+                        id = $2
 
                     RETURNING *
                     `,
@@ -3445,6 +4337,16 @@ app.post(
             );
 
 
+            io.emit(
+                'vaga_atualizada',
+                {
+                    servicoId,
+                    reservas:
+                        reservas.length
+                }
+            );
+
+
             return res.json({
                 sucesso: true,
 
@@ -3458,6 +4360,7 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -3470,7 +4373,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao aceitar vaga.'
                 });
@@ -3480,7 +4382,7 @@ app.post(
 
 
 // ============================================================
-// SAIR DA VAGA
+// SAIR DA VAGA / RESERVA
 // ============================================================
 
 app.post(
@@ -3502,6 +4404,18 @@ app.post(
             );
 
 
+        if (!email) {
+
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Prestador não informado.'
+                });
+        }
+
+
         try {
 
             const servico =
@@ -3516,7 +4430,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -3538,23 +4451,30 @@ app.post(
 
             const indiceReserva =
                 reservas.findIndex(
-                    reserva =>
-                        normalizarEmail(
-                            typeof reserva ===
-                            'string'
+                    reserva => {
 
-                                ?
+                        const emailReserva =
+                            normalizarEmail(
+                                typeof reserva ===
+                                'string'
 
-                                reserva
+                                    ?
 
-                                :
+                                    reserva
 
-                                reserva.email ||
-                                reserva.prestadorEmail ||
-                                reserva.prestador_email
-                        )
-                        ===
-                        email
+                                    :
+
+                                    reserva.email ||
+                                    reserva.prestadorEmail ||
+                                    reserva.prestador_email
+                            );
+
+
+                        return (
+                            emailReserva ===
+                            email
+                        );
+                    }
                 );
 
 
@@ -3567,12 +4487,15 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Você não está vinculado a esta vaga.'
                     });
             }
 
+
+            // =================================================
+            // TITULAR QUER SAIR
+            // =================================================
 
             if (ehTitular) {
 
@@ -3587,7 +4510,6 @@ app.post(
                         .status(409)
                         .json({
                             sucesso: false,
-
                             erro:
                                 'A jornada já foi iniciada. Não é possível sair da vaga.'
                         });
@@ -3661,6 +4583,30 @@ app.post(
                             '';
 
 
+                    const usuarioNovoRes =
+                        await pool.query(
+                            `
+                            SELECT id
+                            FROM usuarios
+
+                            WHERE
+                                LOWER(TRIM(email))
+                                =
+                                LOWER(TRIM($1))
+
+                            LIMIT 1
+                            `,
+                            [
+                                novoEmail
+                            ]
+                        );
+
+
+                    const novoPrestadorId =
+                        usuarioNovoRes.rows[0]?.id ||
+                        null;
+
+
                     await pool.query(
                         `
                         UPDATE servicos
@@ -3678,8 +4624,11 @@ app.post(
                             prestador_whatsapp =
                                 $4,
 
+                            prestador_id =
+                                $5,
+
                             reservas =
-                                $5::jsonb,
+                                $6::jsonb,
 
                             status =
                                 'aguardando_confirmacao',
@@ -3742,17 +4691,23 @@ app.post(
                                 NULL
 
                         WHERE
-                            id =
-                            $6
+                            id = $7
                         `,
                         [
                             novoEmail,
+
                             novoNome,
+
                             novoPix,
+
                             novoWhatsapp,
+
+                            novoPrestadorId,
+
                             JSON.stringify(
                                 reservas
                             ),
+
                             servicoId
                         ]
                     );
@@ -3764,100 +4719,134 @@ app.post(
                         `Reserva promovida para Titular do serviço #${servicoId}.`
                     );
 
-                } else {
 
-                    await pool.query(
-                        `
-                        UPDATE servicos
-
-                        SET
-                            prestador_email =
-                                NULL,
-
-                            prestador_nome =
-                                NULL,
-
-                            prestador_pix =
-                                NULL,
-
-                            prestador_whatsapp =
-                                NULL,
-
-                            prestador_id =
-                                NULL,
-
-                            reservas =
-                                '[]'::jsonb,
-
-                            status =
-                                'ativo',
-
-                            presenca_confirmada =
-                                FALSE,
-
-                            presenca_hora =
-                                NULL,
-
-                            presenca_latitude =
-                                NULL,
-
-                            presenca_longitude =
-                                NULL,
-
-                            presenca_precisao =
-                                NULL,
-
-                            selfie_confirmacao =
-                                NULL,
-
-                            status_checkin =
-                                'pendente',
-
-                            checkin_hora =
-                                NULL,
-
-                            checkin_foto =
-                                NULL,
-
-                            checkin_latitude =
-                                NULL,
-
-                            checkin_longitude =
-                                NULL,
-
-                            intervalo_inicio =
-                                NULL,
-
-                            intervalo_fim =
-                                NULL,
-
-                            intervalo_retorno =
-                                NULL,
-
-                            em_intervalo =
-                                FALSE,
-
-                            checkout_hora =
-                                NULL,
-
-                            checkout_foto =
-                                NULL,
-
-                            checkout_latitude =
-                                NULL,
-
-                            checkout_longitude =
-                                NULL
-
-                        WHERE
-                            id =
-                            $1
-                        `,
-                        [
-                            servicoId
-                        ]
+                    await registrarAuditoria(
+                        email,
+                        'SAIR_VAGA_TITULAR',
+                        `Titular saiu do serviço #${servicoId}.`
                     );
+
+
+                    emitirAtualizacao(
+                        servicoId
+                    );
+
+
+                    io.emit(
+                        'vaga_atualizada',
+                        {
+                            servicoId,
+                            titular:
+                                novoEmail,
+                            reservas:
+                                reservas.length
+                        }
+                    );
+
+
+                    return res.json({
+                        sucesso: true,
+                        mensagem:
+                            'Você saiu da vaga. A primeira reserva virou Titular.'
+                    });
                 }
+
+
+                // =================================================
+                // NÃO TEM RESERVA
+                // VAGA VOLTA PARA O RADAR
+                // =================================================
+
+                await pool.query(
+                    `
+                    UPDATE servicos
+
+                    SET
+                        prestador_email =
+                            NULL,
+
+                        prestador_nome =
+                            NULL,
+
+                        prestador_pix =
+                            NULL,
+
+                        prestador_whatsapp =
+                            NULL,
+
+                        prestador_id =
+                            NULL,
+
+                        reservas =
+                            '[]'::jsonb,
+
+                        status =
+                            'ativo',
+
+                        presenca_confirmada =
+                            FALSE,
+
+                        presenca_hora =
+                            NULL,
+
+                        presenca_latitude =
+                            NULL,
+
+                        presenca_longitude =
+                            NULL,
+
+                        presenca_precisao =
+                            NULL,
+
+                        selfie_confirmacao =
+                            NULL,
+
+                        status_checkin =
+                            'pendente',
+
+                        checkin_hora =
+                            NULL,
+
+                        checkin_foto =
+                            NULL,
+
+                        checkin_latitude =
+                            NULL,
+
+                        checkin_longitude =
+                            NULL,
+
+                        intervalo_inicio =
+                            NULL,
+
+                        intervalo_fim =
+                            NULL,
+
+                        intervalo_retorno =
+                            NULL,
+
+                        em_intervalo =
+                            FALSE,
+
+                        checkout_hora =
+                            NULL,
+
+                        checkout_foto =
+                            NULL,
+
+                        checkout_latitude =
+                            NULL,
+
+                        checkout_longitude =
+                            NULL
+
+                    WHERE
+                        id = $1
+                    `,
+                    [
+                        servicoId
+                    ]
+                );
 
 
                 await registrarAuditoria(
@@ -3872,22 +4861,29 @@ app.post(
                 );
 
 
+                io.emit(
+                    'vaga_atualizada',
+                    {
+                        servicoId,
+                        titular:
+                            null,
+                        reservas:
+                            0
+                    }
+                );
+
+
                 return res.json({
                     sucesso: true,
-
                     mensagem:
-                        novoTitular
-
-                            ?
-
-                            'Você saiu da vaga. A primeira reserva virou Titular.'
-
-                            :
-
-                            'Você saiu da vaga. Ela voltou para o Radar.'
+                        'Você saiu da vaga. Ela voltou para o Radar.'
                 });
             }
 
+
+            // =================================================
+            // RESERVA QUER SAIR
+            // =================================================
 
             reservas.splice(
                 indiceReserva,
@@ -3904,8 +4900,7 @@ app.post(
                         $1::jsonb
 
                 WHERE
-                    id =
-                    $2
+                    id = $2
                 `,
                 [
                     JSON.stringify(
@@ -3929,12 +4924,22 @@ app.post(
             );
 
 
+            io.emit(
+                'vaga_atualizada',
+                {
+                    servicoId,
+                    reservas:
+                        reservas.length
+                }
+            );
+
+
             return res.json({
                 sucesso: true,
-
                 mensagem:
                     'Você saiu da reserva.'
             });
+
 
         } catch (err) {
 
@@ -3948,7 +4953,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao sair da vaga.'
                 });
@@ -3958,7 +4962,30 @@ app.post(
 
 
 // ============================================================
+// ALIAS — DESISTIR DA VAGA
+// ============================================================
+
+app.post(
+    '/api/servicos/:id/desistir',
+
+    async (req, res, next) => {
+
+        req.url =
+            `/api/servicos/${req.params.id}/sair-vaga`;
+
+        return next();
+    }
+);
+
+
+// ============================================================
 // CONFIRMAR PRESENÇA
+//
+// TITULAR
+// +
+// FOTO
+// +
+// GPS
 // ============================================================
 
 async function confirmarPresencaRS(
@@ -3980,6 +5007,18 @@ async function confirmarPresencaRS(
         );
 
 
+    if (!email) {
+
+        return res
+            .status(400)
+            .json({
+                sucesso: false,
+                erro:
+                    'Prestador não informado.'
+            });
+    }
+
+
     try {
 
         const servico =
@@ -3994,7 +5033,6 @@ async function confirmarPresencaRS(
                 .status(404)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Serviço não encontrado.'
                 });
@@ -4012,7 +5050,6 @@ async function confirmarPresencaRS(
                 .status(403)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Somente o Titular pode confirmar presença.'
                 });
@@ -4027,7 +5064,6 @@ async function confirmarPresencaRS(
                 .status(409)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Este serviço já foi finalizado.'
                 });
@@ -4078,7 +5114,6 @@ async function confirmarPresencaRS(
                 .status(400)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Tire uma foto para confirmar presença.'
                 });
@@ -4086,18 +5121,18 @@ async function confirmarPresencaRS(
 
 
         if (
-            latitude ===
-            undefined
-            ||
-            longitude ===
-            undefined
+            latitude === undefined ||
+            longitude === undefined ||
+            latitude === null ||
+            longitude === null ||
+            latitude === '' ||
+            longitude === ''
         ) {
 
             return res
                 .status(400)
                 .json({
                     sucesso: false,
-
                     erro:
                         'A localização GPS é obrigatória.'
                 });
@@ -4139,8 +5174,7 @@ async function confirmarPresencaRS(
                         'confirmado'
 
                 WHERE
-                    id =
-                    $6
+                    id = $6
 
                 RETURNING *
                 `,
@@ -4178,15 +5212,29 @@ async function confirmarPresencaRS(
         );
 
 
+        io.emit(
+            'presenca_confirmada',
+            {
+                servicoId,
+                prestadorEmail:
+                    email,
+                hora
+            }
+        );
+
+
         return res.json({
             sucesso: true,
 
             mensagem:
                 'Presença confirmada.',
 
+            hora,
+
             servico:
                 resultado.rows[0]
         });
+
 
     } catch (err) {
 
@@ -4200,7 +5248,6 @@ async function confirmarPresencaRS(
             .status(500)
             .json({
                 sucesso: false,
-
                 erro:
                     'Erro ao confirmar presença.'
             });
@@ -4221,7 +5268,10 @@ app.post(
 
 
 // ============================================================
-// CHECK-IN AVULSO
+// CHECK-IN
+//
+// SOMENTE DEPOIS DA CONFIRMAÇÃO DE PRESENÇA
+// FOTO + GPS OBRIGATÓRIOS
 // ============================================================
 
 app.post(
@@ -4243,6 +5293,18 @@ app.post(
             );
 
 
+        if (!email) {
+
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Prestador não informado.'
+                });
+        }
+
+
         try {
 
             const servico =
@@ -4257,7 +5319,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -4275,22 +5336,33 @@ app.post(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Somente o Titular pode fazer check-in.'
                     });
             }
 
 
+            // Serviço já terminou.
             if (
-                servico.checkout_hora
+                servico.checkout_hora ||
+                [
+                    'finalizado',
+                    'validado',
+                    'pago',
+                    'encerrado'
+                ].includes(
+                    String(
+                        servico.status ||
+                        ''
+                    )
+                        .toLowerCase()
+                )
             ) {
 
                 return res
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Esta jornada já foi finalizada.'
                     });
@@ -4305,7 +5377,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Confirme sua presença antes do check-in.'
                     });
@@ -4316,14 +5387,20 @@ app.post(
                 servico.checkin_hora
             ) {
 
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
+                return res.json({
+                    sucesso: true,
 
-                        erro:
-                            `CHECK-IN FINALIZADO às ${servico.checkin_hora}.`
-                    });
+                    mensagem:
+                        `CHECK-IN FINALIZADO às ${servico.checkin_hora}.`,
+
+                    jaRealizado:
+                        true,
+
+                    hora:
+                        servico.checkin_hora,
+
+                    servico
+                });
             }
 
 
@@ -4350,7 +5427,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A foto de entrada é obrigatória.'
                     });
@@ -4358,18 +5434,18 @@ app.post(
 
 
             if (
-                latitude ===
-                undefined
-                ||
-                longitude ===
-                undefined
+                latitude === undefined ||
+                longitude === undefined ||
+                latitude === null ||
+                longitude === null ||
+                latitude === '' ||
+                longitude === ''
             ) {
 
                 return res
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A localização GPS é obrigatória.'
                     });
@@ -4408,8 +5484,7 @@ app.post(
                             FALSE
 
                     WHERE
-                        id =
-                        $5
+                        id = $5
 
                     RETURNING *
                     `,
@@ -4443,6 +5518,19 @@ app.post(
             );
 
 
+            io.emit(
+                'checkin_realizado',
+                {
+                    servicoId,
+
+                    prestadorEmail:
+                        email,
+
+                    hora
+                }
+            );
+
+
             return res.json({
                 sucesso: true,
 
@@ -4454,6 +5542,7 @@ app.post(
                 servico:
                     resultado.rows[0]
             });
+
 
         } catch (err) {
 
@@ -4467,7 +5556,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao realizar check-in.'
                 });
@@ -4477,7 +5565,156 @@ app.post(
 
 
 // ============================================================
-// INICIAR INTERVALO AVULSO
+// CONSULTAR POSIÇÃO DO PRESTADOR NA VAGA
+// ============================================================
+
+app.get(
+    '/api/servicos/:id/posicao/:email',
+
+    async (req, res) => {
+
+        try {
+
+            const servicoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const email =
+                normalizarEmail(
+                    req.params.email
+                );
+
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            if (
+                prestadorEhTitular(
+                    servico,
+                    email
+                )
+            ) {
+
+                return res.json({
+                    sucesso: true,
+                    vinculado:
+                        true,
+                    posicao:
+                        'titular'
+                });
+            }
+
+
+            const reservas =
+                parseReservas(
+                    servico.reservas
+                );
+
+
+            const indice =
+                reservas.findIndex(
+                    reserva => {
+
+                        const emailReserva =
+                            normalizarEmail(
+                                typeof reserva ===
+                                'string'
+
+                                    ?
+
+                                    reserva
+
+                                    :
+
+                                    reserva.email ||
+                                    reserva.prestador_email ||
+                                    reserva.prestadorEmail
+                            );
+
+
+                        return (
+                            emailReserva ===
+                            email
+                        );
+                    }
+                );
+
+
+            if (
+                indice >= 0
+            ) {
+
+                return res.json({
+                    sucesso: true,
+
+                    vinculado:
+                        true,
+
+                    posicao:
+                        `reserva_${indice + 1}`
+                });
+            }
+
+
+            return res.json({
+                sucesso: true,
+                vinculado:
+                    false,
+                posicao:
+                    null
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Consultar posição:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao consultar posição.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FIM DA PARTE 3
+// COLE A PARTE 4 IMEDIATAMENTE ABAIXO
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// PARTE 4
+// INTERVALO + RETORNO + CÁLCULO DE HORAS + CHECK-OUT
+// ============================================================
+
+
+// ============================================================
+// INICIAR INTERVALO
 // ============================================================
 
 async function iniciarIntervaloRS(
@@ -4499,6 +5736,18 @@ async function iniciarIntervaloRS(
         );
 
 
+    if (!email) {
+
+        return res
+            .status(400)
+            .json({
+                sucesso: false,
+                erro:
+                    'Prestador não informado.'
+            });
+    }
+
+
     try {
 
         const servico =
@@ -4513,12 +5762,15 @@ async function iniciarIntervaloRS(
                 .status(404)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Serviço não encontrado.'
                 });
         }
 
+
+        // ====================================================
+        // SOMENTE O TITULAR
+        // ====================================================
 
         if (
             !prestadorEhTitular(
@@ -4531,12 +5783,15 @@ async function iniciarIntervaloRS(
                 .status(403)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Somente o Titular pode iniciar o intervalo.'
                 });
         }
 
+
+        // ====================================================
+        // PRECISA TER CHECK-IN
+        // ====================================================
 
         if (
             !servico.checkin_hora
@@ -4546,27 +5801,45 @@ async function iniciarIntervaloRS(
                 .status(409)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Faça o check-in primeiro.'
                 });
         }
 
 
+        // ====================================================
+        // NÃO PODE ESTAR FINALIZADO
+        // ====================================================
+
         if (
-            servico.checkout_hora
+            servico.checkout_hora ||
+            [
+                'finalizado',
+                'validado',
+                'pago',
+                'encerrado'
+            ].includes(
+                String(
+                    servico.status ||
+                    ''
+                )
+                    .toLowerCase()
+            )
         ) {
 
             return res
                 .status(409)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Esta jornada já foi finalizada.'
                 });
         }
 
+
+        // ====================================================
+        // JÁ ESTÁ NO INTERVALO
+        // ====================================================
 
         if (
             servico.em_intervalo
@@ -4576,12 +5849,15 @@ async function iniciarIntervaloRS(
                 .status(409)
                 .json({
                     sucesso: false,
-
                     erro:
                         'O intervalo já está em andamento.'
                 });
         }
 
+
+        // ====================================================
+        // INTERVALO JÁ FOI USADO
+        // ====================================================
 
         if (
             servico.intervalo_inicio
@@ -4591,7 +5867,6 @@ async function iniciarIntervaloRS(
                 .status(409)
                 .json({
                     sucesso: false,
-
                     erro:
                         'O intervalo desta jornada já foi utilizado.'
                 });
@@ -4602,35 +5877,38 @@ async function iniciarIntervaloRS(
             horaAtualRS();
 
 
-        await pool.query(
-            `
-            UPDATE servicos
+        const resultado =
+            await pool.query(
+                `
+                UPDATE servicos
 
-            SET
-                intervalo_inicio =
-                    $1,
+                SET
+                    intervalo_inicio =
+                        $1,
 
-                intervalo_fim =
-                    NULL,
+                    intervalo_fim =
+                        NULL,
 
-                intervalo_retorno =
-                    NULL,
+                    intervalo_retorno =
+                        NULL,
 
-                em_intervalo =
-                    TRUE,
+                    em_intervalo =
+                        TRUE,
 
-                status =
-                    'em_intervalo'
+                    status =
+                        'em_intervalo'
 
-            WHERE
-                id =
-                $2
-            `,
-            [
-                hora,
-                servicoId
-            ]
-        );
+                WHERE
+                    id =
+                        $2
+
+                RETURNING *
+                `,
+                [
+                    hora,
+                    servicoId
+                ]
+            );
 
 
         await registrarAuditoria(
@@ -4645,14 +5923,29 @@ async function iniciarIntervaloRS(
         );
 
 
+        io.emit(
+            'intervalo_iniciado',
+            {
+                servicoId,
+                prestadorEmail:
+                    email,
+                hora
+            }
+        );
+
+
         return res.json({
             sucesso: true,
 
             mensagem:
                 'Intervalo iniciado.',
 
-            hora
+            hora,
+
+            servico:
+                resultado.rows[0]
         });
+
 
     } catch (err) {
 
@@ -4666,13 +5959,16 @@ async function iniciarIntervaloRS(
             .status(500)
             .json({
                 sucesso: false,
-
                 erro:
                     'Erro ao iniciar intervalo.'
             });
     }
 }
 
+
+// ============================================================
+// ROTAS DE INICIAR INTERVALO
+// ============================================================
 
 app.post(
     '/api/servicos/:id/intervalo/iniciar',
@@ -4687,7 +5983,7 @@ app.post(
 
 
 // ============================================================
-// RETORNAR INTERVALO AVULSO
+// RETORNAR DO INTERVALO
 // ============================================================
 
 async function retornarIntervaloRS(
@@ -4709,6 +6005,18 @@ async function retornarIntervaloRS(
         );
 
 
+    if (!email) {
+
+        return res
+            .status(400)
+            .json({
+                sucesso: false,
+                erro:
+                    'Prestador não informado.'
+            });
+    }
+
+
     try {
 
         const servico =
@@ -4723,12 +6031,15 @@ async function retornarIntervaloRS(
                 .status(404)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Serviço não encontrado.'
                 });
         }
 
+
+        // ====================================================
+        // SOMENTE TITULAR
+        // ====================================================
 
         if (
             !prestadorEhTitular(
@@ -4741,12 +6052,15 @@ async function retornarIntervaloRS(
                 .status(403)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Somente o Titular pode retornar do intervalo.'
                 });
         }
 
+
+        // ====================================================
+        // PRECISA TER INICIADO
+        // ====================================================
 
         if (
             !servico.intervalo_inicio
@@ -4756,24 +6070,52 @@ async function retornarIntervaloRS(
                 .status(409)
                 .json({
                     sucesso: false,
-
                     erro:
                         'O intervalo ainda não foi iniciado.'
                 });
         }
 
 
+        // ====================================================
+        // SE NÃO ESTÁ EM INTERVALO, JÁ VOLTOU
+        // ====================================================
+
         if (
             !servico.em_intervalo
+        ) {
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    'O retorno do intervalo já foi registrado.',
+
+                jaRealizado:
+                    true,
+
+                hora:
+                    servico.intervalo_fim ||
+                    servico.intervalo_retorno,
+
+                servico
+            });
+        }
+
+
+        // ====================================================
+        // NÃO PODE ESTAR FINALIZADO
+        // ====================================================
+
+        if (
+            servico.checkout_hora
         ) {
 
             return res
                 .status(409)
                 .json({
                     sucesso: false,
-
                     erro:
-                        'O retorno do intervalo já foi registrado.'
+                        'Esta jornada já foi finalizada.'
                 });
         }
 
@@ -4782,32 +6124,35 @@ async function retornarIntervaloRS(
             horaAtualRS();
 
 
-        await pool.query(
-            `
-            UPDATE servicos
+        const resultado =
+            await pool.query(
+                `
+                UPDATE servicos
 
-            SET
-                intervalo_fim =
-                    $1,
+                SET
+                    intervalo_fim =
+                        $1,
 
-                intervalo_retorno =
-                    $1,
+                    intervalo_retorno =
+                        $1,
 
-                em_intervalo =
-                    FALSE,
+                    em_intervalo =
+                        FALSE,
 
-                status =
-                    'em_andamento'
+                    status =
+                        'em_andamento'
 
-            WHERE
-                id =
-                $2
-            `,
-            [
-                hora,
-                servicoId
-            ]
-        );
+                WHERE
+                    id =
+                        $2
+
+                RETURNING *
+                `,
+                [
+                    hora,
+                    servicoId
+                ]
+            );
 
 
         await registrarAuditoria(
@@ -4822,14 +6167,29 @@ async function retornarIntervaloRS(
         );
 
 
+        io.emit(
+            'intervalo_finalizado',
+            {
+                servicoId,
+                prestadorEmail:
+                    email,
+                hora
+            }
+        );
+
+
         return res.json({
             sucesso: true,
 
             mensagem:
                 'Retorno do intervalo registrado.',
 
-            hora
+            hora,
+
+            servico:
+                resultado.rows[0]
         });
+
 
     } catch (err) {
 
@@ -4843,13 +6203,16 @@ async function retornarIntervaloRS(
             .status(500)
             .json({
                 sucesso: false,
-
                 erro:
                     'Erro ao registrar retorno.'
             });
     }
 }
 
+
+// ============================================================
+// ROTAS DE RETORNO
+// ============================================================
 
 app.post(
     '/api/servicos/:id/intervalo/voltar',
@@ -4870,7 +6233,7 @@ app.post(
 
 
 // ============================================================
-// HORÁRIOS AVULSOS
+// CONVERTER HORÁRIO EM SEGUNDOS
 // ============================================================
 
 function horarioParaSegundos(
@@ -4915,6 +6278,16 @@ function horarioParaSegundos(
 }
 
 
+// ============================================================
+// CALCULAR TEMPO TRABALHADO
+//
+// ENTRADA
+// -
+// INTERVALO
+// -
+// SAÍDA
+// ============================================================
+
 function calcularTempoTrabalhado(
     servico,
     saidaHora
@@ -4939,9 +6312,7 @@ function calcularTempoTrabalhado(
 
         return {
             minutos: 0,
-
             horasDecimal: 0,
-
             texto:
                 '0h 00min'
         };
@@ -4952,6 +6323,14 @@ function calcularTempoTrabalhado(
         saida -
         entrada;
 
+
+    // ========================================================
+    // VIRADA DE DIA
+    //
+    // Ex:
+    // entrada 22:00
+    // saída 06:00
+    // ========================================================
 
     if (
         total <
@@ -4976,6 +6355,10 @@ function calcularTempoTrabalhado(
             servico.intervalo_retorno
         );
 
+
+    // ========================================================
+    // DESCONTAR INTERVALO
+    // ========================================================
 
     if (
         inicioIntervalo !== null &&
@@ -5036,6 +6419,7 @@ function calcularTempoTrabalhado(
                 60
             ),
 
+
         horasDecimal:
             Number(
                 (
@@ -5044,6 +6428,7 @@ function calcularTempoTrabalhado(
                 )
                     .toFixed(2)
             ),
+
 
         texto:
             `${horas}h ${
@@ -5060,7 +6445,15 @@ function calcularTempoTrabalhado(
 
 
 // ============================================================
-// CHECK-OUT AVULSO
+// CHECK-OUT
+//
+// FOTO + GPS
+//
+// AO FINALIZAR:
+// STATUS = FINALIZADO
+//
+// ISSO É IMPORTANTE:
+// NÃO PODE VOLTAR PARA CONFIRMAR PRESENÇA.
 // ============================================================
 
 app.post(
@@ -5082,6 +6475,18 @@ app.post(
             );
 
 
+        if (!email) {
+
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Prestador não informado.'
+                });
+        }
+
+
         try {
 
             const servico =
@@ -5096,12 +6501,15 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
             }
 
+
+            // =================================================
+            // SOMENTE O TITULAR
+            // =================================================
 
             if (
                 !prestadorEhTitular(
@@ -5114,12 +6522,15 @@ app.post(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Somente o Titular pode registrar a saída.'
                     });
             }
 
+
+            // =================================================
+            // PRECISA TER CHECK-IN
+            // =================================================
 
             if (
                 !servico.checkin_hora
@@ -5129,27 +6540,42 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Faça o check-in primeiro.'
                     });
             }
 
 
+            // =================================================
+            // JÁ FINALIZOU
+            //
+            // NÃO VOLTA PARA CONFIRMAR PRESENÇA.
+            // =================================================
+
             if (
                 servico.checkout_hora
             ) {
 
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
+                return res.json({
+                    sucesso: true,
 
-                        erro:
-                            `CHECK-OUT FINALIZADO às ${servico.checkout_hora}.`
-                    });
+                    jaFinalizado:
+                        true,
+
+                    mensagem:
+                        `SERVIÇO FINALIZADO às ${servico.checkout_hora}.`,
+
+                    hora:
+                        servico.checkout_hora,
+
+                    servico
+                });
             }
 
+
+            // =================================================
+            // NÃO PODE SAIR DURANTE INTERVALO
+            // =================================================
 
             if (
                 servico.em_intervalo
@@ -5159,7 +6585,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Registre o retorno do intervalo antes do check-out.'
                     });
@@ -5183,32 +6608,39 @@ app.post(
                 req.body?.lng;
 
 
+            // =================================================
+            // FOTO OBRIGATÓRIA
+            // =================================================
+
             if (!foto) {
 
                 return res
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A foto de saída é obrigatória.'
                     });
             }
 
 
+            // =================================================
+            // GPS OBRIGATÓRIO
+            // =================================================
+
             if (
-                latitude ===
-                undefined
-                ||
-                longitude ===
-                undefined
+                latitude === undefined ||
+                longitude === undefined ||
+                latitude === null ||
+                longitude === null ||
+                latitude === '' ||
+                longitude === ''
             ) {
 
                 return res
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A localização GPS é obrigatória.'
                     });
@@ -5219,12 +6651,20 @@ app.post(
                 horaAtualRS();
 
 
+            // =================================================
+            // CALCULAR HORAS
+            // =================================================
+
             const tempo =
                 calcularTempoTrabalhado(
                     servico,
                     hora
                 );
 
+
+            // =================================================
+            // VALOR
+            // =================================================
 
             const valor =
                 numeroRS(
@@ -5233,6 +6673,10 @@ app.post(
                     servico.valor
                 );
 
+
+            // =================================================
+            // FINALIZAR NO BANCO
+            // =================================================
 
             const resultado =
                 await pool.query(
@@ -5263,7 +6707,7 @@ app.post(
 
                     WHERE
                         id =
-                        $5
+                            $5
 
                     RETURNING *
                     `,
@@ -5285,6 +6729,10 @@ app.post(
                 );
 
 
+            // =================================================
+            // LEDGER
+            // =================================================
+
             await registrarLedger(
                 servicoId,
                 email,
@@ -5293,12 +6741,20 @@ app.post(
             );
 
 
+            // =================================================
+            // AUDITORIA
+            // =================================================
+
             await registrarAuditoria(
                 email,
                 'CHECKOUT',
                 `Serviço #${servicoId} finalizado. Total ${tempo.texto}.`
             );
 
+
+            // =================================================
+            // WEBSOCKET
+            // =================================================
 
             emitirAtualizacao(
                 servicoId
@@ -5319,13 +6775,29 @@ app.post(
                     totalTrabalhado:
                         tempo.texto,
 
+                    minutosTrabalhados:
+                        tempo.minutos,
+
+                    horasTrabalhadas:
+                        tempo.horasDecimal,
+
                     valor
                 }
             );
 
 
+            // =================================================
+            // RESPOSTA
+            // =================================================
+
             return res.json({
                 sucesso: true,
+
+                finalizado:
+                    true,
+
+                status:
+                    'finalizado',
 
                 mensagem:
                     'Serviço finalizado com sucesso.',
@@ -5347,6 +6819,7 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -5359,13 +6832,198 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao finalizar serviço.'
                 });
         }
     }
 );
+
+
+// ============================================================
+// CONSULTAR STATUS DA JORNADA AVULSA
+//
+// AJUDA O INDEX A NÃO MOSTRAR BOTÕES ERRADOS.
+//
+// SE CHECKOUT EXISTIR:
+// FINALIZADO.
+//
+// SE INTERVALO:
+// EM INTERVALO.
+//
+// ETC.
+// ============================================================
+
+app.get(
+    '/api/servicos/:id/jornada-status',
+
+    async (req, res) => {
+
+        try {
+
+            const servicoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            let etapa =
+                'aguardando_presenca';
+
+
+            if (
+                servico.presenca_confirmada
+            ) {
+
+                etapa =
+                    'presenca_confirmada';
+            }
+
+
+            if (
+                servico.checkin_hora
+            ) {
+
+                etapa =
+                    'trabalhando';
+            }
+
+
+            if (
+                servico.em_intervalo
+            ) {
+
+                etapa =
+                    'intervalo';
+            }
+
+
+            if (
+                servico.intervalo_inicio &&
+                !servico.em_intervalo &&
+                !servico.checkout_hora
+            ) {
+
+                etapa =
+                    'trabalhando';
+            }
+
+
+            if (
+                servico.checkout_hora
+            ) {
+
+                etapa =
+                    'finalizado';
+            }
+
+
+            if (
+                String(
+                    servico.status ||
+                    ''
+                )
+                    .toLowerCase()
+                ===
+                'pago'
+            ) {
+
+                etapa =
+                    'pago';
+            }
+
+
+            return res.json({
+                sucesso: true,
+
+                servicoId,
+
+                etapa,
+
+                status:
+                    servico.status,
+
+                presencaConfirmada:
+                    Boolean(
+                        servico.presenca_confirmada
+                    ),
+
+                presencaHora:
+                    servico.presenca_hora,
+
+                checkin:
+                    servico.checkin_hora,
+
+                intervaloInicio:
+                    servico.intervalo_inicio,
+
+                intervaloRetorno:
+                    servico.intervalo_fim ||
+                    servico.intervalo_retorno,
+
+                emIntervalo:
+                    Boolean(
+                        servico.em_intervalo
+                    ),
+
+                checkout:
+                    servico.checkout_hora,
+
+                finalizado:
+                    Boolean(
+                        servico.checkout_hora
+                    )
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Status jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao consultar status da jornada.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FIM DA PARTE 4
+// COLE A PARTE 5 IMEDIATAMENTE ABAIXO
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// PARTE 5
+// VALIDAÇÃO + CANCELAMENTO + HISTÓRICO
+// PAGAMENTOS + COMPROVANTES
+// ============================================================
 
 
 // ============================================================
@@ -5405,12 +7063,15 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
             }
 
+
+            // =================================================
+            // SOMENTE A EMPRESA DO SERVIÇO
+            // =================================================
 
             if (
                 servico.empresa_email &&
@@ -5424,12 +7085,15 @@ app.post(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Somente a empresa responsável pode validar este serviço.'
                     });
             }
 
+
+            // =================================================
+            // PRESTADOR PRECISA TER FINALIZADO
+            // =================================================
 
             if (
                 !servico.checkout_hora
@@ -5439,10 +7103,31 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'O prestador ainda não realizou o check-out.'
                     });
+            }
+
+
+            // =================================================
+            // SE JÁ FOI VALIDADO
+            // =================================================
+
+            if (
+                servico.validado_empresa
+            ) {
+
+                return res.json({
+                    sucesso: true,
+
+                    jaValidado:
+                        true,
+
+                    mensagem:
+                        'Este serviço já foi validado pela empresa.',
+
+                    servico
+                });
             }
 
 
@@ -5462,8 +7147,7 @@ app.post(
                             'validado'
 
                     WHERE
-                        id =
-                        $1
+                        id = $1
 
                     RETURNING *
                     `,
@@ -5485,6 +7169,16 @@ app.post(
             );
 
 
+            io.emit(
+                'servico_validado',
+                {
+                    servicoId,
+                    empresaEmail:
+                        email
+                }
+            );
+
+
             return res.json({
                 sucesso: true,
 
@@ -5494,6 +7188,7 @@ app.post(
                 servico:
                     resultado.rows[0]
             });
+
 
         } catch (err) {
 
@@ -5507,7 +7202,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao validar serviço.'
                 });
@@ -5545,7 +7239,6 @@ app.patch(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -5572,7 +7265,6 @@ app.patch(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Somente a empresa responsável pode cancelar este serviço.'
                     });
@@ -5587,10 +7279,33 @@ app.patch(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Não é possível cancelar um serviço finalizado.'
                     });
+            }
+
+
+            if (
+                String(
+                    servico.status ||
+                    ''
+                )
+                    .toLowerCase()
+                ===
+                'cancelado'
+            ) {
+
+                return res.json({
+                    sucesso: true,
+
+                    jaCancelado:
+                        true,
+
+                    mensagem:
+                        'Este serviço já está cancelado.',
+
+                    servico
+                });
             }
 
 
@@ -5598,7 +7313,8 @@ app.patch(
                 String(
                     req.body?.motivo ||
                     'Cancelado pela empresa'
-                );
+                )
+                    .trim();
 
 
             const resultado =
@@ -5614,8 +7330,7 @@ app.patch(
                             $1
 
                     WHERE
-                        id =
-                        $2
+                        id = $2
 
                     RETURNING *
                     `,
@@ -5629,12 +7344,21 @@ app.patch(
             await registrarAuditoria(
                 empresaEmail,
                 'CANCELAR_SERVICO',
-                `Serviço #${servicoId} cancelado.`
+                `Serviço #${servicoId} cancelado. Motivo: ${motivo}`
             );
 
 
             emitirAtualizacao(
                 servicoId
+            );
+
+
+            io.emit(
+                'servico_cancelado',
+                {
+                    servicoId,
+                    motivo
+                }
             );
 
 
@@ -5648,6 +7372,7 @@ app.patch(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -5660,7 +7385,6 @@ app.patch(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao cancelar serviço.'
                 });
@@ -5670,7 +7394,7 @@ app.patch(
 
 
 // ============================================================
-// HISTÓRICO PRESTADOR
+// HISTÓRICO DO PRESTADOR
 // ============================================================
 
 app.get(
@@ -5711,17 +7435,26 @@ app.get(
             return res.json({
                 sucesso: true,
 
+                total:
+                    resultado.rows.length,
+
                 servicos:
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Histórico prestador:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar histórico.'
                 });
@@ -5767,12 +7500,15 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
             }
 
+
+            // =================================================
+            // SOMENTE EMPRESA RESPONSÁVEL
+            // =================================================
 
             if (
                 servico.empresa_email &&
@@ -5786,12 +7522,15 @@ app.post(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Somente a empresa responsável pode autorizar o pagamento.'
                     });
             }
 
+
+            // =================================================
+            // SERVIÇO PRECISA ESTAR FINALIZADO
+            // =================================================
 
             if (
                 !servico.checkout_hora
@@ -5801,10 +7540,27 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'O serviço precisa estar finalizado antes do pagamento.'
                     });
+            }
+
+
+            if (
+                servico.pagamento_autorizado
+            ) {
+
+                return res.json({
+                    sucesso: true,
+
+                    jaAutorizado:
+                        true,
+
+                    mensagem:
+                        'O pagamento deste serviço já foi autorizado.',
+
+                    servico
+                });
             }
 
 
@@ -5829,8 +7585,7 @@ app.post(
                             CURRENT_TIMESTAMP
 
                     WHERE
-                        id =
-                        $1
+                        id = $1
 
                     RETURNING *
                     `,
@@ -5886,8 +7641,28 @@ app.post(
             );
 
 
+            await registrarAuditoria(
+                empresaEmail,
+                'AUTORIZAR_PAGAMENTO',
+                `Pagamento autorizado para o serviço #${servicoId}.`
+            );
+
+
             emitirAtualizacao(
                 servicoId
+            );
+
+
+            io.emit(
+                'pagamento_autorizado',
+                {
+                    servicoId,
+
+                    prestadorEmail:
+                        servico.prestador_email,
+
+                    valor
+                }
             );
 
 
@@ -5903,6 +7678,7 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -5915,7 +7691,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao autorizar pagamento.'
                 });
@@ -5961,9 +7736,40 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
+                    });
+            }
+
+
+            if (
+                servico.empresa_email &&
+                !empresaEhResponsavel(
+                    servico,
+                    empresaEmail
+                )
+            ) {
+
+                return res
+                    .status(403)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Somente a empresa responsável pode registrar o pagamento.'
+                    });
+            }
+
+
+            if (
+                !servico.checkout_hora
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'O serviço ainda não foi finalizado.'
                     });
             }
 
@@ -6006,6 +7812,15 @@ app.post(
                         pagamento_realizado_em =
                             CURRENT_TIMESTAMP,
 
+                        pagamento_autorizado =
+                            TRUE,
+
+                        pagamento_autorizado_em =
+                            COALESCE(
+                                pagamento_autorizado_em,
+                                CURRENT_TIMESTAMP
+                            ),
+
                         comprovante_pagamento =
                             CASE
 
@@ -6032,8 +7847,7 @@ app.post(
                             'pago'
 
                     WHERE
-                        id =
-                        $2
+                        id = $2
 
                     RETURNING *
                     `,
@@ -6085,8 +7899,36 @@ app.post(
             );
 
 
+            await registrarLedger(
+                servicoId,
+                empresaEmail,
+                'PAGAMENTO_REALIZADO',
+                valor
+            );
+
+
+            await registrarAuditoria(
+                empresaEmail,
+                'PAGAMENTO_REALIZADO',
+                `Pagamento registrado no serviço #${servicoId}.`
+            );
+
+
             emitirAtualizacao(
                 servicoId
+            );
+
+
+            io.emit(
+                'pagamento_realizado',
+                {
+                    servicoId,
+
+                    prestadorEmail:
+                        servico.prestador_email,
+
+                    valor
+                }
             );
 
 
@@ -6102,6 +7944,7 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -6114,7 +7957,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao registrar pagamento.'
                 });
@@ -6124,7 +7966,7 @@ app.post(
 
 
 // ============================================================
-// COMPROVANTE PAGAMENTO
+// ENVIAR COMPROVANTE DE PAGAMENTO
 // ============================================================
 
 app.post(
@@ -6154,7 +7996,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -6167,6 +8008,24 @@ app.post(
                     req.body?.empresa_email ||
                     req.body?.email
                 );
+
+
+            if (
+                servico.empresa_email &&
+                !empresaEhResponsavel(
+                    servico,
+                    empresaEmail
+                )
+            ) {
+
+                return res
+                    .status(403)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Somente a empresa responsável pode enviar o comprovante.'
+                    });
+            }
 
 
             let arquivo =
@@ -6194,6 +8053,7 @@ app.post(
                     req.file.originalname ||
                     nomeArquivo;
 
+
             } else {
 
                 arquivo =
@@ -6219,7 +8079,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Selecione o comprovante.'
                     });
@@ -6243,12 +8102,20 @@ app.post(
                     pagamento_realizado_em =
                         CURRENT_TIMESTAMP,
 
+                    pagamento_autorizado =
+                        TRUE,
+
+                    pagamento_autorizado_em =
+                        COALESCE(
+                            pagamento_autorizado_em,
+                            CURRENT_TIMESTAMP
+                        ),
+
                     status =
                         'pago'
 
                 WHERE
-                    id =
-                    $2
+                    id = $2
                 `,
                 [
                     arquivo,
@@ -6256,6 +8123,10 @@ app.post(
                 ]
             );
 
+
+            // =================================================
+            // GUARDAR TAMBÉM EM DOCUMENTOS
+            // =================================================
 
             await pool.query(
                 `
@@ -6292,8 +8163,26 @@ app.post(
             );
 
 
+            await registrarAuditoria(
+                empresaEmail,
+                'COMPROVANTE_PAGAMENTO',
+                `Comprovante registrado no serviço #${servicoId}.`
+            );
+
+
             emitirAtualizacao(
                 servicoId
+            );
+
+
+            io.emit(
+                'comprovante_pagamento',
+                {
+                    servicoId,
+
+                    prestadorEmail:
+                        servico.prestador_email
+                }
             );
 
 
@@ -6301,8 +8190,9 @@ app.post(
                 sucesso: true,
 
                 mensagem:
-                    'Comprovante registrado.'
+                    'Comprovante registrado com sucesso.'
             });
+
 
         } catch (err) {
 
@@ -6316,7 +8206,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao registrar comprovante.'
                 });
@@ -6326,7 +8215,7 @@ app.post(
 
 
 // ============================================================
-// PAGAMENTOS PRESTADOR
+// PAGAMENTOS DO PRESTADOR
 // ============================================================
 
 app.get(
@@ -6368,17 +8257,26 @@ app.get(
             return res.json({
                 sucesso: true,
 
+                total:
+                    resultado.rows.length,
+
                 pagamentos:
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Pagamentos prestador:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar pagamentos.'
                 });
@@ -6386,6 +8284,10 @@ app.get(
     }
 );
 
+
+// ============================================================
+// HISTÓRICO DE PAGAMENTOS
+// ============================================================
 
 app.get(
     '/api/prestador/:email/historico-pagamentos',
@@ -6430,19 +8332,277 @@ app.get(
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Histórico pagamentos:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar histórico de pagamentos.'
                 });
         }
     }
 );
+
+
+// ============================================================
+// RESUMO FINANCEIRO DO PRESTADOR
+// ============================================================
+
+app.get(
+    '/api/prestador/:email/resumo-financeiro',
+
+    async (req, res) => {
+
+        try {
+
+            const email =
+                normalizarEmail(
+                    req.params.email
+                );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        COUNT(*)::int
+                            AS total_pagamentos,
+
+                        COALESCE(
+                            SUM(valor),
+                            0
+                        )
+                            AS total_recebido
+
+                    FROM pagamentos
+
+                    WHERE
+                        LOWER(
+                            prestador_email
+                        )
+                        =
+                        LOWER($1)
+
+                    AND
+                        UPPER(
+                            COALESCE(
+                                status,
+                                ''
+                            )
+                        )
+                        =
+                        'PAGO'
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            const pendentes =
+                await pool.query(
+                    `
+                    SELECT
+
+                        COUNT(*)::int
+                            AS total_pendente,
+
+                        COALESCE(
+                            SUM(valor),
+                            0
+                        )
+                            AS valor_pendente
+
+                    FROM pagamentos
+
+                    WHERE
+                        LOWER(
+                            prestador_email
+                        )
+                        =
+                        LOWER($1)
+
+                    AND
+                        UPPER(
+                            COALESCE(
+                                status,
+                                ''
+                            )
+                        )
+                        <>
+                        'PAGO'
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            return res.json({
+                sucesso: true,
+
+                recebido:
+                    numeroRS(
+                        resultado.rows[0]?.total_recebido
+                    ),
+
+                totalPagamentos:
+                    Number(
+                        resultado.rows[0]?.total_pagamentos ||
+                        0
+                    ),
+
+                pendente:
+                    numeroRS(
+                        pendentes.rows[0]?.valor_pendente
+                    ),
+
+                totalPendentes:
+                    Number(
+                        pendentes.rows[0]?.total_pendente ||
+                        0
+                    )
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Resumo financeiro:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao carregar resumo financeiro.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// CONSULTAR PAGAMENTO DO SERVIÇO
+// ============================================================
+
+app.get(
+    '/api/servicos/:id/pagamento',
+
+    async (req, res) => {
+
+        try {
+
+            const servicoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            const pagamentos =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM pagamentos
+
+                    WHERE
+                        servico_id = $1
+
+                    ORDER BY
+                        id DESC
+                    `,
+                    [
+                        servicoId
+                    ]
+                );
+
+
+            return res.json({
+                sucesso: true,
+
+                pagamentoAutorizado:
+                    Boolean(
+                        servico.pagamento_autorizado
+                    ),
+
+                pagamentoRealizado:
+                    Boolean(
+                        servico.pagamento_realizado
+                    ),
+
+                comprovante:
+                    Boolean(
+                        servico.comprovante_pagamento
+                    ),
+
+                status:
+                    servico.status,
+
+                pagamentos:
+                    pagamentos.rows
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Consultar pagamento:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao consultar pagamento.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FIM DA PARTE 5
+// COLE A PARTE 6 IMEDIATAMENTE ABAIXO
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// PARTE 6
+// DOCUMENTOS + CONTRATO + NOTA FISCAL + CHAT
+// ============================================================
 
 
 // ============================================================
@@ -6461,7 +8621,6 @@ app.post(
                 req.params.id
             );
 
-
         try {
 
             const servico =
@@ -6469,14 +8628,12 @@ app.post(
                     servicoId
                 );
 
-
             if (!servico) {
 
                 return res
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -6486,10 +8643,8 @@ app.post(
             let arquivo =
                 '';
 
-
             let nome =
                 'documento';
-
 
             const categoria =
                 String(
@@ -6499,9 +8654,7 @@ app.post(
                     .toUpperCase();
 
 
-            if (
-                req.file
-            ) {
+            if (req.file) {
 
                 arquivo =
                     `data:${req.file.mimetype};base64,${
@@ -6510,7 +8663,6 @@ app.post(
                                 'base64'
                             )
                     }`;
-
 
                 nome =
                     req.file.originalname ||
@@ -6523,7 +8675,6 @@ app.post(
                         req.body?.arquivo ||
                         ''
                     );
-
 
                 nome =
                     String(
@@ -6539,7 +8690,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Selecione um documento.'
                     });
@@ -6580,6 +8730,21 @@ app.post(
                 );
 
 
+            await registrarAuditoria(
+                servico.empresa_email ||
+                servico.prestador_email,
+
+                'DOCUMENTO_SERVICO',
+
+                `Documento vinculado ao serviço #${servicoId}.`
+            );
+
+
+            emitirAtualizacao(
+                servicoId
+            );
+
+
             return res.json({
                 sucesso: true,
 
@@ -6589,6 +8754,7 @@ app.post(
                 documento:
                     resultado.rows[0]
             });
+
 
         } catch (err) {
 
@@ -6602,7 +8768,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao arquivar documento.'
                 });
@@ -6610,6 +8775,10 @@ app.post(
     }
 );
 
+
+// ============================================================
+// LISTAR DOCUMENTOS DO SERVIÇO
+// ============================================================
 
 app.get(
     '/api/servicos/:id/documentos',
@@ -6647,17 +8816,26 @@ app.get(
             return res.json({
                 sucesso: true,
 
+                total:
+                    resultado.rows.length,
+
                 documentos:
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Listar documentos:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar documentos.'
                 });
@@ -6697,7 +8875,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -6708,9 +8885,7 @@ app.post(
                 '';
 
 
-            if (
-                req.file
-            ) {
+            if (req.file) {
 
                 arquivo =
                     `data:${req.file.mimetype};base64,${
@@ -6736,7 +8911,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Envie o contrato assinado.'
                     });
@@ -6756,7 +8930,7 @@ app.post(
 
                 WHERE
                     id =
-                        $2
+                    $2
                 `,
                 [
                     arquivo,
@@ -6797,8 +8971,26 @@ app.post(
             );
 
 
+            await registrarAuditoria(
+                servico.prestador_email ||
+                servico.empresa_email,
+
+                'CONTRATO_ASSINADO',
+
+                `Contrato assinado arquivado no serviço #${servicoId}.`
+            );
+
+
             emitirAtualizacao(
                 servicoId
+            );
+
+
+            io.emit(
+                'contrato_assinado',
+                {
+                    servicoId
+                }
             );
 
 
@@ -6808,6 +9000,7 @@ app.post(
                 mensagem:
                     'Contrato assinado arquivado.'
             });
+
 
         } catch (err) {
 
@@ -6821,7 +9014,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao arquivar contrato.'
                 });
@@ -6849,13 +9041,29 @@ app.post(
 
         try {
 
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
             let arquivo =
                 '';
 
 
-            if (
-                req.file
-            ) {
+            if (req.file) {
 
                 arquivo =
                     `data:${req.file.mimetype};base64,${
@@ -6882,7 +9090,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Nenhuma nota fiscal enviada.'
                     });
@@ -6899,7 +9106,7 @@ app.post(
 
                 WHERE
                     id =
-                        $2
+                    $2
                 `,
                 [
                     arquivo,
@@ -6908,8 +9115,59 @@ app.post(
             );
 
 
+            // Guardar também nos documentos
+            await pool.query(
+                `
+                INSERT INTO documentos_rs (
+                    servico_id,
+                    empresa_email,
+                    prestador_email,
+                    categoria,
+                    nome,
+                    arquivo
+                )
+
+                VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    'NOTA_FISCAL',
+                    'Nota Fiscal',
+                    $4
+                )
+                `,
+                [
+                    servicoId,
+
+                    servico.empresa_email,
+
+                    servico.prestador_email,
+
+                    arquivo
+                ]
+            );
+
+
+            await registrarAuditoria(
+                servico.prestador_email ||
+                servico.empresa_email,
+
+                'NOTA_FISCAL',
+
+                `Nota fiscal enviada para o serviço #${servicoId}.`
+            );
+
+
             emitirAtualizacao(
                 servicoId
+            );
+
+
+            io.emit(
+                'nota_fiscal_enviada',
+                {
+                    servicoId
+                }
             );
 
 
@@ -6919,6 +9177,7 @@ app.post(
                 mensagem:
                     'Nota fiscal enviada.'
             });
+
 
         } catch (err) {
 
@@ -6932,7 +9191,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao enviar nota fiscal.'
                 });
@@ -7056,7 +9314,7 @@ async function garantirConversaServico(
 
 
 // ============================================================
-// CONVERSA DO SERVIÇO
+// ABRIR CONVERSA DO SERVIÇO
 // ============================================================
 
 app.get(
@@ -7080,7 +9338,6 @@ app.get(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -7095,7 +9352,6 @@ app.get(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Este serviço ainda não possui Titular.'
                     });
@@ -7106,6 +9362,18 @@ app.get(
                 await garantirConversaServico(
                     servico
                 );
+
+
+            if (!conversa) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Não foi possível criar a conversa.'
+                    });
+            }
 
 
             return res.json({
@@ -7126,6 +9394,7 @@ app.get(
                 }
             });
 
+
         } catch (err) {
 
             console.error(
@@ -7138,7 +9407,6 @@ app.get(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao abrir conversa.'
                 });
@@ -7266,6 +9534,7 @@ app.get(
                     resultado.rows
             });
 
+
         } catch (err) {
 
             console.error(
@@ -7278,7 +9547,6 @@ app.get(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar conversas.'
                 });
@@ -7288,7 +9556,7 @@ app.get(
 
 
 // ============================================================
-// MENSAGENS
+// LISTAR MENSAGENS DA CONVERSA
 // ============================================================
 
 app.get(
@@ -7331,13 +9599,19 @@ app.get(
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Mensagens:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar mensagens.'
                 });
@@ -7363,10 +9637,18 @@ app.post(
                 );
 
 
-            const remetente =
+            const remetenteEmail =
                 normalizarEmail(
+                    req.body?.remetenteEmail ||
                     req.body?.remetente_email ||
                     req.body?.email
+                );
+
+
+            const destinatarioEmail =
+                normalizarEmail(
+                    req.body?.destinatarioEmail ||
+                    req.body?.destinatario_email
                 );
 
 
@@ -7379,7 +9661,8 @@ app.post(
 
 
             if (
-                !remetente ||
+                !remetenteEmail ||
+                !destinatarioEmail ||
                 !mensagem
             ) {
 
@@ -7387,9 +9670,8 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
-                            'Remetente e mensagem são obrigatórios.'
+                            'Remetente, destinatário e mensagem são obrigatórios.'
                     });
             }
 
@@ -7422,57 +9704,41 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Conversa não encontrada.'
                     });
             }
 
 
-            const empresaEmail =
+            const participantes = [
                 normalizarEmail(
                     conversa.empresa_email
-                );
+                ),
 
-
-            const prestadorEmail =
                 normalizarEmail(
                     conversa.prestador_email
-                );
+                )
+            ];
 
 
             if (
-                remetente !==
-                empresaEmail
-
-                &&
-
-                remetente !==
-                prestadorEmail
+                !participantes.includes(
+                    remetenteEmail
+                )
+                ||
+                !participantes.includes(
+                    destinatarioEmail
+                )
             ) {
 
                 return res
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
-                            'Você não participa desta conversa.'
+                            'Usuário não autorizado nesta conversa.'
                     });
             }
-
-
-            const destinatario =
-                remetente ===
-                empresaEmail
-
-                    ?
-
-                    prestadorEmail
-
-                    :
-
-                    empresaEmail;
 
 
             const resultado =
@@ -7480,35 +9746,22 @@ app.post(
                     `
                     INSERT INTO mensagens_chat (
                         conversa_id,
-                        servico_id,
                         remetente_email,
                         destinatario_email,
                         mensagem,
-                        tipo,
                         lida
                     )
 
                     VALUES (
-                        $1,
-                        $2,
-                        $3,
-                        $4,
-                        $5,
-                        'texto',
-                        FALSE
+                        $1,$2,$3,$4,FALSE
                     )
 
                     RETURNING *
                     `,
                     [
                         conversaId,
-
-                        conversa.servico_id,
-
-                        remetente,
-
-                        destinatario,
-
+                        remetenteEmail,
+                        destinatarioEmail,
                         mensagem
                     ]
                 );
@@ -7524,7 +9777,7 @@ app.post(
 
                 WHERE
                     id =
-                        $1
+                    $1
                 `,
                 [
                     conversaId
@@ -7537,7 +9790,7 @@ app.post(
 
 
             io.to(
-                `conversa_${conversaId}`
+                `user:${destinatarioEmail}`
             )
                 .emit(
                     'nova_mensagem',
@@ -7546,16 +9799,11 @@ app.post(
 
 
             io.to(
-                `usuario_${destinatario}`
+                `user:${remetenteEmail}`
             )
                 .emit(
-                    'mensagem_recebida',
-                    {
-                        conversaId,
-
-                        servicoId:
-                            conversa.servico_id
-                    }
+                    'nova_mensagem',
+                    novaMensagem
                 );
 
 
@@ -7565,6 +9813,7 @@ app.post(
                 mensagem:
                     novaMensagem
             });
+
 
         } catch (err) {
 
@@ -7578,7 +9827,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao enviar mensagem.'
                 });
@@ -7588,11 +9836,11 @@ app.post(
 
 
 // ============================================================
-// MARCAR LIDAS
+// MARCAR MENSAGENS COMO LIDAS
 // ============================================================
 
 app.post(
-    '/api/chat/conversas/:id/lida',
+    '/api/chat/conversas/:id/lidas',
 
     async (req, res) => {
 
@@ -7608,6 +9856,18 @@ app.post(
                 normalizarEmail(
                     req.body?.email
                 );
+
+
+            if (!email) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Informe o usuário.'
+                    });
+            }
 
 
             await pool.query(
@@ -7637,91 +9897,51 @@ app.post(
 
 
             return res.json({
-                sucesso: true
-            });
-
-        } catch (err) {
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao marcar mensagens.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// NÃO LIDAS
-// ============================================================
-
-app.get(
-    '/api/chat/nao-lidas/:email',
-
-    async (req, res) => {
-
-        try {
-
-            const email =
-                normalizarEmail(
-                    req.params.email
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT
-                        COUNT(*)::int
-                        AS total
-
-                    FROM
-                        mensagens_chat
-
-                    WHERE
-                        LOWER(
-                            destinatario_email
-                        )
-                        =
-                        LOWER($1)
-
-                    AND
-                        lida =
-                        FALSE
-                    `,
-                    [
-                        email
-                    ]
-                );
-
-
-            return res.json({
                 sucesso: true,
-
-                total:
-                    Number(
-                        resultado.rows[0]?.total ||
-                        0
-                    )
+                mensagem:
+                    'Mensagens marcadas como lidas.'
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Marcar mensagens:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
-                        'Erro ao consultar mensagens.'
+                        'Erro ao atualizar mensagens.'
                 });
         }
     }
 );
+
+
+// ============================================================
+// FIM DA PARTE 6
+// COLE A PARTE 7 IMEDIATAMENTE ABAIXO
+// ============================================================
+// RS CONNECT — SERVER.JS
+// PARTE 7 CORRIGIDA
+//
+// CLIENTES FIXOS + COLABORADORES + JORNADA
+// FOTO + GPS + INTERVALO + SAÍDA
+// VALIDAÇÃO DO CLIENTE + HISTÓRICO
+// DOCUMENTOS + CONTRATOS
+//
+// TABELAS REAIS:
+// clientes_rs
+// clientes_rs_colaboradores
+// jornadas_clientes
+// jornadas_clientes_documentos
+// fechamentos_clientes
+// ============================================================
 
 
 // ============================================================
@@ -7739,22 +9959,15 @@ app.get(
                 await pool.query(
                     `
                     SELECT
-
                         cliente.*,
 
-                        COUNT(
-                            vinculo.id
-                        )
+                        COUNT(vinculo.id)
                         FILTER (
-                            WHERE
-                                vinculo.ativo =
-                                TRUE
+                            WHERE vinculo.ativo = TRUE
                         )::int
                         AS colaboradores_ativos
 
-                    FROM
-                        clientes_rs
-                        AS cliente
+                    FROM clientes_rs AS cliente
 
                     LEFT JOIN
                         clientes_rs_colaboradores
@@ -7765,8 +9978,7 @@ app.get(
                         cliente.id
 
                     WHERE
-                        cliente.ativo =
-                        TRUE
+                        cliente.ativo = TRUE
 
                     GROUP BY
                         cliente.id
@@ -7779,10 +9991,10 @@ app.get(
 
             return res.json({
                 sucesso: true,
-
                 clientes:
                     resultado.rows
             });
+
 
         } catch (err) {
 
@@ -7796,7 +10008,6 @@ app.get(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar clientes.'
                 });
@@ -7807,6 +10018,11 @@ app.get(
 
 // ============================================================
 // CADASTRAR CLIENTE FIXO
+//
+// GRATIDÃO
+// SMT
+// PORTOX
+// ETC.
 // ============================================================
 
 app.post(
@@ -7822,8 +10038,7 @@ app.post(
 
             const nome =
                 String(
-                    dados.nome ||
-                    ''
+                    dados.nome || ''
                 )
                     .trim();
 
@@ -7834,7 +10049,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Informe o nome da empresa cliente.'
                     });
@@ -7860,8 +10074,7 @@ app.post(
 
                     VALUES (
                         $1,$2,$3,$4,$5,
-                        $6,$7,$8,$9,$10,
-                        $11
+                        $6,$7,$8,$9,$10,$11
                     )
 
                     RETURNING *
@@ -7878,9 +10091,7 @@ app.post(
 
                         normalizarEmail(
                             dados.responsavel_email
-                        )
-                        ||
-                        null,
+                        ) || null,
 
                         dados.responsavel_whatsapp ||
                         null,
@@ -7894,10 +10105,10 @@ app.post(
                         dados.uf ||
                         null,
 
-                        dados.latitude ||
+                        dados.latitude ??
                         null,
 
-                        dados.longitude ||
+                        dados.longitude ??
                         null,
 
                         normalizarEmail(
@@ -7914,6 +10125,17 @@ app.post(
                 resultado.rows[0];
 
 
+            await registrarAuditoria(
+                dados.criado_por ||
+                dados.email ||
+                'sistema',
+
+                'CADASTRAR_CLIENTE_FIXO',
+
+                `Cliente ${nome} cadastrado na Jornada.`
+            );
+
+
             io.emit(
                 'jornada_clientes_atualizada',
                 {
@@ -7925,12 +10147,11 @@ app.post(
 
             return res.json({
                 sucesso: true,
-
                 mensagem:
                     'Cliente cadastrado.',
-
                 cliente
             });
+
 
         } catch (err) {
 
@@ -7944,7 +10165,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao cadastrar cliente.'
                 });
@@ -8044,8 +10264,7 @@ app.patch(
                             CURRENT_TIMESTAMP
 
                     WHERE
-                        id =
-                        $11
+                        id = $11
 
                     RETURNING *
                     `,
@@ -8060,15 +10279,11 @@ app.patch(
                         null,
 
                         dados.responsavel_email
-
                             ?
-
                             normalizarEmail(
                                 dados.responsavel_email
                             )
-
                             :
-
                             null,
 
                         dados.responsavel_whatsapp ??
@@ -8102,7 +10317,6 @@ app.patch(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Cliente não encontrado.'
                     });
@@ -8119,18 +10333,23 @@ app.patch(
 
             return res.json({
                 sucesso: true,
-
                 cliente:
                     resultado.rows[0]
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Atualizar cliente:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao atualizar cliente.'
                 });
@@ -8164,12 +10383,10 @@ app.get(
                         clientes_rs_colaboradores
 
                     WHERE
-                        cliente_id =
-                        $1
+                        cliente_id = $1
 
                     AND
-                        ativo =
-                        TRUE
+                        ativo = TRUE
 
                     ORDER BY
                         colaborador_nome
@@ -8182,18 +10399,23 @@ app.get(
 
             return res.json({
                 sucesso: true,
-
                 colaboradores:
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Colaboradores:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar colaboradores.'
                 });
@@ -8203,7 +10425,12 @@ app.get(
 
 
 // ============================================================
-// VINCULAR COLABORADOR
+// VINCULAR COLABORADOR AO CLIENTE
+//
+// Exemplo:
+// Cliente: Gratidão
+// Colaboradora: Mayara
+// Função: Auxiliar de limpeza
 // ============================================================
 
 app.post(
@@ -8245,13 +10472,14 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Informe o e-mail do colaborador.'
                     });
             }
 
 
+            // Se o nome não vier,
+            // tenta buscar no cadastro geral.
             if (!nome) {
 
                 const usuarioRes =
@@ -8285,7 +10513,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Informe o nome do colaborador.'
                     });
@@ -8295,23 +10522,23 @@ app.post(
             const resultado =
                 await pool.query(
                     `
-                    INSERT INTO clientes_rs_colaboradores (
-                        cliente_id,
-                        colaborador_email,
-                        colaborador_nome,
-                        funcao,
-                        valor_tipo,
-                        valor_base,
-                        horario_previsto,
-                        ativo,
-                        criado_por
-                    )
+                    INSERT INTO
+                        clientes_rs_colaboradores (
+                            cliente_id,
+                            colaborador_email,
+                            colaborador_nome,
+                            funcao,
+                            valor_tipo,
+                            valor_base,
+                            horario_previsto,
+                            ativo,
+                            criado_por
+                        )
 
                     VALUES (
                         $1,$2,$3,$4,
                         $5,$6,$7,
-                        TRUE,
-                        $8
+                        TRUE,$8
                     )
 
                     ON CONFLICT (
@@ -8376,6 +10603,7 @@ app.post(
                 );
 
 
+            // Gera jornada de hoje.
             await garantirJornadasDiaCliente(
                 clienteId
             );
@@ -8399,6 +10627,7 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -8411,7 +10640,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao vincular colaborador.'
                 });
@@ -8421,7 +10649,10 @@ app.post(
 
 
 // ============================================================
-// REMOVER COLABORADOR SEM APAGAR HISTÓRICO
+// REMOVER COLABORADOR
+//
+// NÃO APAGA O HISTÓRICO.
+// APENAS MARCA COMO INATIVO.
 // ============================================================
 
 app.delete(
@@ -8456,12 +10687,10 @@ app.delete(
                         CURRENT_TIMESTAMP
 
                 WHERE
-                    id =
-                    $1
+                    id = $1
 
                 AND
-                    cliente_id =
-                    $2
+                    cliente_id = $2
                 `,
                 [
                     vinculoId,
@@ -8485,13 +10714,19 @@ app.delete(
                     'Colaborador removido. O histórico foi mantido.'
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Remover colaborador:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao remover colaborador.'
                 });
@@ -8501,7 +10736,7 @@ app.delete(
 
 
 // ============================================================
-// JORNADAS DO CLIENTE
+// JORNADAS DO CLIENTE POR DATA
 // ============================================================
 
 app.get(
@@ -8538,16 +10773,13 @@ app.get(
                 await pool.query(
                     `
                     SELECT *
-                    FROM
-                        jornadas_clientes
+                    FROM jornadas_clientes
 
                     WHERE
-                        cliente_id =
-                        $1
+                        cliente_id = $1
 
                     AND
-                        data =
-                        $2::date
+                        data = $2::date
 
                     ORDER BY
                         colaborador_nome
@@ -8563,16 +10795,13 @@ app.get(
                 await pool.query(
                     `
                     SELECT *
-                    FROM
-                        fechamentos_clientes
+                    FROM fechamentos_clientes
 
                     WHERE
-                        cliente_id =
-                        $1
+                        cliente_id = $1
 
                     AND
-                        data =
-                        $2::date
+                        data = $2::date
 
                     LIMIT 1
                     `,
@@ -8597,6 +10826,7 @@ app.get(
                     null
             });
 
+
         } catch (err) {
 
             console.error(
@@ -8609,7 +10839,6 @@ app.get(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar jornadas.'
                 });
@@ -8619,7 +10848,13 @@ app.get(
 
 
 // ============================================================
-// HISTÓRICO CLIENTE
+// HISTÓRICO DO CLIENTE
+//
+// Permite procurar daqui a meses:
+//
+// Mayara
+// → Gratidão
+// → todas as jornadas
 // ============================================================
 
 app.get(
@@ -8663,12 +10898,10 @@ app.get(
                     await pool.query(
                         `
                         SELECT *
-                        FROM
-                            jornadas_clientes
+                        FROM jornadas_clientes
 
                         WHERE
-                            cliente_id =
-                            $1
+                            cliente_id = $1
 
                         AND
                             LOWER(
@@ -8681,8 +10914,7 @@ app.get(
                             data DESC,
                             id DESC
 
-                        LIMIT
-                            $3
+                        LIMIT $3
                         `,
                         [
                             clienteId,
@@ -8691,25 +10923,23 @@ app.get(
                         ]
                     );
 
+
             } else {
 
                 resultado =
                     await pool.query(
                         `
                         SELECT *
-                        FROM
-                            jornadas_clientes
+                        FROM jornadas_clientes
 
                         WHERE
-                            cliente_id =
-                            $1
+                            cliente_id = $1
 
                         ORDER BY
                             data DESC,
                             colaborador_nome
 
-                        LIMIT
-                            $2
+                        LIMIT $2
                         `,
                         [
                             clienteId,
@@ -8721,18 +10951,23 @@ app.get(
 
             return res.json({
                 sucesso: true,
-
                 jornadas:
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Histórico Jornada:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar histórico.'
                 });
@@ -8742,7 +10977,7 @@ app.get(
 
 
 // ============================================================
-// JORNADA DO COLABORADOR HOJE
+// JORNADA DO COLABORADOR — HOJE
 // ============================================================
 
 app.get(
@@ -8765,8 +11000,7 @@ app.get(
             const vinculos =
                 await pool.query(
                     `
-                    SELECT
-                        cliente_id
+                    SELECT cliente_id
 
                     FROM
                         clientes_rs_colaboradores
@@ -8779,8 +11013,7 @@ app.get(
                         LOWER($1)
 
                     AND
-                        ativo =
-                        TRUE
+                        ativo = TRUE
                     `,
                     [
                         email
@@ -8873,6 +11106,7 @@ app.get(
                     resultado.rows
             });
 
+
         } catch (err) {
 
             console.error(
@@ -8885,7 +11119,6 @@ app.get(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar jornada.'
                 });
@@ -8895,7 +11128,9 @@ app.get(
 
 
 // ============================================================
-// CHECK-IN CLIENTE FIXO
+// CHECK-IN — CLIENTE FIXO
+//
+// FOTO + GPS + HORÁRIO AUTOMÁTICO
 // ============================================================
 
 app.post(
@@ -8930,7 +11165,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Jornada não encontrada.'
                     });
@@ -8949,7 +11183,6 @@ app.post(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Esta jornada pertence a outro colaborador.'
                     });
@@ -8964,7 +11197,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Esta jornada já foi fechada.'
                     });
@@ -8975,14 +11207,17 @@ app.post(
                 jornada.entrada_em
             ) {
 
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
+                return res.json({
+                    sucesso: true,
 
-                        erro:
-                            'A entrada já foi registrada.'
-                    });
+                    jaRealizado:
+                        true,
+
+                    mensagem:
+                        'A entrada já foi registrada.',
+
+                    jornada
+                });
             }
 
 
@@ -9011,7 +11246,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A foto de entrada é obrigatória.'
                     });
@@ -9019,18 +11253,16 @@ app.post(
 
 
             if (
-                latitude ===
-                undefined
-                ||
-                longitude ===
-                undefined
+                latitude === undefined ||
+                longitude === undefined ||
+                latitude === null ||
+                longitude === null
             ) {
 
                 return res
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A localização GPS é obrigatória.'
                     });
@@ -9066,8 +11298,7 @@ app.post(
                             CURRENT_TIMESTAMP
 
                     WHERE
-                        id =
-                        $5
+                        id = $5
 
                     RETURNING *
                     `,
@@ -9112,6 +11343,7 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -9124,7 +11356,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao registrar entrada.'
                 });
@@ -9134,7 +11365,7 @@ app.post(
 
 
 // ============================================================
-// INTERVALO FIXO
+// INICIAR INTERVALO
 // ============================================================
 
 app.post(
@@ -9162,7 +11393,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Jornada não encontrada.'
                     });
@@ -9177,7 +11407,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Registre a entrada primeiro.'
                     });
@@ -9192,7 +11421,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A jornada já terminou.'
                     });
@@ -9203,43 +11431,48 @@ app.post(
                 jornada.intervalo_inicio_em
             ) {
 
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
+                return res.json({
+                    sucesso: true,
 
-                        erro:
-                            'O intervalo já foi iniciado.'
-                    });
+                    jaRealizado:
+                        true,
+
+                    mensagem:
+                        'O intervalo já foi iniciado.',
+
+                    jornada
+                });
             }
 
 
-            await pool.query(
-                `
-                UPDATE
-                    jornadas_clientes
+            const resultado =
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
 
-                SET
-                    status =
-                        'EM_INTERVALO',
+                    SET
+                        status =
+                            'EM_INTERVALO',
 
-                    intervalo_inicio_em =
-                        CURRENT_TIMESTAMP,
+                        intervalo_inicio_em =
+                            CURRENT_TIMESTAMP,
 
-                    intervalo_retorno_em =
-                        NULL,
+                        intervalo_retorno_em =
+                            NULL,
 
-                    atualizado_em =
-                        CURRENT_TIMESTAMP
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
-                WHERE
-                    id =
-                        $1
-                `,
-                [
-                    jornadaId
-                ]
-            );
+                    WHERE
+                        id = $1
+
+                    RETURNING *
+                    `,
+                    [
+                        jornadaId
+                    ]
+                );
 
 
             io.emit(
@@ -9257,16 +11490,25 @@ app.post(
                 sucesso: true,
 
                 mensagem:
-                    'Intervalo iniciado.'
+                    'Intervalo iniciado.',
+
+                jornada:
+                    resultado.rows[0]
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Intervalo fixo:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao iniciar intervalo.'
                 });
@@ -9276,7 +11518,7 @@ app.post(
 
 
 // ============================================================
-// RETORNO INTERVALO FIXO
+// RETORNO DO INTERVALO
 // ============================================================
 
 app.post(
@@ -9304,7 +11546,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Jornada não encontrada.'
                     });
@@ -9319,7 +11560,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'O intervalo ainda não foi iniciado.'
                     });
@@ -9330,40 +11570,45 @@ app.post(
                 jornada.intervalo_retorno_em
             ) {
 
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
+                return res.json({
+                    sucesso: true,
 
-                        erro:
-                            'O retorno já foi registrado.'
-                    });
+                    jaRealizado:
+                        true,
+
+                    mensagem:
+                        'O retorno já foi registrado.',
+
+                    jornada
+                });
             }
 
 
-            await pool.query(
-                `
-                UPDATE
-                    jornadas_clientes
+            const resultado =
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
 
-                SET
-                    status =
-                        'PRESENTE',
+                    SET
+                        status =
+                            'PRESENTE',
 
-                    intervalo_retorno_em =
-                        CURRENT_TIMESTAMP,
+                        intervalo_retorno_em =
+                            CURRENT_TIMESTAMP,
 
-                    atualizado_em =
-                        CURRENT_TIMESTAMP
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
-                WHERE
-                    id =
-                        $1
-                `,
-                [
-                    jornadaId
-                ]
-            );
+                    WHERE
+                        id = $1
+
+                    RETURNING *
+                    `,
+                    [
+                        jornadaId
+                    ]
+                );
 
 
             io.emit(
@@ -9381,16 +11626,25 @@ app.post(
                 sucesso: true,
 
                 mensagem:
-                    'Retorno do intervalo registrado.'
+                    'Retorno do intervalo registrado.',
+
+                jornada:
+                    resultado.rows[0]
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Retorno intervalo fixo:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao registrar retorno.'
                 });
@@ -9400,7 +11654,11 @@ app.post(
 
 
 // ============================================================
-// CHECK-OUT CLIENTE FIXO
+// CHECK-OUT — CLIENTE FIXO
+//
+// FOTO + GPS
+// HORAS CALCULADAS AUTOMATICAMENTE
+// VALOR CALCULADO AUTOMATICAMENTE
 // ============================================================
 
 app.post(
@@ -9435,7 +11693,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Jornada não encontrada.'
                     });
@@ -9454,7 +11711,6 @@ app.post(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Esta jornada pertence a outro colaborador.'
                     });
@@ -9469,7 +11725,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Registre a entrada primeiro.'
                     });
@@ -9480,20 +11735,22 @@ app.post(
                 jornada.saida_em
             ) {
 
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
+                return res.json({
+                    sucesso: true,
 
-                        erro:
-                            'A saída já foi registrada.'
-                    });
+                    jaRealizado:
+                        true,
+
+                    mensagem:
+                        'A saída já foi registrada.',
+
+                    jornada
+                });
             }
 
 
             if (
-                jornada.intervalo_inicio_em
-                &&
+                jornada.intervalo_inicio_em &&
                 !jornada.intervalo_retorno_em
             ) {
 
@@ -9501,7 +11758,6 @@ app.post(
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Registre o retorno do intervalo antes da saída.'
                     });
@@ -9528,7 +11784,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A foto de saída é obrigatória.'
                     });
@@ -9536,18 +11791,16 @@ app.post(
 
 
             if (
-                latitude ===
-                undefined
-                ||
-                longitude ===
-                undefined
+                latitude === undefined ||
+                longitude === undefined ||
+                latitude === null ||
+                longitude === null
             ) {
 
                 return res
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'A localização GPS é obrigatória.'
                     });
@@ -9556,8 +11809,7 @@ app.post(
 
             await pool.query(
                 `
-                UPDATE
-                    jornadas_clientes
+                UPDATE jornadas_clientes
 
                 SET
                     status =
@@ -9582,8 +11834,7 @@ app.post(
                         CURRENT_TIMESTAMP
 
                 WHERE
-                    id =
-                        $5
+                    id = $5
                 `,
                 [
                     foto,
@@ -9606,6 +11857,7 @@ app.post(
             );
 
 
+            // Calcula horas e valor.
             const atualizada =
                 await recalcularJornadaCliente(
                     jornadaId
@@ -9633,6 +11885,7 @@ app.post(
                     atualizada
             });
 
+
         } catch (err) {
 
             console.error(
@@ -9645,7 +11898,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao registrar saída.'
                 });
@@ -9655,7 +11907,15 @@ app.post(
 
 
 // ============================================================
-// VALIDAR ENTRADA / SAÍDA DO CLIENTE
+// CLIENTE / RECEPCIONISTA VALIDA
+//
+// tipo:
+// entrada
+// ou
+// saida
+//
+// Exemplo:
+// Rosilene valida Mayara.
 // ============================================================
 
 app.post(
@@ -9698,18 +11958,16 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Jornada não encontrada.'
                     });
             }
 
 
+            // Se existir responsável cadastrado,
+            // somente ele valida.
             if (
-                jornada.responsavel_email
-
-                &&
-
+                jornada.responsavel_email &&
                 normalizarEmail(
                     jornada.responsavel_email
                 )
@@ -9721,7 +11979,6 @@ app.post(
                     .status(403)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Somente o responsável do cliente pode validar.'
                     });
@@ -9729,20 +11986,14 @@ app.post(
 
 
             if (
-                tipo !==
-                'entrada'
-
-                &&
-
-                tipo !==
-                'saida'
+                tipo !== 'entrada' &&
+                tipo !== 'saida'
             ) {
 
                 return res
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Tipo inválido.'
                     });
@@ -9762,7 +12013,6 @@ app.post(
                         .status(409)
                         .json({
                             sucesso: false,
-
                             erro:
                                 'Não existe entrada para validar.'
                         });
@@ -9771,8 +12021,7 @@ app.post(
 
                 await pool.query(
                     `
-                    UPDATE
-                        jornadas_clientes
+                    UPDATE jornadas_clientes
 
                     SET
                         entrada_validada =
@@ -9788,14 +12037,14 @@ app.post(
                             CURRENT_TIMESTAMP
 
                     WHERE
-                        id =
-                        $2
+                        id = $2
                     `,
                     [
                         validador,
                         jornadaId
                     ]
                 );
+
 
             } else {
 
@@ -9807,7 +12056,6 @@ app.post(
                         .status(409)
                         .json({
                             sucesso: false,
-
                             erro:
                                 'Não existe saída para validar.'
                         });
@@ -9816,8 +12064,7 @@ app.post(
 
                 await pool.query(
                     `
-                    UPDATE
-                        jornadas_clientes
+                    UPDATE jornadas_clientes
 
                     SET
                         saida_validada =
@@ -9833,8 +12080,7 @@ app.post(
                             CURRENT_TIMESTAMP
 
                     WHERE
-                        id =
-                        $2
+                        id = $2
                     `,
                     [
                         validador,
@@ -9871,6 +12117,7 @@ app.post(
                         'Saída validada.'
             });
 
+
         } catch (err) {
 
             console.error(
@@ -9883,7 +12130,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao validar jornada.'
                 });
@@ -9894,6 +12140,9 @@ app.post(
 
 // ============================================================
 // FECHAR DIA
+//
+// NÃO DEIXA FECHAR SE EXISTIR
+// COLABORADOR COM JORNADA ABERTA.
 // ============================================================
 
 app.post(
@@ -9936,24 +12185,19 @@ app.post(
                         COUNT(*)::int
                         AS total
 
-                    FROM
-                        jornadas_clientes
+                    FROM jornadas_clientes
 
                     WHERE
-                        cliente_id =
-                        $1
+                        cliente_id = $1
 
                     AND
-                        data =
-                        $2::date
+                        data = $2::date
 
                     AND
-                        entrada_em
-                        IS NOT NULL
+                        entrada_em IS NOT NULL
 
                     AND
-                        saida_em
-                        IS NULL
+                        saida_em IS NULL
                     `,
                     [
                         clienteId,
@@ -9966,16 +12210,13 @@ app.post(
                 Number(
                     abertas.rows[0]?.total ||
                     0
-                )
-                >
-                0
+                ) > 0
             ) {
 
                 return res
                     .status(409)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Existem colaboradores com jornada aberta.'
                     });
@@ -9985,14 +12226,15 @@ app.post(
             const fechamento =
                 await pool.query(
                     `
-                    INSERT INTO fechamentos_clientes (
-                        cliente_id,
-                        data,
-                        confirmado,
-                        confirmado_por,
-                        confirmado_em,
-                        observacoes
-                    )
+                    INSERT INTO
+                        fechamentos_clientes (
+                            cliente_id,
+                            data,
+                            confirmado,
+                            confirmado_por,
+                            confirmado_em,
+                            observacoes
+                        )
 
                     VALUES (
                         $1,
@@ -10041,8 +12283,7 @@ app.post(
 
             await pool.query(
                 `
-                UPDATE
-                    jornadas_clientes
+                UPDATE jornadas_clientes
 
                 SET
                     fechada =
@@ -10058,12 +12299,10 @@ app.post(
                         CURRENT_TIMESTAMP
 
                 WHERE
-                    cliente_id =
-                        $2
+                    cliente_id = $2
 
                 AND
-                    data =
-                        $3::date
+                    data = $3::date
                 `,
                 [
                     usuario,
@@ -10092,6 +12331,7 @@ app.post(
                     fechamento.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -10104,7 +12344,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao fechar o dia.'
                 });
@@ -10114,7 +12353,7 @@ app.post(
 
 
 // ============================================================
-// DOCUMENTOS DA JORNADA
+// LISTAR DOCUMENTOS DA JORNADA
 // ============================================================
 
 app.get(
@@ -10149,8 +12388,7 @@ app.get(
                         jornadas_clientes_documentos
 
                     WHERE
-                        jornada_id =
-                        $1
+                        jornada_id = $1
 
                     ORDER BY
                         id DESC
@@ -10168,13 +12406,19 @@ app.get(
                     resultado.rows
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Documentos Jornada:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao carregar documentos.'
                 });
@@ -10184,7 +12428,12 @@ app.get(
 
 
 // ============================================================
-// ENVIAR PDF JORNADA
+// ENVIAR PDF PARA A JORNADA
+//
+// CONTRATO
+// DOCUMENTO
+// TERMO
+// ETC.
 // ============================================================
 
 app.post(
@@ -10210,7 +12459,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Selecione o arquivo PDF.'
                     });
@@ -10230,9 +12478,7 @@ app.post(
             if (
                 mime !==
                 'application/pdf'
-
                 &&
-
                 !String(
                     nome
                 )
@@ -10246,7 +12492,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Somente PDF é permitido.'
                     });
@@ -10256,15 +12501,16 @@ app.post(
             const resultado =
                 await pool.query(
                     `
-                    INSERT INTO jornadas_clientes_documentos (
-                        jornada_id,
-                        tipo,
-                        nome,
-                        mime,
-                        arquivo,
-                        assinatura_status,
-                        criado_por
-                    )
+                    INSERT INTO
+                        jornadas_clientes_documentos (
+                            jornada_id,
+                            tipo,
+                            nome,
+                            mime,
+                            arquivo,
+                            assinatura_status,
+                            criado_por
+                        )
 
                     VALUES (
                         $1,
@@ -10316,6 +12562,7 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
 
             console.error(
@@ -10328,7 +12575,6 @@ app.post(
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao salvar documento.'
                 });
@@ -10338,7 +12584,13 @@ app.post(
 
 
 // ============================================================
-// PDF ASSINADO
+// ARQUIVAR PDF ASSINADO
+//
+// O prestador pode assinar pelo serviço GOV.BR
+// e depois devolver o PDF assinado ao RS Connect.
+//
+// A integração automática com GOV.BR
+// será uma etapa separada.
 // ============================================================
 
 app.post(
@@ -10364,7 +12616,6 @@ app.post(
                     .status(400)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Selecione o PDF assinado.'
                     });
@@ -10379,8 +12630,7 @@ app.post(
                         jornadas_clientes_documentos
 
                     WHERE
-                        id =
-                        $1
+                        id = $1
 
                     LIMIT 1
                     `,
@@ -10400,7 +12650,6 @@ app.post(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Documento não encontrado.'
                     });
@@ -10419,17 +12668,18 @@ app.post(
             const resultado =
                 await pool.query(
                     `
-                    INSERT INTO jornadas_clientes_documentos (
-                        jornada_id,
-                        tipo,
-                        nome,
-                        mime,
-                        arquivo,
-                        assinatura_status,
-                        assinado_por,
-                        assinado_em,
-                        criado_por
-                    )
+                    INSERT INTO
+                        jornadas_clientes_documentos (
+                            jornada_id,
+                            tipo,
+                            nome,
+                            mime,
+                            arquivo,
+                            assinatura_status,
+                            assinado_por,
+                            assinado_em,
+                            criado_por
+                        )
 
                     VALUES (
                         $1,
@@ -10482,13 +12732,19 @@ app.post(
                     resultado.rows[0]
             });
 
+
         } catch (err) {
+
+            console.error(
+                '❌ PDF assinado:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao arquivar PDF assinado.'
                 });
@@ -10498,7 +12754,7 @@ app.post(
 
 
 // ============================================================
-// ABRIR PDF
+// ABRIR / VISUALIZAR PDF
 // ============================================================
 
 app.get(
@@ -10526,8 +12782,7 @@ app.get(
                         jornadas_clientes_documentos
 
                     WHERE
-                        id =
-                        $1
+                        id = $1
 
                     LIMIT 1
                     `,
@@ -10549,7 +12804,6 @@ app.get(
                     .status(404)
                     .json({
                         sucesso: false,
-
                         erro:
                             'Documento não encontrado.'
                     });
@@ -10580,13 +12834,19 @@ app.get(
                 documento.arquivo
             );
 
+
         } catch (err) {
+
+            console.error(
+                '❌ Abrir documento:',
+                err
+            );
+
 
             return res
                 .status(500)
                 .json({
                     sucesso: false,
-
                     erro:
                         'Erro ao abrir documento.'
                 });
@@ -10596,7 +12856,21 @@ app.get(
 
 
 // ============================================================
-// STATUS
+// FIM DA PARTE 7 CORRIGIDA
+// COLE A PARTE 8 IMEDIATAMENTE ABAIXO
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// PARTE 8 FINAL
+//
+// STATUS + WEBSOCKET + ERROS
+// 404 + FRONT-END + RENDER
+// INICIALIZAÇÃO + ENCERRAMENTO
+// ============================================================
+
+
+// ============================================================
+// STATUS DO SISTEMA
 // ============================================================
 
 app.get(
@@ -10630,6 +12904,7 @@ app.get(
                     horaAtualRS()
             });
 
+
         } catch (err) {
 
             return res
@@ -10650,6 +12925,13 @@ app.get(
 
 // ============================================================
 // WEBSOCKET
+//
+// ATUALIZAÇÕES EM TEMPO REAL:
+//
+// EMPRESA
+// PRESTADOR
+// JORNADA
+// CHAT
 // ============================================================
 
 io.on(
@@ -10662,6 +12944,10 @@ io.on(
             socket.id
         );
 
+
+        // ====================================================
+        // IDENTIFICAR USUÁRIO
+        // ====================================================
 
         socket.on(
             'identificar_usuario',
@@ -10692,8 +12978,15 @@ io.on(
                     email;
 
 
+                // Sala usada pelo server original.
                 socket.join(
                     `usuario_${email}`
+                );
+
+
+                // Sala de compatibilidade com o chat.
+                socket.join(
+                    `user:${email}`
                 );
 
 
@@ -10703,6 +12996,10 @@ io.on(
             }
         );
 
+
+        // ====================================================
+        // ENTRAR EM UMA CONVERSA
+        // ====================================================
 
         socket.on(
             'entrar_conversa',
@@ -10728,6 +13025,10 @@ io.on(
         );
 
 
+        // ====================================================
+        // SAIR DA CONVERSA
+        // ====================================================
+
         socket.on(
             'sair_conversa',
 
@@ -10751,6 +13052,10 @@ io.on(
             }
         );
 
+
+        // ====================================================
+        // DESCONECTOU
+        // ====================================================
 
         socket.on(
             'disconnect',
@@ -10820,6 +13125,13 @@ app.use(
 
 // ============================================================
 // 404 DA API
+//
+// IMPORTANTE:
+//
+// TODAS AS ROTAS /api DEVEM FICAR
+// ANTES DESTE BLOCO.
+//
+// NÃO COLE NOVAS ROTAS DEPOIS DELE.
 // ============================================================
 
 app.use(
@@ -10847,6 +13159,9 @@ app.use(
 
 // ============================================================
 // FRONT-END
+//
+// QUALQUER ROTA GET QUE NÃO FOR API
+// ABRE O INDEX.HTML.
 // ============================================================
 
 app.use(
@@ -10951,6 +13266,10 @@ async function iniciarRSConnect() {
         );
 
 
+        // ====================================================
+        // DATABASE_URL É OBRIGATÓRIA
+        // ====================================================
+
         if (
             !process.env.DATABASE_URL
         ) {
@@ -10960,6 +13279,10 @@ async function iniciarRSConnect() {
             );
         }
 
+
+        // ====================================================
+        // TESTAR POSTGRESQL
+        // ====================================================
 
         await pool.query(
             'SELECT NOW()'
@@ -10971,8 +13294,30 @@ async function iniciarRSConnect() {
         );
 
 
+        // ====================================================
+        // PREPARAR TABELAS PRINCIPAIS
+        //
+        // usuarios
+        // prestadores
+        // servicos
+        // pagamentos
+        // documentos
+        // chat
+        // recuperação de senha
+        // ====================================================
+
         await criarTabelas();
 
+
+        // ====================================================
+        // PREPARAR JORNADA DOS CLIENTES FIXOS
+        //
+        // clientes_rs
+        // clientes_rs_colaboradores
+        // jornadas_clientes
+        // jornadas_clientes_documentos
+        // fechamentos_clientes
+        // ====================================================
 
         await criarTabelasJornadaClientes();
 
@@ -10982,12 +13327,20 @@ async function iniciarRSConnect() {
         );
 
 
+        // ====================================================
+        // PORTA DO RENDER
+        // ====================================================
+
         const PORT =
             Number(
                 process.env.PORT ||
                 10000
             );
 
+
+        // ====================================================
+        // ABRIR SERVIDOR
+        // ====================================================
 
         server.listen(
             PORT,
@@ -11016,7 +13369,12 @@ async function iniciarRSConnect() {
 
 
                 console.log(
-                    '✅ RECUPERAÇÃO SEGURA ONLINE'
+                    '✅ SENHAS ANTIGAS COMPATÍVEIS'
+                );
+
+
+                console.log(
+                    '✅ RECUPERAÇÃO DE SENHA POR E-MAIL ONLINE'
                 );
 
 
@@ -11055,6 +13413,7 @@ async function iniciarRSConnect() {
                 );
             }
         );
+
 
     } catch (err) {
 
@@ -11102,7 +13461,12 @@ process.on(
 
 
 // ============================================================
-// ENCERRAMENTO
+// ENCERRAMENTO SEGURO
+//
+// O RENDER USA SIGTERM DURANTE
+// DEPLOYS E REINICIALIZAÇÕES.
+//
+// ESSA MENSAGEM NÃO SIGNIFICA ERRO.
 // ============================================================
 
 let encerrandoRS =
@@ -11116,6 +13480,7 @@ async function encerrarRSConnect(
     if (
         encerrandoRS
     ) {
+
         return;
     }
 
@@ -11135,6 +13500,7 @@ async function encerrarRSConnect(
             try {
 
                 await pool.end();
+
 
             } catch (err) {
 
@@ -11157,6 +13523,13 @@ async function encerrarRSConnect(
     );
 
 
+    // ========================================================
+    // SEGURANÇA:
+    //
+    // SE ALGUMA CONEXÃO NÃO ENCERRAR
+    // EM 10 SEGUNDOS, FINALIZA.
+    // ========================================================
+
     setTimeout(
         () => {
 
@@ -11175,6 +13548,10 @@ async function encerrarRSConnect(
         .unref();
 }
 
+
+// ============================================================
+// SINAIS DO RENDER / TERMINAL
+// ============================================================
 
 process.on(
     'SIGTERM',
@@ -11201,7 +13578,7 @@ process.on(
 
 
 // ============================================================
-// EXECUTAR
+// EXECUTAR RS CONNECT
 // ============================================================
 
 iniciarRSConnect();
