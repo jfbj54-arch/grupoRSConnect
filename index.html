@@ -1114,6 +1114,91 @@
   margin-bottom:10px;
 }
 
+
+/* ============================================================
+   JORNADA DO COLABORADOR — MODO LIMPO
+   ============================================================ */
+
+.jc-colaborador-card{
+  border:1px solid rgba(255,255,255,.10);
+  border-radius:16px;
+  padding:14px;
+  background:rgba(255,255,255,.035);
+}
+
+.jc-colaborador-topo{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+  margin-bottom:12px;
+}
+
+.jc-colaborador-info{
+  padding:10px 12px;
+  border-radius:12px;
+  background:rgba(255,255,255,.04);
+  border:1px solid rgba(255,255,255,.07);
+}
+
+.jc-colaborador-info .label{
+  font-size:11px;
+  opacity:.72;
+  margin-bottom:3px;
+}
+
+.jc-colaborador-info .value{
+  font-size:14px;
+  font-weight:700;
+}
+
+.jc-colaborador-status{
+  margin:12px 0;
+}
+
+.jc-colaborador-horarios{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:8px;
+  margin-top:10px;
+}
+
+.jc-colaborador-hora{
+  padding:9px 10px;
+  border-radius:10px;
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.06);
+}
+
+.jc-colaborador-hora strong{
+  display:block;
+  font-size:12px;
+  margin-bottom:3px;
+}
+
+.jc-colaborador-acoes{
+  display:flex;
+  flex-direction:column;
+  gap:9px;
+  margin-top:12px;
+}
+
+.jc-colaborador-acoes .btn{
+  width:100%;
+  min-height:46px;
+  font-size:14px;
+}
+
+.jc-admin-only{
+  display:none !important;
+}
+
+@media (max-width:600px){
+  .jc-colaborador-topo,
+  .jc-colaborador-horarios{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 
 </head>
@@ -16031,8 +16116,34 @@ function jcHtmlMinhaJornada(
     !jornada.intervalo_retorno_em;
 
 
+  const finalizada =
+    Boolean(
+      jornada.saida_em
+    );
+
+
   let acoes =
-    '';
+    `
+
+      <div
+        class="jc-help-note"
+        style="
+          width:100%;
+          margin-bottom:10px;
+          line-height:1.55;
+        "
+      >
+        <strong>
+          ${escapeHtml(
+            passoAtual.titulo
+          )}
+        </strong>
+        <br>
+        ${escapeHtml(
+          passoAtual.texto
+        )}
+      </div>
+    `;
 
 
   if (
@@ -16048,7 +16159,7 @@ function jcHtmlMinhaJornada(
         style="width:100%;"
       >
         🔒 Esta jornada está fechada para hoje.
-        O Grupo RS precisa reabrir/liberar a jornada antes do check-in.
+        Entre em contato com o Grupo RS para liberação.
       </div>
     `;
   }
@@ -16064,12 +16175,11 @@ function jcHtmlMinhaJornada(
 
       <button
         class="btn btn-success"
-        onclick="jcAbrirCamera(
-          'checkin',
+        onclick="jcFazerCheckin(
           ${jornada.id}
         )"
       >
-        📸 ✅ Registrar entrada
+        ✅ Registrar entrada
       </button>
     `;
   }
@@ -16078,11 +16188,9 @@ function jcHtmlMinhaJornada(
   if (
     jornada.entrada_em
     &&
-    !jornada.saida_em
-    &&
-    !emIntervalo
-    &&
     !jornada.intervalo_inicio_em
+    &&
+    !finalizada
   ) {
 
     acoes += `
@@ -16093,7 +16201,7 @@ function jcHtmlMinhaJornada(
           ${jornada.id}
         )"
       >
-        ☕ Iniciar Intervalo
+        🍽️ Iniciar intervalo
       </button>
     `;
   }
@@ -16101,17 +16209,19 @@ function jcHtmlMinhaJornada(
 
   if (
     emIntervalo
+    &&
+    !finalizada
   ) {
 
     acoes += `
 
       <button
-        class="btn btn-success"
+        class="btn btn-primary"
         onclick="jcRetornarIntervalo(
           ${jornada.id}
         )"
       >
-        ↩ Voltar do Intervalo
+        ↩️ Voltar do intervalo
       </button>
     `;
   }
@@ -16120,47 +16230,26 @@ function jcHtmlMinhaJornada(
   if (
     jornada.entrada_em
     &&
-    !jornada.saida_em
-    &&
     !emIntervalo
+    &&
+    !finalizada
+    &&
+    (
+      !jornada.intervalo_inicio_em
+      ||
+      jornada.intervalo_retorno_em
+    )
   ) {
 
     acoes += `
 
       <button
         class="btn btn-danger"
-        onclick="jcAbrirCamera(
-          'checkout',
+        onclick="jcFazerCheckout(
           ${jornada.id}
         )"
       >
-        📷 Registrar Saída
-      </button>
-    `;
-  }
-
-
-  const maps =
-    jcUrlMaps(
-      jornada
-    );
-
-
-  if (
-    maps
-  ) {
-
-    acoes += `
-
-      <button
-        class="btn btn-dark"
-        onclick="window.open(
-          '${maps}',
-          '_blank',
-          'noopener,noreferrer'
-        )"
-      >
-        🗺 Google Maps
+        🏁 Registrar saída
       </button>
     `;
   }
@@ -16170,55 +16259,50 @@ function jcHtmlMinhaJornada(
 
     <button
       class="btn btn-dark"
-      onclick="jcAbrirDocumentosJornada(
+      onclick="jcAbrirDetalhesJornada(
         ${jornada.id}
       )"
     >
-      📄 Documentos
+      📄 Documentos / detalhes
     </button>
   `;
 
 
   return `
 
-    <div class="jc-fixed-card">
+    <div class="jc-colaborador-card">
 
-      <div class="jc-fixed-head">
+      <div class="jc-colaborador-topo">
 
-        <div>
-
-          <span class="badge badge-blue">
-            CLIENTE FIXO
-          </span>
-
-          <h3
-            style="
-              margin:8px 0 4px;
-            "
-          >
+        <div class="jc-colaborador-info">
+          <div class="label">
+            Empresa
+          </div>
+          <div class="value">
             ${escapeHtml(
-              jornada.cliente_nome
+              jornada.cliente_nome ||
+              'Empresa'
             )}
-          </h3>
+          </div>
+        </div>
 
-          <div class="small muted">
-
-            👤
-            ${escapeHtml(
-              jornada.colaborador_nome
-            )}
-
-            <br>
-
-            🧰
+        <div class="jc-colaborador-info">
+          <div class="label">
+            Função
+          </div>
+          <div class="value">
             ${escapeHtml(
               jornada.funcao ||
               '-'
             )}
+          </div>
+        </div>
 
-            <br>
-
-            📍
+        <div class="jc-colaborador-info">
+          <div class="label">
+            Local
+          </div>
+          <div class="value">
             ${escapeHtml(
               [
                 jornada.cliente_endereco,
@@ -16226,110 +16310,134 @@ function jcHtmlMinhaJornada(
                 jornada.cliente_uf
               ]
                 .filter(Boolean)
-                .join(', ')
+                .join(' - ')
               ||
-              'Endereço não informado'
+              'Local não informado'
             )}
-
           </div>
-
         </div>
 
-
-        <span
-          class="badge ${jcStatusBadge(
-            jornada.status
-          )}"
-        >
-          ${escapeHtml(
-            jcStatusTexto(
-              jornada.status
-            )
-          )}
-        </span>
-
-      </div>
-
-
-      <div class="jc-times">
-
-        <div class="jc-time">
-          <small>Entrada</small>
-          <strong>${jcHora(jornada.entrada_em)}</strong>
-        </div>
-
-        <div class="jc-time">
-          <small>Intervalo</small>
-          <strong>${jcHora(jornada.intervalo_inicio_em)}</strong>
-        </div>
-
-        <div class="jc-time">
-          <small>Retorno</small>
-          <strong>${jcHora(jornada.intervalo_retorno_em)}</strong>
-        </div>
-
-        <div class="jc-time">
-          <small>Saída</small>
-          <strong>${jcHora(jornada.saida_em)}</strong>
-        </div>
-
-        <div class="jc-time">
-          <small>Total / Valor</small>
-          <strong>
-            ${
-              Number(
-                jornada.total_horas ||
-                0
-              )
-                .toFixed(
-                  2
-                )
-            }h
-            •
-            ${moeda(
-              jornada.valor_gerado ||
-              0
+        <div class="jc-colaborador-info">
+          <div class="label">
+            Horário previsto
+          </div>
+          <div class="value">
+            ${escapeHtml(
+              jornada.horario_previsto ||
+              '-'
             )}
-          </strong>
+          </div>
+        </div>
+
+        <div class="jc-colaborador-info">
+          <div class="label">
+            Valor
+          </div>
+          <div class="value">
+            ${
+              jornada.valor_tipo ===
+              'hora'
+                ?
+                `${moeda(
+                  jornada.valor_base ||
+                  0
+                )}/h`
+                :
+                `${moeda(
+                  jornada.valor_base ||
+                  0
+                )}/dia`
+            }
+          </div>
+        </div>
+
+        <div class="jc-colaborador-info">
+          <div class="label">
+            Status
+          </div>
+          <div class="value">
+            ${escapeHtml(
+              jcStatusTexto(
+                jornada.status
+              )
+            )}
+          </div>
         </div>
 
       </div>
 
 
-      <div class="small muted">
+      <div class="jc-colaborador-horarios">
 
-        ${
-          jornada.entrada_em
-            ?
-            (
-              jornada.entrada_validada
-                ?
-                '✅ Entrada validada pelo cliente/RS'
-                :
-                '⏳ Entrada aguardando validação'
-            )
-            :
-            '⚪ Entrada ainda não registrada'
-        }
+        <div class="jc-colaborador-hora">
+          <strong>Entrada</strong>
+          ${jcHora(
+            jornada.entrada_em
+          )}
+        </div>
 
-        ${
-          jornada.saida_em
-            ?
-            (
-              jornada.saida_validada
-                ?
-                '<br>✅ Saída validada pelo cliente/RS'
-                :
-                '<br>⏳ Saída aguardando validação'
-            )
-            :
-            ''
-        }
+        <div class="jc-colaborador-hora">
+          <strong>Intervalo</strong>
+          ${jcHora(
+            jornada.intervalo_inicio_em
+          )}
+        </div>
+
+        <div class="jc-colaborador-hora">
+          <strong>Retorno</strong>
+          ${jcHora(
+            jornada.intervalo_retorno_em
+          )}
+        </div>
+
+        <div class="jc-colaborador-hora">
+          <strong>Saída</strong>
+          ${jcHora(
+            jornada.saida_em
+          )}
+        </div>
 
       </div>
 
 
-      <div class="service-actions">
+      ${
+        finalizada
+          ?
+          `
+            <div
+              class="jc-help-note"
+              style="margin-top:10px;"
+            >
+              ✅ Jornada concluída
+              <br>
+              Total:
+              <strong>
+                ${
+                  Number(
+                    jornada.total_horas ||
+                    0
+                  )
+                    .toFixed(
+                      2
+                    )
+                }h
+              </strong>
+              •
+              Valor:
+              <strong>
+                ${moeda(
+                  jornada.valor_gerado ||
+                  0
+                )}
+              </strong>
+            </div>
+          `
+          :
+          ''
+      }
+
+
+      <div class="jc-colaborador-acoes">
         ${acoes}
       </div>
 
