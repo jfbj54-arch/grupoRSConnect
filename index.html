@@ -1102,6 +1102,18 @@
   }
 }
 
+
+/* ============================================================
+   PRESTADOR — JORNADA SIMPLIFICADA
+   ============================================================ */
+.jc-prestador-step{
+  border:1px solid rgba(52,152,219,.28);
+  background:rgba(52,152,219,.08);
+  padding:12px;
+  border-radius:12px;
+  margin-bottom:10px;
+}
+
 </style>
 
 </head>
@@ -1748,7 +1760,10 @@
           class="jc-shell"
         >
 
-          <div class="card">
+          <div
+            id="jcGestaoTopo"
+            class="card"
+          >
 
             <div
               style="
@@ -1766,7 +1781,7 @@
                   class="section-title"
                   style="margin-bottom:5px;"
                 >
-                  🏢 JORNADA — Gestão dos Clientes Fixos do Grupo RS
+                  🏢 JORNADA — Gestão dos Clientes Sob Demanda do Grupo RS
                 </h3>
 
                 <div class="small muted">
@@ -1820,7 +1835,7 @@
             <div class="jc-owner-guide">
 
               <div class="jc-owner-guide-title">
-                ✅ Controle completo dos clientes fixos do Grupo RS
+                ✅ Controle completo dos clientes sob demanda do Grupo RS
               </div>
 
               <div class="small muted" style="margin-bottom:10px;">
@@ -1852,7 +1867,7 @@
               >
                 <div>
                   <div class="jc-main-icon">🏢</div>
-                  <strong>Clientes fixos</strong>
+                  <strong>Clientes sob demanda</strong>
                   <div class="small muted">
                     Gratidão, SMT, PortoX e demais empresas atendidas.
                   </div>
@@ -5498,7 +5513,27 @@ function htmlServico(
 
 
   let acoes =
-    '';
+    `
+
+      <div
+        class="jc-help-note"
+        style="
+          width:100%;
+          margin-bottom:10px;
+          line-height:1.55;
+        "
+      >
+        <strong>
+          ${escapeHtml(
+            passoAtual.titulo
+          )}
+        </strong>
+        <br>
+        ${escapeHtml(
+          passoAtual.texto
+        )}
+      </div>
+    `;
 
 
   // ==========================================================
@@ -5604,7 +5639,7 @@ function htmlServico(
               ${id}
             )"
           >
-            📍 Fazer Check-in
+            📍 ✅ Registrar entrada
           </button>
         `;
       }
@@ -5662,7 +5697,7 @@ function htmlServico(
                 ${id}
               )"
             >
-              📷 Fazer Check-out
+              📷 🏁 Registrar saída
             </button>
           `;
         }
@@ -7452,7 +7487,7 @@ async function abrirDetalhesServico(
                   abrirCameraParaJornada('checkin', ${id});
                 "
               >
-                📍 Fazer Check-in
+                📍 ✅ Registrar entrada
               </button>
             `
             :
@@ -7549,7 +7584,7 @@ async function abrirDetalhesServico(
                   abrirCameraParaJornada('checkout', ${id});
                 "
               >
-                📷 Fazer Check-out
+                📷 🏁 Registrar saída
               </button>
             `
             :
@@ -13571,6 +13606,44 @@ function jcEhGestor() {
 }
 
 
+
+function jcAplicarPermissoesJornada() {
+
+  const gestor =
+    jcEhGestor();
+
+
+  $('jcGestaoTopo')
+    ?.classList.toggle(
+      'hidden',
+      !gestor
+    );
+
+
+  $('jcGestao')
+    ?.classList.toggle(
+      'hidden',
+      !gestor
+    );
+
+
+  $('jcMinhaJornada')
+    ?.classList.toggle(
+      'hidden',
+      gestor
+    );
+
+
+  if (!gestor) {
+
+    $('btnJcNovoCliente')
+      ?.classList.add(
+        'hidden'
+      );
+  }
+}
+
+
 function jcDataLocalHoje() {
 
   const agora =
@@ -13890,11 +13963,19 @@ async function jcCarregarTudo(
 
   try {
 
+    jcAplicarPermissoesJornada();
+
     if (
       jcEhGestor()
     ) {
 
       await jcCarregarClientes();
+
+
+      $('jcGestaoTopo')
+        ?.classList.remove(
+          'hidden'
+        );
 
 
       $('jcGestao')
@@ -13961,6 +14042,12 @@ async function jcCarregarTudo(
       }
 
     } else {
+
+      $('jcGestaoTopo')
+        ?.classList.add(
+          'hidden'
+        );
+
 
       $('jcGestao')
         ?.classList.add(
@@ -15806,7 +15893,7 @@ async function jcCarregarMinhaJornada() {
         <div class="card">
 
           <strong>
-            Nenhuma jornada de cliente fixo para hoje.
+            Nenhuma jornada de cliente sob demanda para hoje.
           </strong>
 
           <div
@@ -15858,9 +15945,83 @@ async function jcCarregarMinhaJornada() {
 }
 
 
+
+function jcPrestadorPassoAtual(jornada) {
+
+  if (jornada.fechada) {
+    return {
+      titulo: 'Jornada fechada',
+      texto: 'Essa jornada já foi encerrada. Você pode consultar o histórico e os documentos.',
+      classe: 'warning'
+    };
+  }
+
+  if (!jornada.entrada_em) {
+    return {
+      titulo: '1. Registrar entrada',
+      texto: 'Tire a foto, permita a localização e toque em Fazer check-in.',
+      classe: 'primary'
+    };
+  }
+
+  if (
+    jornada.entrada_em &&
+    !jornada.intervalo_inicio_em
+  ) {
+    return {
+      titulo: '2. Trabalhando',
+      texto: 'Quando sair para o almoço, toque em 🍽️ Iniciar intervalo.',
+      classe: 'success'
+    };
+  }
+
+  if (
+    jornada.intervalo_inicio_em &&
+    !jornada.intervalo_retorno_em
+  ) {
+    return {
+      titulo: '3. Em intervalo',
+      texto: 'Quando voltar do almoço, toque em ↩️ Voltar do intervalo.',
+      classe: 'warning'
+    };
+  }
+
+  if (
+    jornada.intervalo_retorno_em &&
+    !jornada.saida_em
+  ) {
+    return {
+      titulo: '4. Trabalhando após o intervalo',
+      texto: 'No fim do expediente, toque em Fazer check-out.',
+      classe: 'success'
+    };
+  }
+
+  if (jornada.saida_em) {
+    return {
+      titulo: '5. Jornada concluída',
+      texto: 'Sua saída foi registrada. Confira horas, valor e documentos.',
+      classe: 'success'
+    };
+  }
+
+  return {
+    titulo: 'Jornada',
+    texto: 'Siga o próximo passo indicado abaixo.',
+    classe: 'primary'
+  };
+}
+
+
 function jcHtmlMinhaJornada(
   jornada
 ) {
+
+  const passoAtual =
+    jcPrestadorPassoAtual(
+      jornada
+    );
+
 
   const emIntervalo =
     Boolean(
@@ -15872,6 +16033,25 @@ function jcHtmlMinhaJornada(
 
   let acoes =
     '';
+
+
+  if (
+    jornada.fechada
+    &&
+    !jornada.entrada_em
+  ) {
+
+    acoes += `
+
+      <div
+        class="jc-help-note"
+        style="width:100%;"
+      >
+        🔒 Esta jornada está fechada para hoje.
+        O Grupo RS precisa reabrir/liberar a jornada antes do check-in.
+      </div>
+    `;
+  }
 
 
   if (
@@ -15889,7 +16069,7 @@ function jcHtmlMinhaJornada(
           ${jornada.id}
         )"
       >
-        📸 Fazer Check-in
+        📸 ✅ Registrar entrada
       </button>
     `;
   }
