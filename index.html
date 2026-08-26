@@ -1201,6 +1201,10 @@
 
 </style>
 
+
+  <!-- Supabase JS — usado somente pela área JORNADA -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 </head>
 
 
@@ -1926,7 +1930,7 @@
             >
 
               <div class="jc-owner-guide-title">
-                ✅ Controle completo dos clientes sob demanda do Grupo RS
+                ✅ Jornada dos clientes — dados protegidos no Supabase
               </div>
 
               <div class="small muted" style="margin-bottom:10px;">
@@ -3793,6 +3797,2568 @@ function loadingBotao(
 }
 
 
+
+// ============================================================
+// SUPABASE — JORNADA DIRETA
+//
+// IMPORTANTE:
+// Preencha SOMENTE estas duas informações com os dados públicos
+// do seu projeto Supabase.
+//
+// Project URL:
+// Settings > API > Project URL
+//
+// Publishable / anon key:
+// Settings > API > Publishable key / anon public
+//
+// NUNCA use service_role no INDEX.
+// ============================================================
+
+const RS_SUPABASE_URL =
+  'COLE_AQUI_SUA_SUPABASE_URL';
+
+
+const RS_SUPABASE_PUBLISHABLE_KEY =
+  'COLE_AQUI_SUA_CHAVE_PUBLISHABLE_OU_ANON';
+
+
+let rsSupabase =
+  null;
+
+
+function rsSupabaseConfigurado() {
+
+  return Boolean(
+    RS_SUPABASE_URL
+    &&
+    RS_SUPABASE_PUBLISHABLE_KEY
+    &&
+    !RS_SUPABASE_URL.includes(
+      'COLE_AQUI'
+    )
+    &&
+    !RS_SUPABASE_PUBLISHABLE_KEY.includes(
+      'COLE_AQUI'
+    )
+  );
+}
+
+
+function rsObterSupabase() {
+
+  if (
+    !rsSupabaseConfigurado()
+  ) {
+
+    throw new Error(
+      'Configure RS_SUPABASE_URL e RS_SUPABASE_PUBLISHABLE_KEY no INDEX.'
+    );
+  }
+
+
+  if (
+    !window.supabase?.createClient
+  ) {
+
+    throw new Error(
+      'A biblioteca do Supabase não carregou.'
+    );
+  }
+
+
+  if (!rsSupabase) {
+
+    rsSupabase =
+      window.supabase.createClient(
+        RS_SUPABASE_URL,
+        RS_SUPABASE_PUBLISHABLE_KEY,
+        {
+          auth: {
+            persistSession:
+              true,
+
+            autoRefreshToken:
+              true,
+
+            detectSessionInUrl:
+              true
+          }
+        }
+      );
+  }
+
+
+  return rsSupabase;
+}
+
+
+async function rsLoginSupabase(
+  email,
+  senha
+) {
+
+  const sb =
+    rsObterSupabase();
+
+
+  const {
+    data,
+    error
+  } =
+    await sb.auth.signInWithPassword({
+      email:
+        emailNormalizado(
+          email
+        ),
+
+      password:
+        String(
+          senha ||
+          ''
+        )
+    });
+
+
+  if (error) {
+
+    throw new Error(
+      'A Jornada usa Supabase Auth. Não foi possível autenticar esta conta no Supabase: '
+      +
+      error.message
+    );
+  }
+
+
+  return data;
+}
+
+
+async function rsGarantirSessaoSupabase() {
+
+  const sb =
+    rsObterSupabase();
+
+
+  const {
+    data,
+    error
+  } =
+    await sb.auth.getSession();
+
+
+  if (error) {
+
+    throw error;
+  }
+
+
+  const session =
+    data?.session;
+
+
+  if (!session) {
+
+    throw new Error(
+      'Sua sessão da Jornada no Supabase expirou. Entre novamente.'
+    );
+  }
+
+
+  const emailSessao =
+    emailNormalizado(
+      session.user?.email
+    );
+
+
+  if (
+    usuarioAtual?.email
+    &&
+    emailSessao !==
+    emailUsuario()
+  ) {
+
+    await sb.auth.signOut();
+
+
+    throw new Error(
+      'A conta do Supabase não corresponde à conta atual do RS Connect. Entre novamente.'
+    );
+  }
+
+
+  return session;
+}
+
+
+function rsErroSupabase(
+  error,
+  fallback =
+    'Erro no Supabase.'
+) {
+
+  if (!error) {
+    return;
+  }
+
+
+  console.error(
+    'Supabase Jornada:',
+    error
+  );
+
+
+  throw new Error(
+    error.message ||
+    fallback
+  );
+}
+
+
+function rsHojeISO() {
+
+  const d =
+    new Date();
+
+
+  const y =
+    d.getFullYear();
+
+
+  const m =
+    String(
+      d.getMonth() + 1
+    )
+      .padStart(
+        2,
+        '0'
+      );
+
+
+  const dia =
+    String(
+      d.getDate()
+    )
+      .padStart(
+        2,
+        '0'
+      );
+
+
+  return `${y}-${m}-${dia}`;
+}
+
+
+function rsMinutosEntreDatas(
+  inicio,
+  fim
+) {
+
+  if (
+    !inicio ||
+    !fim
+  ) {
+
+    return 0;
+  }
+
+
+  return Math.max(
+    0,
+    Math.round(
+      (
+        new Date(fim)
+        -
+        new Date(inicio)
+      )
+      /
+      60000
+    )
+  );
+}
+
+
+async function rsBuscarJornadaSupabase(
+  jornadaId
+) {
+
+  const sb =
+    rsObterSupabase();
+
+
+  const {
+    data,
+    error
+  } =
+    await sb
+      .from(
+        'jornadas_clientes'
+      )
+      .select(
+        `
+        *,
+        clientes_rs (
+          nome,
+          endereco,
+          cidade,
+          uf,
+          responsavel_nome,
+          responsavel_email,
+          responsavel_whatsapp
+        )
+        `
+      )
+      .eq(
+        'id',
+        Number(
+          jornadaId
+        )
+      )
+      .maybeSingle();
+
+
+  rsErroSupabase(
+    error,
+    'Erro ao buscar jornada.'
+  );
+
+
+  if (!data) {
+    return null;
+  }
+
+
+  return {
+    ...data,
+
+    cliente_nome:
+      data.clientes_rs?.nome,
+
+    cliente_endereco:
+      data.clientes_rs?.endereco,
+
+    cliente_cidade:
+      data.clientes_rs?.cidade,
+
+    cliente_uf:
+      data.clientes_rs?.uf,
+
+    responsavel_nome:
+      data.clientes_rs?.responsavel_nome,
+
+    responsavel_email:
+      data.clientes_rs?.responsavel_email,
+
+    responsavel_whatsapp:
+      data.clientes_rs?.responsavel_whatsapp
+  };
+}
+
+
+async function rsGarantirJornadasClienteSupabase(
+  clienteId,
+  data
+) {
+
+  // Pelas políticas RLS enviadas, somente o Grupo RS cria jornadas.
+  if (
+    !jcEhGrupoRS()
+  ) {
+
+    return;
+  }
+
+
+  const sb =
+    rsObterSupabase();
+
+
+  const {
+    data: vinculos,
+    error: erroVinculos
+  } =
+    await sb
+      .from(
+        'clientes_rs_colaboradores'
+      )
+      .select(
+        '*'
+      )
+      .eq(
+        'cliente_id',
+        Number(
+          clienteId
+        )
+      )
+      .eq(
+        'ativo',
+        true
+      );
+
+
+  rsErroSupabase(
+    erroVinculos,
+    'Erro ao carregar colaboradores.'
+  );
+
+
+  if (
+    !vinculos?.length
+  ) {
+
+    return;
+  }
+
+
+  const linhas =
+    vinculos.map(
+      v => ({
+        cliente_id:
+          Number(
+            clienteId
+          ),
+
+        colaborador_vinculo_id:
+          v.id,
+
+        colaborador_email:
+          emailNormalizado(
+            v.colaborador_email
+          ),
+
+        colaborador_nome:
+          v.colaborador_nome,
+
+        funcao:
+          v.funcao ||
+          '',
+
+        data,
+
+        horario_previsto:
+          v.horario_previsto ||
+          '',
+
+        valor_tipo:
+          v.valor_tipo ||
+          'dia',
+
+        valor_base:
+          Number(
+            v.valor_base ||
+            0
+          )
+      })
+    );
+
+
+  const {
+    error
+  } =
+    await sb
+      .from(
+        'jornadas_clientes'
+      )
+      .upsert(
+        linhas,
+        {
+          onConflict:
+            'cliente_id,colaborador_email,data',
+
+          ignoreDuplicates:
+            true
+        }
+      );
+
+
+  rsErroSupabase(
+    error,
+    'Erro ao preparar jornadas do dia.'
+  );
+}
+
+
+function rsParseQuery(
+  caminho
+) {
+
+  const base =
+    new URL(
+      caminho,
+      'https://rsconnect.local'
+    );
+
+
+  return base;
+}
+
+
+function rsRotaJornadaVaiSupabase(
+  caminho,
+  metodo
+) {
+
+  const rota =
+    caminho.split('?')[0];
+
+
+  const m =
+    String(
+      metodo ||
+      'GET'
+    )
+      .toUpperCase();
+
+
+  return Boolean(
+
+    // Clientes
+    (
+      rota ===
+      '/api/jornada-clientes'
+      &&
+      (
+        m === 'GET'
+        ||
+        m === 'POST'
+      )
+    )
+
+    ||
+
+    // Colaboradores
+    (
+      /^\/api\/jornada-clientes\/\d+\/colaboradores$/
+        .test(
+          rota
+        )
+      &&
+      (
+        m === 'GET'
+        ||
+        m === 'POST'
+      )
+    )
+
+    ||
+
+    (
+      /^\/api\/jornada-clientes\/\d+\/colaboradores\/\d+$/
+        .test(
+          rota
+        )
+      &&
+      m === 'DELETE'
+    )
+
+    ||
+
+    // Jornada de cliente / histórico / fechamento
+    (
+      /^\/api\/jornada-clientes\/\d+\/jornadas$/
+        .test(
+          rota
+        )
+      &&
+      m === 'GET'
+    )
+
+    ||
+
+    (
+      /^\/api\/jornada-clientes\/\d+\/historico$/
+        .test(
+          rota
+        )
+      &&
+      m === 'GET'
+    )
+
+    ||
+
+    (
+      /^\/api\/jornada-clientes\/\d+\/fechar-dia$/
+        .test(
+          rota
+        )
+      &&
+      m === 'POST'
+    )
+
+    ||
+
+    // Minha Jornada
+    (
+      /^\/api\/jornada-colaborador\/[^/]+\/hoje$/
+        .test(
+          rota
+        )
+      &&
+      m === 'GET'
+    )
+
+    ||
+
+    (
+      rota ===
+      '/api/minha-jornada/hoje'
+      &&
+      m === 'GET'
+    )
+
+    ||
+
+    (
+      rota ===
+      '/api/minha-jornada/historico'
+      &&
+      m === 'GET'
+    )
+
+    ||
+
+    // Ações de Jornada
+    (
+      /^\/api\/jornada-fixa\/\d+\/checkin$/
+        .test(
+          rota
+        )
+      &&
+      m === 'POST'
+    )
+
+    ||
+
+    (
+      /^\/api\/jornada-fixa\/\d+\/intervalo\/iniciar$/
+        .test(
+          rota
+        )
+      &&
+      m === 'POST'
+    )
+
+    ||
+
+    (
+      /^\/api\/jornada-fixa\/\d+\/intervalo\/retornar$/
+        .test(
+          rota
+        )
+      &&
+      m === 'POST'
+    )
+
+    ||
+
+    (
+      /^\/api\/jornada-fixa\/\d+\/checkout$/
+        .test(
+          rota
+        )
+      &&
+      m === 'POST'
+    )
+
+    ||
+
+    (
+      /^\/api\/jornada-fixa\/\d+\/validar$/
+        .test(
+          rota
+        )
+      &&
+      m === 'POST'
+    )
+  );
+}
+
+
+async function rsJornadaSupabaseApi(
+  caminho,
+  opcoes = {}
+) {
+
+  await rsGarantirSessaoSupabase();
+
+
+  const sb =
+    rsObterSupabase();
+
+
+  const metodo =
+    String(
+      opcoes.method ||
+      'GET'
+    )
+      .toUpperCase();
+
+
+  const url =
+    rsParseQuery(
+      caminho
+    );
+
+
+  const rota =
+    url.pathname;
+
+
+  let body =
+    {};
+
+
+  if (
+    opcoes.body
+    &&
+    typeof opcoes.body ===
+    'string'
+  ) {
+
+    try {
+
+      body =
+        JSON.parse(
+          opcoes.body
+        );
+
+    } catch {
+
+      body = {};
+    }
+  }
+
+
+  // ==========================================================
+  // GET /api/jornada-clientes
+  // ==========================================================
+
+  if (
+    rota ===
+    '/api/jornada-clientes'
+    &&
+    metodo ===
+    'GET'
+  ) {
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'clientes_rs'
+        )
+        .select(
+          `
+          *,
+          clientes_rs_colaboradores (
+            id,
+            ativo
+          )
+          `
+        )
+        .eq(
+          'ativo',
+          true
+        )
+        .order(
+          'nome',
+          {
+            ascending:
+              true
+          }
+        );
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao carregar clientes.'
+    );
+
+
+    const clientes =
+      (
+        data ||
+        []
+      )
+        .map(
+          cliente => ({
+
+            ...cliente,
+
+            colaboradores_ativos:
+              (
+                cliente
+                  .clientes_rs_colaboradores
+                ||
+                []
+              )
+                .filter(
+                  v =>
+                    v.ativo !==
+                    false
+                )
+                .length
+          })
+        );
+
+
+    return {
+      sucesso:
+        true,
+
+      clientes
+    };
+  }
+
+
+  // ==========================================================
+  // POST /api/jornada-clientes
+  // ==========================================================
+
+  if (
+    rota ===
+    '/api/jornada-clientes'
+    &&
+    metodo ===
+    'POST'
+  ) {
+
+    const payload = {
+
+      nome:
+        texto(
+          body.nome
+        ),
+
+      cnpj:
+        texto(
+          body.cnpj
+        )
+        ||
+        null,
+
+      responsavel_nome:
+        texto(
+          body.responsavel_nome
+          ||
+          body.responsavel
+        )
+        ||
+        null,
+
+      responsavel_email:
+        emailNormalizado(
+          body.responsavel_email
+          ||
+          body.responsavelEmail
+        )
+        ||
+        null,
+
+      responsavel_whatsapp:
+        texto(
+          body.responsavel_whatsapp
+          ||
+          body.responsavelWhatsapp
+        )
+        ||
+        null,
+
+      endereco:
+        texto(
+          body.endereco
+        )
+        ||
+        null,
+
+      cidade:
+        texto(
+          body.cidade
+        )
+        ||
+        null,
+
+      uf:
+        texto(
+          body.uf
+        )
+        ||
+        null,
+
+      latitude:
+        body.latitude
+        ??
+        null,
+
+      longitude:
+        body.longitude
+        ??
+        null,
+
+      criado_por:
+        emailUsuario(),
+
+      atualizado_em:
+        new Date()
+          .toISOString()
+    };
+
+
+    if (
+      !payload.nome
+    ) {
+
+      throw new Error(
+        'Informe o nome da empresa cliente.'
+      );
+    }
+
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'clientes_rs'
+        )
+        .insert(
+          payload
+        )
+        .select()
+        .single();
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao cadastrar cliente.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        'Cliente cadastrado com sucesso.',
+
+      cliente:
+        data
+    };
+  }
+
+
+  // ==========================================================
+  // /clientes/:id/colaboradores
+  // ==========================================================
+
+  let match =
+    rota.match(
+      /^\/api\/jornada-clientes\/(\d+)\/colaboradores$/
+    );
+
+
+  if (match) {
+
+    const clienteId =
+      Number(
+        match[1]
+      );
+
+
+    if (
+      metodo ===
+      'GET'
+    ) {
+
+      const {
+        data,
+        error
+      } =
+        await sb
+          .from(
+            'clientes_rs_colaboradores'
+          )
+          .select(
+            '*'
+          )
+          .eq(
+            'cliente_id',
+            clienteId
+          )
+          .eq(
+            'ativo',
+            true
+          )
+          .order(
+            'colaborador_nome',
+            {
+              ascending:
+                true
+            }
+          );
+
+
+      rsErroSupabase(
+        error,
+        'Erro ao carregar colaboradores.'
+      );
+
+
+      return {
+        sucesso:
+          true,
+
+        colaboradores:
+          data ||
+          []
+      };
+    }
+
+
+    if (
+      metodo ===
+      'POST'
+    ) {
+
+      const colaboradorEmail =
+        emailNormalizado(
+          body.colaborador_email
+          ||
+          body.email
+        );
+
+
+      const colaboradorNome =
+        texto(
+          body.colaborador_nome
+          ||
+          body.nome
+        );
+
+
+      if (
+        !colaboradorEmail
+        ||
+        !colaboradorNome
+      ) {
+
+        throw new Error(
+          'Nome e e-mail do colaborador são obrigatórios.'
+        );
+      }
+
+
+      const payload = {
+
+        cliente_id:
+          clienteId,
+
+        colaborador_email:
+          colaboradorEmail,
+
+        colaborador_nome:
+          colaboradorNome,
+
+        funcao:
+          texto(
+            body.funcao
+          ),
+
+        valor_tipo:
+          texto(
+            body.valor_tipo
+          )
+          ||
+          'dia',
+
+        valor_base:
+          Number(
+            body.valor_base
+            ??
+            body.valor
+            ??
+            0
+          ),
+
+        horario_previsto:
+          texto(
+            body.horario_previsto
+            ||
+            body.horario
+          ),
+
+        ativo:
+          true,
+
+        criado_por:
+          emailUsuario(),
+
+        atualizado_em:
+          new Date()
+            .toISOString()
+      };
+
+
+      const {
+        data,
+        error
+      } =
+        await sb
+          .from(
+            'clientes_rs_colaboradores'
+          )
+          .upsert(
+            payload,
+            {
+              onConflict:
+                'cliente_id,colaborador_email'
+            }
+          )
+          .select()
+          .single();
+
+
+      rsErroSupabase(
+        error,
+        'Erro ao vincular colaborador.'
+      );
+
+
+      // Já cria a Jornada de hoje para esse vínculo.
+      const hoje =
+        rsHojeISO();
+
+
+      const jornadaPayload = {
+
+        cliente_id:
+          clienteId,
+
+        colaborador_vinculo_id:
+          data.id,
+
+        colaborador_email:
+          colaboradorEmail,
+
+        colaborador_nome:
+          colaboradorNome,
+
+        funcao:
+          payload.funcao,
+
+        data:
+          hoje,
+
+        horario_previsto:
+          payload.horario_previsto,
+
+        valor_tipo:
+          payload.valor_tipo,
+
+        valor_base:
+          payload.valor_base
+      };
+
+
+      const {
+        error: erroJornada
+      } =
+        await sb
+          .from(
+            'jornadas_clientes'
+          )
+          .upsert(
+            jornadaPayload,
+            {
+              onConflict:
+                'cliente_id,colaborador_email,data',
+
+              ignoreDuplicates:
+                true
+            }
+          );
+
+
+      rsErroSupabase(
+        erroJornada,
+        'Colaborador vinculado, mas não foi possível criar a Jornada do dia.'
+      );
+
+
+      return {
+        sucesso:
+          true,
+
+        mensagem:
+          'Colaborador vinculado com sucesso.',
+
+        colaborador:
+          data
+      };
+    }
+  }
+
+
+  // ==========================================================
+  // DELETE vínculo
+  // ==========================================================
+
+  match =
+    rota.match(
+      /^\/api\/jornada-clientes\/(\d+)\/colaboradores\/(\d+)$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'DELETE'
+  ) {
+
+    const clienteId =
+      Number(
+        match[1]
+      );
+
+
+    const vinculoId =
+      Number(
+        match[2]
+      );
+
+
+    const {
+      error
+    } =
+      await sb
+        .from(
+          'clientes_rs_colaboradores'
+        )
+        .update({
+          ativo:
+            false,
+
+          atualizado_em:
+            new Date()
+              .toISOString()
+        })
+        .eq(
+          'id',
+          vinculoId
+        )
+        .eq(
+          'cliente_id',
+          clienteId
+        );
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao desvincular colaborador.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        'Colaborador desvinculado. O histórico foi preservado.'
+    };
+  }
+
+
+  // ==========================================================
+  // GET jornadas do cliente
+  // ==========================================================
+
+  match =
+    rota.match(
+      /^\/api\/jornada-clientes\/(\d+)\/jornadas$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'GET'
+  ) {
+
+    const clienteId =
+      Number(
+        match[1]
+      );
+
+
+    const dataSelecionada =
+      url.searchParams.get(
+        'data'
+      )
+      ||
+      rsHojeISO();
+
+
+    await rsGarantirJornadasClienteSupabase(
+      clienteId,
+      dataSelecionada
+    );
+
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .select(
+          `
+          *,
+          clientes_rs (
+            nome,
+            endereco,
+            cidade,
+            uf,
+            responsavel_nome,
+            responsavel_email,
+            responsavel_whatsapp
+          )
+          `
+        )
+        .eq(
+          'cliente_id',
+          clienteId
+        )
+        .eq(
+          'data',
+          dataSelecionada
+        )
+        .order(
+          'colaborador_nome',
+          {
+            ascending:
+              true
+          }
+        );
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao carregar jornadas.'
+    );
+
+
+    const jornadas =
+      (
+        data ||
+        []
+      )
+        .map(
+          j => ({
+            ...j,
+
+            cliente_nome:
+              j.clientes_rs?.nome,
+
+            cliente_endereco:
+              j.clientes_rs?.endereco,
+
+            cliente_cidade:
+              j.clientes_rs?.cidade,
+
+            cliente_uf:
+              j.clientes_rs?.uf,
+
+            responsavel_nome:
+              j.clientes_rs?.responsavel_nome,
+
+            responsavel_email:
+              j.clientes_rs?.responsavel_email
+          })
+        );
+
+
+    const {
+      data: fechamento,
+      error: erroFechamento
+    } =
+      await sb
+        .from(
+          'fechamentos_clientes'
+        )
+        .select(
+          '*'
+        )
+        .eq(
+          'cliente_id',
+          clienteId
+        )
+        .eq(
+          'data',
+          dataSelecionada
+        )
+        .maybeSingle();
+
+
+    rsErroSupabase(
+      erroFechamento,
+      'Erro ao consultar fechamento.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      data:
+        dataSelecionada,
+
+      jornadas,
+
+      fechamento:
+        fechamento ||
+        null
+    };
+  }
+
+
+  // ==========================================================
+  // Histórico do cliente
+  // ==========================================================
+
+  match =
+    rota.match(
+      /^\/api\/jornada-clientes\/(\d+)\/historico$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'GET'
+  ) {
+
+    const clienteId =
+      Number(
+        match[1]
+      );
+
+
+    const emailFiltro =
+      emailNormalizado(
+        url.searchParams.get(
+          'colaborador_email'
+        )
+      );
+
+
+    const limite =
+      Math.min(
+        Number(
+          url.searchParams.get(
+            'limite'
+          )
+          ||
+          500
+        ),
+        500
+      );
+
+
+    let consulta =
+      sb
+        .from(
+          'jornadas_clientes'
+        )
+        .select(
+          `
+          *,
+          clientes_rs (
+            nome
+          )
+          `
+        )
+        .eq(
+          'cliente_id',
+          clienteId
+        )
+        .order(
+          'data',
+          {
+            ascending:
+              false
+          }
+        )
+        .limit(
+          limite
+        );
+
+
+    if (emailFiltro) {
+
+      consulta =
+        consulta.eq(
+          'colaborador_email',
+          emailFiltro
+        );
+    }
+
+
+    const {
+      data,
+      error
+    } =
+      await consulta;
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao carregar histórico.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      jornadas:
+        (
+          data ||
+          []
+        )
+          .map(
+            j => ({
+              ...j,
+
+              cliente_nome:
+                j.clientes_rs?.nome
+            })
+          )
+    };
+  }
+
+
+  // ==========================================================
+  // Fechar dia
+  // ==========================================================
+
+  match =
+    rota.match(
+      /^\/api\/jornada-clientes\/(\d+)\/fechar-dia$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'POST'
+  ) {
+
+    const clienteId =
+      Number(
+        match[1]
+      );
+
+
+    const dataSelecionada =
+      texto(
+        body.data
+      )
+      ||
+      rsHojeISO();
+
+
+    const {
+      data: abertas,
+      error: erroAbertas
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .select(
+          'id'
+        )
+        .eq(
+          'cliente_id',
+          clienteId
+        )
+        .eq(
+          'data',
+          dataSelecionada
+        )
+        .not(
+          'entrada_em',
+          'is',
+          null
+        )
+        .is(
+          'saida_em',
+          null
+        );
+
+
+    rsErroSupabase(
+      erroAbertas,
+      'Erro ao conferir jornadas abertas.'
+    );
+
+
+    if (
+      abertas?.length
+    ) {
+
+      throw new Error(
+        'Existem colaboradores com jornada aberta.'
+      );
+    }
+
+
+    const fechamentoPayload = {
+
+      cliente_id:
+        clienteId,
+
+      data:
+        dataSelecionada,
+
+      confirmado:
+        true,
+
+      confirmado_por:
+        emailUsuario(),
+
+      confirmado_em:
+        new Date()
+          .toISOString(),
+
+      observacoes:
+        texto(
+          body.observacoes
+        )
+    };
+
+
+    const {
+      data: fechamento,
+      error: erroFechar
+    } =
+      await sb
+        .from(
+          'fechamentos_clientes'
+        )
+        .upsert(
+          fechamentoPayload,
+          {
+            onConflict:
+              'cliente_id,data'
+          }
+        )
+        .select()
+        .single();
+
+
+    rsErroSupabase(
+      erroFechar,
+      'Erro ao fechar o dia.'
+    );
+
+
+    const {
+      error: erroJornadas
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .update({
+          fechada:
+            true,
+
+          fechada_por:
+            emailUsuario(),
+
+          fechada_em:
+            new Date()
+              .toISOString(),
+
+          atualizado_em:
+            new Date()
+              .toISOString()
+        })
+        .eq(
+          'cliente_id',
+          clienteId
+        )
+        .eq(
+          'data',
+          dataSelecionada
+        );
+
+
+    rsErroSupabase(
+      erroJornadas,
+      'Dia fechado, mas houve erro ao arquivar as jornadas.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        'Jornada do dia fechada e arquivada.',
+
+      fechamento
+    };
+  }
+
+
+  // ==========================================================
+  // Minha Jornada
+  // ==========================================================
+
+  if (
+    (
+      /^\/api\/jornada-colaborador\/[^/]+\/hoje$/
+        .test(
+          rota
+        )
+      ||
+      rota ===
+      '/api/minha-jornada/hoje'
+    )
+    &&
+    metodo ===
+    'GET'
+  ) {
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .select(
+          `
+          *,
+          clientes_rs (
+            nome,
+            endereco,
+            cidade,
+            uf
+          )
+          `
+        )
+        .eq(
+          'colaborador_email',
+          emailUsuario()
+        )
+        .eq(
+          'data',
+          rsHojeISO()
+        )
+        .order(
+          'id',
+          {
+            ascending:
+              true
+          }
+        );
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao carregar sua Jornada.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      data:
+        rsHojeISO(),
+
+      jornadas:
+        (
+          data ||
+          []
+        )
+          .map(
+            j => ({
+              ...j,
+
+              cliente_nome:
+                j.clientes_rs?.nome,
+
+              cliente_endereco:
+                j.clientes_rs?.endereco,
+
+              cliente_cidade:
+                j.clientes_rs?.cidade,
+
+              cliente_uf:
+                j.clientes_rs?.uf
+            })
+          )
+    };
+  }
+
+
+  if (
+    rota ===
+    '/api/minha-jornada/historico'
+    &&
+    metodo ===
+    'GET'
+  ) {
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .select(
+          `
+          *,
+          clientes_rs (
+            nome,
+            endereco,
+            cidade,
+            uf
+          )
+          `
+        )
+        .eq(
+          'colaborador_email',
+          emailUsuario()
+        )
+        .order(
+          'data',
+          {
+            ascending:
+              false
+          }
+        )
+        .limit(
+          500
+        );
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao carregar seu histórico.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      jornadas:
+        (
+          data ||
+          []
+        )
+          .map(
+            j => ({
+              ...j,
+
+              cliente_nome:
+                j.clientes_rs?.nome,
+
+              cliente_endereco:
+                j.clientes_rs?.endereco,
+
+              cliente_cidade:
+                j.clientes_rs?.cidade,
+
+              cliente_uf:
+                j.clientes_rs?.uf
+            })
+          )
+    };
+  }
+
+
+  // ==========================================================
+  // Ações da Jornada
+  // ==========================================================
+
+  match =
+    rota.match(
+      /^\/api\/jornada-fixa\/(\d+)\/checkin$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'POST'
+  ) {
+
+    const jornadaId =
+      Number(
+        match[1]
+      );
+
+
+    if (
+      !body.foto
+      &&
+      !body.selfie
+      &&
+      !body.imagem
+    ) {
+
+      throw new Error(
+        'A foto de entrada é obrigatória.'
+      );
+    }
+
+
+    if (
+      body.latitude ===
+      undefined
+      ||
+      body.longitude ===
+      undefined
+    ) {
+
+      throw new Error(
+        'A localização GPS é obrigatória.'
+      );
+    }
+
+
+    const agora =
+      new Date()
+        .toISOString();
+
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .update({
+          status:
+            'PRESENTE',
+
+          entrada_em:
+            agora,
+
+          entrada_foto:
+            body.foto
+            ||
+            body.selfie
+            ||
+            body.imagem,
+
+          entrada_latitude:
+            String(
+              body.latitude
+            ),
+
+          entrada_longitude:
+            String(
+              body.longitude
+            ),
+
+          entrada_precisao:
+            String(
+              body.precisao
+              ??
+              body.accuracy
+              ??
+              ''
+            ),
+
+          atualizado_em:
+            agora
+        })
+        .eq(
+          'id',
+          jornadaId
+        )
+        .eq(
+          'colaborador_email',
+          emailUsuario()
+        )
+        .is(
+          'entrada_em',
+          null
+        )
+        .select()
+        .single();
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao registrar entrada.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        'Entrada registrada com foto e GPS.',
+
+      jornada:
+        data
+    };
+  }
+
+
+  match =
+    rota.match(
+      /^\/api\/jornada-fixa\/(\d+)\/intervalo\/iniciar$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'POST'
+  ) {
+
+    const jornadaId =
+      Number(
+        match[1]
+      );
+
+
+    const agora =
+      new Date()
+        .toISOString();
+
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .update({
+          status:
+            'EM_INTERVALO',
+
+          intervalo_inicio_em:
+            agora,
+
+          atualizado_em:
+            agora
+        })
+        .eq(
+          'id',
+          jornadaId
+        )
+        .eq(
+          'colaborador_email',
+          emailUsuario()
+        )
+        .is(
+          'intervalo_inicio_em',
+          null
+        )
+        .select()
+        .single();
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao iniciar intervalo.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        'Intervalo iniciado.',
+
+      jornada:
+        data
+    };
+  }
+
+
+  match =
+    rota.match(
+      /^\/api\/jornada-fixa\/(\d+)\/intervalo\/retornar$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'POST'
+  ) {
+
+    const jornadaId =
+      Number(
+        match[1]
+      );
+
+
+    const agora =
+      new Date()
+        .toISOString();
+
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .update({
+          status:
+            'PRESENTE',
+
+          intervalo_retorno_em:
+            agora,
+
+          atualizado_em:
+            agora
+        })
+        .eq(
+          'id',
+          jornadaId
+        )
+        .eq(
+          'colaborador_email',
+          emailUsuario()
+        )
+        .is(
+          'intervalo_retorno_em',
+          null
+        )
+        .select()
+        .single();
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao registrar retorno.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        'Retorno do intervalo registrado.',
+
+      jornada:
+        data
+    };
+  }
+
+
+  match =
+    rota.match(
+      /^\/api\/jornada-fixa\/(\d+)\/checkout$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'POST'
+  ) {
+
+    const jornadaId =
+      Number(
+        match[1]
+      );
+
+
+    const jornada =
+      await rsBuscarJornadaSupabase(
+        jornadaId
+      );
+
+
+    if (!jornada) {
+
+      throw new Error(
+        'Jornada não encontrada.'
+      );
+    }
+
+
+    if (
+      emailNormalizado(
+        jornada.colaborador_email
+      )
+      !==
+      emailUsuario()
+    ) {
+
+      throw new Error(
+        'Esta jornada pertence a outro colaborador.'
+      );
+    }
+
+
+    const foto =
+      body.foto
+      ||
+      body.selfie
+      ||
+      body.imagem;
+
+
+    if (!foto) {
+
+      throw new Error(
+        'A foto de saída é obrigatória.'
+      );
+    }
+
+
+    if (
+      body.latitude ===
+      undefined
+      ||
+      body.longitude ===
+      undefined
+    ) {
+
+      throw new Error(
+        'A localização GPS é obrigatória.'
+      );
+    }
+
+
+    const agora =
+      new Date()
+        .toISOString();
+
+
+    let totalMinutos =
+      rsMinutosEntreDatas(
+        jornada.entrada_em,
+        agora
+      );
+
+
+    if (
+      jornada.intervalo_inicio_em
+      &&
+      jornada.intervalo_retorno_em
+    ) {
+
+      totalMinutos =
+        Math.max(
+          0,
+          totalMinutos
+          -
+          rsMinutosEntreDatas(
+            jornada.intervalo_inicio_em,
+            jornada.intervalo_retorno_em
+          )
+        );
+    }
+
+
+    const totalHoras =
+      Number(
+        (
+          totalMinutos /
+          60
+        )
+          .toFixed(
+            2
+          )
+      );
+
+
+    const valorBase =
+      Number(
+        jornada.valor_base ||
+        0
+      );
+
+
+    const valorGerado =
+      String(
+        jornada.valor_tipo ||
+        'dia'
+      )
+        .toLowerCase()
+      ===
+      'hora'
+
+        ?
+
+        Number(
+          (
+            totalHoras *
+            valorBase
+          )
+            .toFixed(
+              2
+            )
+        )
+
+        :
+
+        valorBase;
+
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .update({
+          status:
+            'ENCERRADO',
+
+          saida_em:
+            agora,
+
+          saida_foto:
+            foto,
+
+          saida_latitude:
+            String(
+              body.latitude
+            ),
+
+          saida_longitude:
+            String(
+              body.longitude
+            ),
+
+          saida_precisao:
+            String(
+              body.precisao
+              ??
+              body.accuracy
+              ??
+              ''
+            ),
+
+          total_minutos:
+            totalMinutos,
+
+          total_horas:
+            totalHoras,
+
+          valor_gerado:
+            valorGerado,
+
+          atualizado_em:
+            agora
+        })
+        .eq(
+          'id',
+          jornadaId
+        )
+        .eq(
+          'colaborador_email',
+          emailUsuario()
+        )
+        .is(
+          'saida_em',
+          null
+        )
+        .select()
+        .single();
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao registrar saída.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        'Saída registrada. Horas e valor calculados.',
+
+      jornada:
+        data
+    };
+  }
+
+
+  match =
+    rota.match(
+      /^\/api\/jornada-fixa\/(\d+)\/validar$/
+    );
+
+
+  if (
+    match
+    &&
+    metodo ===
+    'POST'
+  ) {
+
+    const jornadaId =
+      Number(
+        match[1]
+      );
+
+
+    const tipo =
+      texto(
+        body.tipo
+      )
+        .toLowerCase();
+
+
+    const agora =
+      new Date()
+        .toISOString();
+
+
+    const alteracao =
+      tipo ===
+      'entrada'
+
+        ?
+
+        {
+          entrada_validada:
+            true,
+
+          entrada_validada_por:
+            emailUsuario(),
+
+          entrada_validada_em:
+            agora,
+
+          atualizado_em:
+            agora
+        }
+
+        :
+
+        tipo ===
+        'saida'
+
+          ?
+
+          {
+            saida_validada:
+              true,
+
+            saida_validada_por:
+              emailUsuario(),
+
+            saida_validada_em:
+              agora,
+
+            atualizado_em:
+              agora
+          }
+
+          :
+
+          null;
+
+
+    if (!alteracao) {
+
+      throw new Error(
+        'Tipo de validação inválido.'
+      );
+    }
+
+
+    const {
+      data,
+      error
+    } =
+      await sb
+        .from(
+          'jornadas_clientes'
+        )
+        .update(
+          alteracao
+        )
+        .eq(
+          'id',
+          jornadaId
+        )
+        .select()
+        .single();
+
+
+    rsErroSupabase(
+      error,
+      'Erro ao validar Jornada.'
+    );
+
+
+    return {
+      sucesso:
+        true,
+
+      mensagem:
+        tipo ===
+        'entrada'
+
+          ?
+
+          'Entrada validada com sucesso.'
+
+          :
+
+          'Saída validada com sucesso.',
+
+      jornada:
+        data
+    };
+  }
+
+
+  throw new Error(
+    `A rota da Jornada ainda não foi migrada para o Supabase: ${rota}`
+  );
+}
+
+
+
 // ============================================================
 // API
 // ============================================================
@@ -3801,6 +6367,34 @@ async function apiFetch(
   caminho,
   opcoes = {}
 ) {
+
+  const metodo =
+    String(
+      opcoes.method ||
+      'GET'
+    )
+      .toUpperCase();
+
+
+  // ==========================================================
+  // JORNADA DIRETO NO SUPABASE
+  //
+  // Essas rotas não vão mais para o Render.
+  // ==========================================================
+
+  if (
+    rsRotaJornadaVaiSupabase(
+      caminho,
+      metodo
+    )
+  ) {
+
+    return rsJornadaSupabaseApi(
+      caminho,
+      opcoes
+    );
+  }
+
 
   const headers = {
     ...(
@@ -4080,6 +6674,14 @@ async function fazerLogin(
 
   try {
 
+    const emailLogin =
+      $('loginEmail').value;
+
+
+    const senhaLogin =
+      $('loginSenha').value;
+
+
     const data =
       await apiFetch(
         '/api/login',
@@ -4090,13 +6692,22 @@ async function fazerLogin(
           body:
             JSON.stringify({
               email:
-                $('loginEmail').value,
+                emailLogin,
 
               senha:
-                $('loginSenha').value
+                senhaLogin
             })
         }
       );
+
+
+    // A Jornada usa RLS do Supabase.
+    // Portanto a mesma conta precisa estar autenticada
+    // também no Supabase Auth.
+    await rsLoginSupabase(
+      emailLogin,
+      senhaLogin
+    );
 
 
     usuarioAtual =
@@ -4888,6 +7499,10 @@ async function restaurarSessao() {
       await apiFetch(
         '/api/auth/sessao'
       );
+
+
+    // Confirma também a sessão do Supabase usada na Jornada.
+    await rsGarantirSessaoSupabase();
 
 
     usuarioAtual =
