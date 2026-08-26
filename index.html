@@ -1869,8 +1869,11 @@
                   🏢 JORNADA — Gestão dos Clientes Sob Demanda do Grupo RS
                 </h3>
 
-                <div class="small muted">
-                  Cadastre clientes e colaboradores e acompanhe entrada, foto, GPS, validação, intervalo, retorno, saída, horas, valores, contratos e histórico.
+                <div
+                  id="jcDescricaoGestao"
+                  class="small muted"
+                >
+                  Gestão segura das jornadas.
                 </div>
 
                 <div class="jc-flow">
@@ -1917,7 +1920,10 @@
                  PAINEL PRINCIPAL — DEIXA TODA A JORNADA VISÍVEL
             ================================================== -->
 
-            <div class="jc-owner-guide">
+            <div
+              id="jcOwnerGuide"
+              class="jc-owner-guide"
+            >
 
               <div class="jc-owner-guide-title">
                 ✅ Controle completo dos clientes sob demanda do Grupo RS
@@ -14512,6 +14518,28 @@ function jcEhGrupoRS() {
 }
 
 
+function jcTextoGestaoJornada() {
+
+  if (
+    jcEhGrupoRS()
+  ) {
+
+    return 'Cadastre clientes e colaboradores e acompanhe entrada, foto, GPS, validação, intervalo, retorno, saída, horas, valores, contratos e histórico.';
+  }
+
+
+  if (
+    ehEmpresaCliente()
+  ) {
+
+    return 'Acompanhe somente os colaboradores vinculados à sua empresa, valide entrada e saída e consulte jornadas, horários, valores e documentos permitidos.';
+  }
+
+
+  return 'Consulte sua própria jornada de trabalho.';
+}
+
+
 
 function jcAplicarPermissoesJornada() {
 
@@ -14519,10 +14547,28 @@ function jcAplicarPermissoesJornada() {
     jcEhGestor();
 
 
-  // O servidor é a autoridade final:
-  // - Grupo RS vê todos os clientes;
-  // - empresa cliente vê somente seu próprio cliente;
-  // - colaborador vê somente suas próprias jornadas.
+  const grupoRS =
+    jcEhGrupoRS();
+
+
+  const descricao =
+    $('jcDescricaoGestao');
+
+
+  if (descricao) {
+
+    descricao.textContent =
+      jcTextoGestaoJornada();
+  }
+
+
+  // O servidor continua sendo a autoridade final:
+  // - Grupo RS vê e administra todos os clientes;
+  // - empresa cliente vê somente o próprio cliente;
+  // - colaborador vê somente as próprias jornadas.
+  //
+  // No INDEX, ações administrativas ficam visíveis somente
+  // para o Grupo RS.
 
 
   $('jcGestaoTopo')
@@ -14546,13 +14592,18 @@ function jcAplicarPermissoesJornada() {
     );
 
 
-  if (!gestor) {
+  $('btnJcNovoCliente')
+    ?.classList.toggle(
+      'hidden',
+      !grupoRS
+    );
 
-    $('btnJcNovoCliente')
-      ?.classList.add(
-        'hidden'
-      );
-  }
+
+  $('jcOwnerGuide')
+    ?.classList.toggle(
+      'hidden',
+      !grupoRS
+    );
 }
 
 
@@ -15318,8 +15369,14 @@ function jcRenderizarClientes() {
 async function jcAbrirCadastroCliente() {
 
   if (
-    !jcEhGestor()
+    !jcEhGrupoRS()
   ) {
+
+    toast(
+      'Somente o Grupo RS pode cadastrar empresas clientes.',
+      'error'
+    );
+
 
     return;
   }
@@ -15532,14 +15589,26 @@ async function jcAbrirCliente(
       </div>
 
 
-      <button
-        class="btn btn-primary"
-        onclick="jcVincularColaborador(
-          ${clienteId}
-        )"
-      >
-        + Vincular colaborador
-      </button>
+      ${
+        jcEhGrupoRS()
+          ?
+          `
+            <button
+              class="btn btn-primary"
+              onclick="jcVincularColaborador(
+                ${clienteId}
+              )"
+            >
+              + Vincular colaborador
+            </button>
+          `
+          :
+          `
+            <span class="small muted">
+              A equipe é administrada pelo Grupo RS.
+            </span>
+          `
+      }
 
     </div>
 
@@ -15718,6 +15787,20 @@ async function jcCarregarColaboradoresCliente(
 async function jcVincularColaborador(
   clienteId
 ) {
+
+  if (
+    !jcEhGrupoRS()
+  ) {
+
+    toast(
+      'Somente o Grupo RS pode vincular colaboradores aos clientes.',
+      'error'
+    );
+
+
+    return;
+  }
+
 
   const nome =
     window.prompt(
