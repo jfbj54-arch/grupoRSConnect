@@ -993,6 +993,115 @@
       .jc-flow-step { flex: 0 0 auto; }
     }
 
+
+/* ============================================================
+   JORNADA RS — PAINEL VISUAL PRINCIPAL
+   ============================================================ */
+
+.jc-main-dashboard{
+  display:grid;
+  grid-template-columns:repeat(5,minmax(150px,1fr));
+  gap:10px;
+  margin-top:16px;
+  margin-bottom:14px;
+}
+
+.jc-main-card{
+  border:1px solid rgba(255,255,255,.10);
+  background:linear-gradient(180deg,rgba(255,255,255,.055),rgba(255,255,255,.025));
+  border-radius:16px;
+  padding:15px;
+  min-height:142px;
+  display:flex;
+  flex-direction:column;
+  justify-content:space-between;
+  cursor:pointer;
+  transition:.18s ease;
+  box-shadow:0 10px 26px rgba(0,0,0,.14);
+}
+
+.jc-main-card:hover{
+  transform:translateY(-2px);
+  border-color:rgba(52,152,219,.48);
+}
+
+.jc-main-icon{
+  font-size:25px;
+  margin-bottom:8px;
+}
+
+.jc-main-card strong{
+  display:block;
+  font-size:15px;
+  line-height:1.25;
+}
+
+.jc-main-card .small{
+  line-height:1.45;
+  margin-top:6px;
+}
+
+.jc-main-number{
+  font-size:24px;
+  font-weight:800;
+  margin-top:10px;
+}
+
+.jc-owner-guide{
+  margin-top:14px;
+  padding:14px;
+  border-radius:14px;
+  border:1px solid rgba(52,152,219,.22);
+  background:rgba(52,152,219,.07);
+}
+
+.jc-owner-guide-title{
+  font-weight:800;
+  margin-bottom:8px;
+}
+
+.jc-owner-flow{
+  display:flex;
+  gap:7px;
+  flex-wrap:wrap;
+}
+
+.jc-owner-flow span{
+  padding:7px 9px;
+  border-radius:999px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.08);
+  font-size:12px;
+  white-space:nowrap;
+}
+
+@media (max-width:1100px){
+  .jc-main-dashboard{
+    grid-template-columns:repeat(3,minmax(150px,1fr));
+  }
+}
+
+@media (max-width:700px){
+  .jc-main-dashboard{
+    grid-template-columns:1fr 1fr;
+  }
+
+  .jc-main-card{
+    min-height:126px;
+    padding:12px;
+  }
+
+  .jc-main-card strong{
+    font-size:14px;
+  }
+}
+
+@media (max-width:420px){
+  .jc-main-dashboard{
+    grid-template-columns:1fr;
+  }
+}
+
 </style>
 
 </head>
@@ -1657,11 +1766,11 @@
                   class="section-title"
                   style="margin-bottom:5px;"
                 >
-                  🏢 Gestão de Jornada dos Clientes
+                  🏢 JORNADA — Gestão dos Clientes Fixos do Grupo RS
                 </h3>
 
                 <div class="small muted">
-                  Clientes fixos • colaboradores • ponto • validação • horas • valores • documentos • histórico
+                  Cadastre clientes e colaboradores e acompanhe entrada, foto, GPS, validação, intervalo, retorno, saída, horas, valores, contratos e histórico.
                 </div>
 
                 <div class="jc-flow">
@@ -1698,6 +1807,141 @@
                   ↻ Atualizar
                 </button>
 
+              </div>
+
+            </div>
+
+
+
+            <!-- =================================================
+                 PAINEL PRINCIPAL — DEIXA TODA A JORNADA VISÍVEL
+            ================================================== -->
+
+            <div class="jc-owner-guide">
+
+              <div class="jc-owner-guide-title">
+                ✅ Controle completo dos clientes fixos do Grupo RS
+              </div>
+
+              <div class="small muted" style="margin-bottom:10px;">
+                Use os cartões abaixo para cadastrar clientes, vincular colaboradores,
+                acompanhar o ponto do dia, consultar histórico e acessar contratos/documentos.
+              </div>
+
+              <div class="jc-owner-flow">
+                <span>1. Cliente</span>
+                <span>2. Colaborador</span>
+                <span>3. Foto + GPS + Entrada</span>
+                <span>4. Cliente valida</span>
+                <span>5. Intervalo</span>
+                <span>6. Retorno</span>
+                <span>7. Saída</span>
+                <span>8. Horas + Valor</span>
+                <span>9. Documentos / Assinatura</span>
+                <span>10. Arquivo histórico</span>
+              </div>
+
+            </div>
+
+
+            <div class="jc-main-dashboard">
+
+              <div
+                class="jc-main-card"
+                onclick="jcIrParaModulo('clientes')"
+              >
+                <div>
+                  <div class="jc-main-icon">🏢</div>
+                  <strong>Clientes fixos</strong>
+                  <div class="small muted">
+                    Gratidão, SMT, PortoX e demais empresas atendidas.
+                  </div>
+                </div>
+
+                <div
+                  id="jcResumoClientes"
+                  class="jc-main-number"
+                >
+                  0
+                </div>
+              </div>
+
+
+              <div
+                class="jc-main-card"
+                onclick="jcIrParaModulo('clientes')"
+              >
+                <div>
+                  <div class="jc-main-icon">👷</div>
+                  <strong>Colaboradores</strong>
+                  <div class="small muted">
+                    Vincule Mayara e os demais colaboradores com função, horário e valor.
+                  </div>
+                </div>
+
+                <div
+                  id="jcResumoColaboradores"
+                  class="jc-main-number"
+                >
+                  0
+                </div>
+              </div>
+
+
+              <div
+                class="jc-main-card"
+                onclick="jcIrParaModulo('hoje')"
+              >
+                <div>
+                  <div class="jc-main-icon">📍</div>
+                  <strong>Jornada de hoje</strong>
+                  <div class="small muted">
+                    Entrada, foto, GPS, presença, intervalo, retorno, saída, horas e valor.
+                  </div>
+                </div>
+
+                <div
+                  id="jcResumoJornadasHoje"
+                  class="jc-main-number"
+                >
+                  0
+                </div>
+              </div>
+
+
+              <div
+                class="jc-main-card"
+                onclick="jcIrParaModulo('historico')"
+              >
+                <div>
+                  <div class="jc-main-icon">🗃</div>
+                  <strong>Histórico</strong>
+                  <div class="small muted">
+                    Pesquise cliente + colaborador e consulte todas as jornadas anteriores.
+                  </div>
+                </div>
+
+                <div class="jc-main-number">
+                  🔎
+                </div>
+              </div>
+
+
+              <div
+                class="jc-main-card"
+                onclick="jcIrParaModulo('documentos')"
+              >
+                <div>
+                  <div class="jc-main-icon">📄</div>
+                  <strong>Contratos e documentos</strong>
+                  <div class="small muted">
+                    PDFs vinculados à jornada, assinatura digital e arquivamento.
+                  </div>
+                </div>
+
+                <div class="jc-main-number">
+                  🇧🇷
+                </div>
               </div>
 
             </div>
@@ -13563,6 +13807,9 @@ async function jcCarregarClientes() {
   jcRenderizarClientes();
 
 
+  jcAtualizarResumoPrincipal();
+
+
   return jcClientesCache;
 }
 
@@ -13766,6 +14013,106 @@ async function jcCarregarTudo(
         'error'
       );
     }
+  }
+}
+
+
+
+function jcIrParaModulo(nome) {
+
+  jcAbrirSubaba(
+    nome
+  );
+
+
+  const alvo =
+    nome === 'hoje'
+      ?
+      $('jcSubHoje')
+      :
+      nome === 'clientes'
+        ?
+        $('jcSubClientes')
+        :
+        nome === 'historico'
+          ?
+          $('jcSubHistorico')
+          :
+          $('jcSubDocumentos');
+
+
+  setTimeout(
+    () => {
+      alvo?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'start'
+      });
+    },
+    80
+  );
+}
+
+
+function jcAtualizarResumoPrincipal() {
+
+  const clientes =
+    Array.isArray(
+      jcClientesCache
+    )
+      ?
+      jcClientesCache
+      :
+      [];
+
+
+  const totalClientes =
+    clientes.length;
+
+
+  const totalColaboradores =
+    clientes.reduce(
+      (total, cliente) =>
+        total
+        +
+        Number(
+          cliente.colaboradores_ativos ||
+          0
+        ),
+      0
+    );
+
+
+  const totalJornadas =
+    Array.isArray(
+      jcJornadasHojeCache
+    )
+      ?
+      jcJornadasHojeCache.length
+      :
+      0;
+
+
+  if ($('jcResumoClientes')) {
+    $('jcResumoClientes').textContent =
+      String(
+        totalClientes
+      );
+  }
+
+
+  if ($('jcResumoColaboradores')) {
+    $('jcResumoColaboradores').textContent =
+      String(
+        totalColaboradores
+      );
+  }
+
+
+  if ($('jcResumoJornadasHoje')) {
+    $('jcResumoJornadasHoje').textContent =
+      String(
+        totalJornadas
+      );
   }
 }
 
@@ -14659,6 +15006,9 @@ async function jcCarregarAcompanhamento() {
         data.jornadas
         :
         [];
+
+
+    jcAtualizarResumoPrincipal();
 
 
     jcRenderizarKpis(
