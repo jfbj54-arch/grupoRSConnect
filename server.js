@@ -8602,7 +8602,1392 @@ app.get(
 // RS CONNECT — SERVER.JS
 // PARTE 6
 // DOCUMENTOS + CONTRATO + NOTA FISCAL + CHAT
+// ATUALIZADA — DESTINATÁRIO AUTOMÁTICO NO CHAT
 // ============================================================
+
+
+// ============================================================
+// DOCUMENTOS DOS SERVIÇOS
+// ============================================================
+
+app.post(
+    '/api/servicos/:id/documentos',
+
+    upload.single('arquivo'),
+
+    async (req, res) => {
+
+        const servicoId =
+            Number(
+                req.params.id
+            );
+
+        try {
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            let arquivo =
+                '';
+
+            let nome =
+                'documento';
+
+            const categoria =
+                String(
+                    req.body?.categoria ||
+                    'DOCUMENTO'
+                )
+                    .toUpperCase();
+
+
+            if (req.file) {
+
+                arquivo =
+                    `data:${req.file.mimetype};base64,${
+                        req.file.buffer
+                            .toString(
+                                'base64'
+                            )
+                    }`;
+
+                nome =
+                    req.file.originalname ||
+                    nome;
+
+            } else {
+
+                arquivo =
+                    String(
+                        req.body?.arquivo ||
+                        ''
+                    );
+
+                nome =
+                    String(
+                        req.body?.nome ||
+                        nome
+                    );
+            }
+
+
+            if (!arquivo) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Selecione um documento.'
+                    });
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    INSERT INTO documentos_rs (
+                        servico_id,
+                        empresa_email,
+                        prestador_email,
+                        categoria,
+                        nome,
+                        arquivo
+                    )
+
+                    VALUES (
+                        $1,$2,$3,$4,$5,$6
+                    )
+
+                    RETURNING *
+                    `,
+                    [
+                        servicoId,
+                        servico.empresa_email,
+                        servico.prestador_email,
+                        categoria,
+                        nome,
+                        arquivo
+                    ]
+                );
+
+
+            await registrarAuditoria(
+                servico.empresa_email ||
+                servico.prestador_email,
+
+                'DOCUMENTO_SERVICO',
+
+                `Documento vinculado ao serviço #${servicoId}.`
+            );
+
+
+            emitirAtualizacao(
+                servicoId
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    'Documento arquivado.',
+
+                documento:
+                    resultado.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Documento:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao arquivar documento.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// LISTAR DOCUMENTOS DO SERVIÇO
+// ============================================================
+
+app.get(
+    '/api/servicos/:id/documentos',
+
+    async (req, res) => {
+
+        try {
+
+            const servicoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM documentos_rs
+
+                    WHERE
+                        servico_id = $1
+
+                    ORDER BY
+                        criado_em DESC,
+                        id DESC
+                    `,
+                    [
+                        servicoId
+                    ]
+                );
+
+
+            return res.json({
+                sucesso: true,
+
+                total:
+                    resultado.rows.length,
+
+                documentos:
+                    resultado.rows
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Listar documentos:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao carregar documentos.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// CONTRATO ASSINADO
+// ============================================================
+
+app.post(
+    '/api/servicos/:id/contrato-assinado',
+
+    upload.single('arquivo'),
+
+    async (req, res) => {
+
+        const servicoId =
+            Number(
+                req.params.id
+            );
+
+
+        try {
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            let arquivo =
+                '';
+
+
+            if (req.file) {
+
+                arquivo =
+                    `data:${req.file.mimetype};base64,${
+                        req.file.buffer
+                            .toString(
+                                'base64'
+                            )
+                    }`;
+
+            } else {
+
+                arquivo =
+                    String(
+                        req.body?.arquivo ||
+                        ''
+                    );
+            }
+
+
+            if (!arquivo) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Envie o contrato assinado.'
+                    });
+            }
+
+
+            await pool.query(
+                `
+                UPDATE servicos
+
+                SET
+                    contrato_assinado = $1,
+                    contrato_assinado_em =
+                        CURRENT_TIMESTAMP
+
+                WHERE
+                    id = $2
+                `,
+                [
+                    arquivo,
+                    servicoId
+                ]
+            );
+
+
+            await pool.query(
+                `
+                INSERT INTO documentos_rs (
+                    servico_id,
+                    empresa_email,
+                    prestador_email,
+                    categoria,
+                    nome,
+                    arquivo
+                )
+
+                VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    'CONTRATO_ASSINADO',
+                    'Contrato assinado',
+                    $4
+                )
+                `,
+                [
+                    servicoId,
+                    servico.empresa_email,
+                    servico.prestador_email,
+                    arquivo
+                ]
+            );
+
+
+            await registrarAuditoria(
+                servico.prestador_email ||
+                servico.empresa_email,
+
+                'CONTRATO_ASSINADO',
+
+                `Contrato assinado arquivado no serviço #${servicoId}.`
+            );
+
+
+            emitirAtualizacao(
+                servicoId
+            );
+
+
+            io.emit(
+                'contrato_assinado',
+                {
+                    servicoId
+                }
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    'Contrato assinado arquivado.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Contrato assinado:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao arquivar contrato.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// NOTA FISCAL
+// ============================================================
+
+app.post(
+    '/api/servicos/:id/nota-oficial',
+
+    upload.single('notaFiscal'),
+
+    async (req, res) => {
+
+        const servicoId =
+            Number(
+                req.params.id
+            );
+
+
+        try {
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            let arquivo =
+                '';
+
+
+            if (req.file) {
+
+                arquivo =
+                    `data:${req.file.mimetype};base64,${
+                        req.file.buffer
+                            .toString(
+                                'base64'
+                            )
+                    }`;
+
+            } else {
+
+                arquivo =
+                    String(
+                        req.body?.notaFiscal ||
+                        req.body?.arquivo ||
+                        ''
+                    );
+            }
+
+
+            if (!arquivo) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Nenhuma nota fiscal enviada.'
+                    });
+            }
+
+
+            await pool.query(
+                `
+                UPDATE servicos
+
+                SET
+                    nota_oficial = $1
+
+                WHERE
+                    id = $2
+                `,
+                [
+                    arquivo,
+                    servicoId
+                ]
+            );
+
+
+            // Guardar também nos documentos
+            await pool.query(
+                `
+                INSERT INTO documentos_rs (
+                    servico_id,
+                    empresa_email,
+                    prestador_email,
+                    categoria,
+                    nome,
+                    arquivo
+                )
+
+                VALUES (
+                    $1,
+                    $2,
+                    $3,
+                    'NOTA_FISCAL',
+                    'Nota Fiscal',
+                    $4
+                )
+                `,
+                [
+                    servicoId,
+                    servico.empresa_email,
+                    servico.prestador_email,
+                    arquivo
+                ]
+            );
+
+
+            await registrarAuditoria(
+                servico.prestador_email ||
+                servico.empresa_email,
+
+                'NOTA_FISCAL',
+
+                `Nota fiscal enviada para o serviço #${servicoId}.`
+            );
+
+
+            emitirAtualizacao(
+                servicoId
+            );
+
+
+            io.emit(
+                'nota_fiscal_enviada',
+                {
+                    servicoId
+                }
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    'Nota fiscal enviada.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Nota fiscal:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao enviar nota fiscal.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// CHAT — GARANTIR CONVERSA
+// ============================================================
+
+async function garantirConversaServico(
+    servico
+) {
+
+    if (
+        !servico ||
+        !servico.id ||
+        !servico.empresa_email ||
+        !servico.prestador_email
+    ) {
+
+        return null;
+    }
+
+
+    const empresaEmail =
+        normalizarEmail(
+            servico.empresa_email
+        );
+
+
+    const prestadorEmail =
+        normalizarEmail(
+            servico.prestador_email
+        );
+
+
+    const existente =
+        await pool.query(
+            `
+            SELECT *
+            FROM conversas
+
+            WHERE
+                servico_id = $1
+
+            AND
+                LOWER(
+                    empresa_email
+                )
+                =
+                LOWER($2)
+
+            AND
+                LOWER(
+                    prestador_email
+                )
+                =
+                LOWER($3)
+
+            LIMIT 1
+            `,
+            [
+                servico.id,
+                empresaEmail,
+                prestadorEmail
+            ]
+        );
+
+
+    if (
+        existente.rows.length
+    ) {
+
+        return existente.rows[0];
+    }
+
+
+    const criada =
+        await pool.query(
+            `
+            INSERT INTO conversas (
+                servico_id,
+                empresa_email,
+                prestador_email,
+                ativo
+            )
+
+            VALUES (
+                $1,$2,$3,TRUE
+            )
+
+            ON CONFLICT (
+                servico_id,
+                empresa_email,
+                prestador_email
+            )
+
+            DO UPDATE SET
+                ativo = TRUE,
+
+                atualizado_em =
+                    CURRENT_TIMESTAMP
+
+            RETURNING *
+            `,
+            [
+                servico.id,
+                empresaEmail,
+                prestadorEmail
+            ]
+        );
+
+
+    return criada.rows[0];
+}
+
+
+// ============================================================
+// ABRIR CONVERSA DO SERVIÇO
+// ============================================================
+
+app.get(
+    '/api/servicos/:id/conversa',
+
+    async (req, res) => {
+
+        try {
+
+            const servico =
+                await buscarServico(
+                    Number(
+                        req.params.id
+                    )
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            if (
+                !servico.prestador_email
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Este serviço ainda não possui Titular.'
+                    });
+            }
+
+
+            const conversa =
+                await garantirConversaServico(
+                    servico
+                );
+
+
+            if (!conversa) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Não foi possível criar a conversa.'
+                    });
+            }
+
+
+            return res.json({
+                sucesso: true,
+
+                conversa: {
+                    ...conversa,
+
+                    empresa_nome:
+                        servico.empresa_nome,
+
+                    prestador_nome:
+                        servico.prestador_nome,
+
+                    servico_titulo:
+                        servico.titulo ||
+                        servico.categoria
+                }
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Abrir conversa:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao abrir conversa.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// LISTAR CONVERSAS
+// ============================================================
+
+app.get(
+    '/api/chat/conversas/:email',
+
+    async (req, res) => {
+
+        try {
+
+            const email =
+                normalizarEmail(
+                    req.params.email
+                );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        conversa.*,
+
+                        servico.titulo
+                            AS servico_titulo,
+
+                        servico.empresa_nome,
+
+                        servico.prestador_nome,
+
+                        (
+                            SELECT
+                                mensagem.mensagem
+
+                            FROM
+                                mensagens_chat
+                                AS mensagem
+
+                            WHERE
+                                mensagem.conversa_id =
+                                conversa.id
+
+                            ORDER BY
+                                mensagem.criado_em DESC,
+                                mensagem.id DESC
+
+                            LIMIT 1
+                        )
+                            AS ultima_mensagem,
+
+                        (
+                            SELECT
+                                COUNT(*)::int
+
+                            FROM
+                                mensagens_chat
+                                AS mensagem
+
+                            WHERE
+                                mensagem.conversa_id =
+                                conversa.id
+
+                            AND
+                                LOWER(
+                                    mensagem.destinatario_email
+                                )
+                                =
+                                LOWER($1)
+
+                            AND
+                                mensagem.lida =
+                                FALSE
+                        )
+                            AS nao_lidas
+
+                    FROM
+                        conversas
+                        AS conversa
+
+                    LEFT JOIN
+                        servicos
+                        AS servico
+
+                    ON
+                        servico.id =
+                        conversa.servico_id
+
+                    WHERE
+                        LOWER(
+                            conversa.empresa_email
+                        )
+                        =
+                        LOWER($1)
+
+                    OR
+                        LOWER(
+                            conversa.prestador_email
+                        )
+                        =
+                        LOWER($1)
+
+                    ORDER BY
+                        conversa.atualizado_em DESC,
+                        conversa.id DESC
+                    `,
+                    [
+                        email
+                    ]
+                );
+
+
+            return res.json({
+                sucesso: true,
+
+                conversas:
+                    resultado.rows
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Listar conversas:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao carregar conversas.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// LISTAR MENSAGENS DA CONVERSA
+// ============================================================
+
+app.get(
+    '/api/chat/conversas/:id/mensagens',
+
+    async (req, res) => {
+
+        try {
+
+            const conversaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM mensagens_chat
+
+                    WHERE
+                        conversa_id = $1
+
+                    ORDER BY
+                        criado_em ASC,
+                        id ASC
+                    `,
+                    [
+                        conversaId
+                    ]
+                );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagens:
+                    resultado.rows
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Mensagens:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao carregar mensagens.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// ENVIAR MENSAGEM — CORRIGIDO
+//
+// O INDEX ENVIA:
+// remetente_email
+// mensagem
+//
+// O SERVER DESCOBRE AUTOMATICAMENTE
+// O DESTINATÁRIO DA CONVERSA.
+// ============================================================
+
+app.post(
+    '/api/chat/conversas/:id/mensagens',
+
+    async (req, res) => {
+
+        try {
+
+            const conversaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const remetenteEmail =
+                normalizarEmail(
+                    req.body?.remetente_email ||
+                    req.body?.remetenteEmail ||
+                    req.body?.email
+                );
+
+
+            const mensagem =
+                String(
+                    req.body?.mensagem ||
+                    ''
+                )
+                    .trim();
+
+
+            if (
+                !conversaId ||
+                !remetenteEmail ||
+                !mensagem
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+
+                        erro:
+                            'Remetente e mensagem são obrigatórios.'
+                    });
+            }
+
+
+            // =================================================
+            // BUSCAR A CONVERSA
+            // =================================================
+
+            const conversaRes =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM conversas
+
+                    WHERE
+                        id = $1
+
+                    LIMIT 1
+                    `,
+                    [
+                        conversaId
+                    ]
+                );
+
+
+            const conversa =
+                conversaRes.rows[0];
+
+
+            if (!conversa) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+
+                        erro:
+                            'Conversa não encontrada.'
+                    });
+            }
+
+
+            const empresaEmail =
+                normalizarEmail(
+                    conversa.empresa_email
+                );
+
+
+            const prestadorEmail =
+                normalizarEmail(
+                    conversa.prestador_email
+                );
+
+
+            // =================================================
+            // VERIFICAR SE O REMETENTE PARTICIPA DA CONVERSA
+            // =================================================
+
+            if (
+                remetenteEmail !== empresaEmail &&
+                remetenteEmail !== prestadorEmail
+            ) {
+
+                return res
+                    .status(403)
+                    .json({
+                        sucesso: false,
+
+                        erro:
+                            'Você não participa desta conversa.'
+                    });
+            }
+
+
+            // =================================================
+            // DESCOBRIR DESTINATÁRIO AUTOMATICAMENTE
+            //
+            // EMPRESA → PRESTADOR
+            // PRESTADOR → EMPRESA
+            // =================================================
+
+            const destinatarioEmail =
+                remetenteEmail === empresaEmail
+                    ?
+                    prestadorEmail
+                    :
+                    empresaEmail;
+
+
+            if (!destinatarioEmail) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+
+                        erro:
+                            'Não foi possível identificar o destinatário.'
+                    });
+            }
+
+
+            // =================================================
+            // SALVAR MENSAGEM
+            // =================================================
+
+            const resultado =
+                await pool.query(
+                    `
+                    INSERT INTO mensagens_chat (
+                        conversa_id,
+                        remetente_email,
+                        destinatario_email,
+                        mensagem,
+                        lida
+                    )
+
+                    VALUES (
+                        $1,$2,$3,$4,FALSE
+                    )
+
+                    RETURNING *
+                    `,
+                    [
+                        conversaId,
+                        remetenteEmail,
+                        destinatarioEmail,
+                        mensagem
+                    ]
+                );
+
+
+            // =================================================
+            // ATUALIZAR DATA DA CONVERSA
+            // =================================================
+
+            await pool.query(
+                `
+                UPDATE conversas
+
+                SET
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
+
+                WHERE
+                    id = $1
+                `,
+                [
+                    conversaId
+                ]
+            );
+
+
+            const novaMensagem =
+                resultado.rows[0];
+
+
+            // =================================================
+            // WEBSOCKET — SALA DA CONVERSA
+            // =================================================
+
+            io.to(
+                `conversa_${conversaId}`
+            )
+                .emit(
+                    'nova_mensagem',
+                    novaMensagem
+                );
+
+
+            // =================================================
+            // WEBSOCKET — DESTINATÁRIO
+            // =================================================
+
+            io.to(
+                `usuario_${destinatarioEmail}`
+            )
+                .emit(
+                    'mensagem_recebida',
+                    {
+                        conversaId,
+                        servicoId:
+                            conversa.servico_id
+                    }
+                );
+
+
+            // Compatibilidade com sala antiga
+            io.to(
+                `user:${destinatarioEmail}`
+            )
+                .emit(
+                    'nova_mensagem',
+                    novaMensagem
+                );
+
+
+            // Compatibilidade para remetente
+            io.to(
+                `user:${remetenteEmail}`
+            )
+                .emit(
+                    'nova_mensagem',
+                    novaMensagem
+                );
+
+
+            console.log(
+                `💬 CHAT: ${remetenteEmail} → ${destinatarioEmail}`
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    novaMensagem
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Enviar mensagem:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+
+                    erro:
+                        'Erro ao enviar mensagem.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// MARCAR MENSAGENS COMO LIDAS
+// ============================================================
+
+app.post(
+    '/api/chat/conversas/:id/lidas',
+
+    async (req, res) => {
+
+        try {
+
+            const conversaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const email =
+                normalizarEmail(
+                    req.body?.email
+                );
+
+
+            if (!email) {
+
+                return res
+                    .status(400)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            'Informe o usuário.'
+                    });
+            }
+
+
+            await pool.query(
+                `
+                UPDATE mensagens_chat
+
+                SET
+                    lida = TRUE
+
+                WHERE
+                    conversa_id = $1
+
+                AND
+                    LOWER(
+                        destinatario_email
+                    )
+                    =
+                    LOWER($2)
+                `,
+                [
+                    conversaId,
+                    email
+                ]
+            );
+
+
+            return res.json({
+                sucesso: true,
+
+                mensagem:
+                    'Mensagens marcadas como lidas.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Marcar mensagens:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Erro ao atualizar mensagens.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FIM DA PARTE 6
+// COLE A PARTE 7 CORRIGIDA IMEDIATAMENTE ABAIXO
+// ============================================================
+
 
 
 // ============================================================
