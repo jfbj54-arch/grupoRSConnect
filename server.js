@@ -1,49 +1,99 @@
 // ============================================================
-// RS CONNECT — SERVER.JS COMPLETO
-// LOGIN + SENHAS + SERVIÇOS + JORNADA + CLIENTES FIXOS
-// CHAT + DOCUMENTOS + PAGAMENTOS + WEBSOCKET + RENDER
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 1
+//
+// LOGIN + TOKEN + PRIVACIDADE + FUNÇÕES BASE
+//
+// IMPORTANTE:
+// TODAS AS PARTES DEVEM SER COLADAS NO MESMO server.js
 // ============================================================
-
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
-const path = require('path');
-const { Pool } = require('pg');
-const multer = require('multer');
-const crypto = require('crypto');
 
 
 // ============================================================
-// APP / HTTP / SOCKET
+// IMPORTAÇÕES
 // ============================================================
 
-const app = express();
+const express =
+    require('express');
 
-const server = http.createServer(app);
 
-const io = new Server(server, {
-    cors: {
-        origin: '*',
-        methods: [
-            'GET',
-            'POST',
-            'PUT',
-            'PATCH',
-            'DELETE'
-        ]
-    }
-});
+const http =
+    require('http');
+
+
+const {
+    Server
+} =
+    require('socket.io');
+
+
+const path =
+    require('path');
+
+
+const {
+    Pool
+} =
+    require('pg');
+
+
+const multer =
+    require('multer');
+
+
+const crypto =
+    require('crypto');
+
+
+// ============================================================
+// APP / HTTP / SOCKET.IO
+// ============================================================
+
+const app =
+    express();
+
+
+const server =
+    http.createServer(
+        app
+    );
+
+
+const io =
+    new Server(
+        server,
+        {
+            cors: {
+                origin:
+                    '*',
+
+                methods: [
+                    'GET',
+                    'POST',
+                    'PUT',
+                    'PATCH',
+                    'DELETE'
+                ]
+            }
+        }
+    );
 
 
 // ============================================================
 // UPLOAD
 // ============================================================
 
-const upload = multer({
-    limits: {
-        fileSize: 10 * 1024 * 1024
-    }
-});
+const upload =
+    multer({
+        limits: {
+            fileSize:
+                10 *
+                1024 *
+                1024
+        }
+    });
 
 
 // ============================================================
@@ -52,20 +102,28 @@ const upload = multer({
 
 app.use(
     express.json({
-        limit: '15mb'
+        limit:
+            '15mb'
     })
 );
+
 
 app.use(
     express.urlencoded({
-        extended: true,
-        limit: '15mb'
+        extended:
+            true,
+
+        limit:
+            '15mb'
     })
 );
 
+
 app.use(
     express.static(
-        path.join(__dirname)
+        path.join(
+            __dirname
+        )
     )
 );
 
@@ -74,26 +132,81 @@ app.use(
 // POSTGRESQL
 // ============================================================
 
-const pool = new Pool({
-    connectionString:
-        process.env.DATABASE_URL,
+const pool =
+    new Pool({
 
-    ssl:
+        connectionString:
+            process.env.DATABASE_URL,
+
+
+        ssl:
+            process.env.DATABASE_URL
+
+                ?
+
+                {
+                    rejectUnauthorized:
+                        false
+                }
+
+                :
+
+                false
+    });
+
+
+// ============================================================
+// CONFIGURAÇÕES DE SEGURANÇA
+// ============================================================
+
+// O token é assinado no próprio servidor.
+//
+// Se AUTH_TOKEN_SECRET estiver configurado no Render,
+// será usado.
+//
+// Caso contrário, utilizamos RESET_TOKEN_SECRET.
+//
+// Como última compatibilidade, DATABASE_URL,
+// que também é secreta no servidor.
+//
+// Mais tarde configure:
+// AUTH_TOKEN_SECRET
+//
+// com uma sequência grande e aleatória.
+
+const AUTH_TOKEN_SECRET =
+    String(
+        process.env.AUTH_TOKEN_SECRET
+        ||
+        process.env.RESET_TOKEN_SECRET
+        ||
         process.env.DATABASE_URL
-            ? {
-                rejectUnauthorized: false
-            }
-            : false
-});
+        ||
+        'rs-connect-altere-esta-chave'
+    );
+
+
+// Token válido por 7 dias.
+
+const AUTH_TOKEN_DURACAO =
+    7 *
+    24 *
+    60 *
+    60 *
+    1000;
 
 
 // ============================================================
 // FUNÇÕES AUXILIARES
 // ============================================================
 
-function normalizarEmail(email) {
+function normalizarEmail(
+    email
+) {
+
     return String(
-        email || ''
+        email ||
+        ''
     )
         .trim()
         .toLowerCase();
@@ -101,13 +214,20 @@ function normalizarEmail(email) {
 
 
 function horaAtualRS() {
+
     return new Date()
         .toLocaleTimeString(
             'pt-BR',
             {
-                hour: '2-digit',
-                minute: '2-digit',
-                second: '2-digit',
+                hour:
+                    '2-digit',
+
+                minute:
+                    '2-digit',
+
+                second:
+                    '2-digit',
+
                 timeZone:
                     'America/Sao_Paulo'
             }
@@ -116,6 +236,7 @@ function horaAtualRS() {
 
 
 function dataAtualRS() {
+
     return new Intl.DateTimeFormat(
         'en-CA',
         {
@@ -138,22 +259,29 @@ function dataAtualRS() {
 }
 
 
-function numeroRS(valor) {
+function numeroRS(
+    valor
+) {
 
     if (
         typeof valor ===
         'number'
     ) {
 
-        return Number.isFinite(valor)
-            ? valor
-            : 0;
+        return Number.isFinite(
+            valor
+        )
+            ?
+            valor
+            :
+            0;
     }
 
 
     let texto =
         String(
-            valor ?? ''
+            valor ??
+            ''
         )
             .replace(
                 /R\$/gi,
@@ -166,7 +294,9 @@ function numeroRS(valor) {
 
 
     if (
-        texto.includes(',')
+        texto.includes(
+            ','
+        )
     ) {
 
         texto =
@@ -183,20 +313,31 @@ function numeroRS(valor) {
 
 
     const numero =
-        Number(texto);
+        Number(
+            texto
+        );
 
 
-    return Number.isFinite(numero)
-        ? numero
-        : 0;
+    return Number.isFinite(
+        numero
+    )
+        ?
+        numero
+        :
+        0;
 }
 
 
-function parseReservas(valor) {
+function parseReservas(
+    valor
+) {
 
     if (
-        Array.isArray(valor)
+        Array.isArray(
+            valor
+        )
     ) {
+
         return valor;
     }
 
@@ -205,15 +346,19 @@ function parseReservas(valor) {
 
         const resultado =
             JSON.parse(
-                valor || '[]'
+                valor ||
+                '[]'
             );
 
 
         return Array.isArray(
             resultado
         )
-            ? resultado
-            : [];
+            ?
+            resultado
+            :
+            [];
+
 
     } catch {
 
@@ -226,32 +371,47 @@ function parseReservas(valor) {
 // SENHAS
 // ============================================================
 
-function gerarHashSenha(senha) {
+function gerarHashSenha(
+    senha
+) {
 
     const salt =
         crypto
-            .randomBytes(16)
-            .toString('hex');
+            .randomBytes(
+                16
+            )
+            .toString(
+                'hex'
+            );
 
 
     const hash =
         crypto
             .scryptSync(
-                String(senha),
+                String(
+                    senha
+                ),
                 salt,
                 64
             )
-            .toString('hex');
+            .toString(
+                'hex'
+            );
 
 
-    return `scrypt$${salt}$${hash}`;
+    return (
+        `scrypt$${salt}$${hash}`
+    );
 }
 
 
-function senhaEstaProtegida(valor) {
+function senhaEstaProtegida(
+    valor
+) {
 
     return String(
-        valor || ''
+        valor ||
+        ''
     )
         .startsWith(
             'scrypt$'
@@ -266,17 +426,27 @@ function verificarSenha(
 
     const digitada =
         String(
-            senhaDigitada || ''
+            senhaDigitada ||
+            ''
         );
 
 
     const banco =
         String(
-            senhaBanco || ''
+            senhaBanco ||
+            ''
         );
 
 
-    // COMPATIBILIDADE COM SENHAS ANTIGAS EM TEXTO
+    // ========================================================
+    // SENHA ANTIGA EM TEXTO
+    //
+    // Continua funcionando.
+    //
+    // No primeiro login correto,
+    // será convertida automaticamente.
+    // ========================================================
+
     if (
         !senhaEstaProtegida(
             banco
@@ -293,7 +463,9 @@ function verificarSenha(
     try {
 
         const partes =
-            banco.split('$');
+            banco.split(
+                '$'
+            );
 
 
         if (
@@ -320,7 +492,9 @@ function verificarSenha(
                     salt,
                     64
                 )
-                .toString('hex');
+                .toString(
+                    'hex'
+                );
 
 
         const bufferBanco =
@@ -346,10 +520,12 @@ function verificarSenha(
         }
 
 
-        return crypto.timingSafeEqual(
-            bufferBanco,
-            bufferDigitado
-        );
+        return crypto
+            .timingSafeEqual(
+                bufferBanco,
+                bufferDigitado
+            );
+
 
     } catch {
 
@@ -359,99 +535,1368 @@ function verificarSenha(
 
 
 // ============================================================
-// RECUPERAÇÃO DE SENHA POR E-MAIL
-// AUTOATENDIMENTO — SEM CHAVE ADMINISTRATIVA
+// TOKEN DE LOGIN
+//
+// O SERVER NÃO VAI MAIS CONFIAR SOMENTE
+// NO E-MAIL ENVIADO PELO INDEX.
+//
+// O TOKEN DIZ QUEM REALMENTE ESTÁ LOGADO.
 // ============================================================
 
-function hashCodigoRecuperacao(email, codigo) {
-    const segredo =
-        process.env.RESET_TOKEN_SECRET ||
-        process.env.DATABASE_URL ||
-        'rs-connect-reset';
+function base64UrlEncode(
+    valor
+) {
 
-    return crypto
-        .createHmac('sha256', segredo)
-        .update(`${normalizarEmail(email)}:${String(codigo).trim()}`)
-        .digest('hex');
+    return Buffer
+        .from(
+            String(
+                valor
+            )
+        )
+        .toString(
+            'base64url'
+        );
 }
 
 
-async function enviarEmailRecuperacao(email, codigo) {
-    const apiKey = String(process.env.RESEND_API_KEY || '').trim();
+function base64UrlDecode(
+    valor
+) {
 
-    const remetente = String(
-        process.env.EMAIL_FROM ||
-        'RS Connect <noreply@seudominio.com.br>'
-    ).trim();
+    return Buffer
+        .from(
+            String(
+                valor
+            ),
+            'base64url'
+        )
+        .toString(
+            'utf8'
+        );
+}
+
+
+function assinarToken(
+    conteudo
+) {
+
+    return crypto
+        .createHmac(
+            'sha256',
+            AUTH_TOKEN_SECRET
+        )
+        .update(
+            conteudo
+        )
+        .digest(
+            'base64url'
+        );
+}
+
+
+// ============================================================
+// CRIAR TOKEN DO USUÁRIO
+// ============================================================
+
+function gerarTokenUsuario(
+    usuario
+) {
+
+    const agora =
+        Date.now();
+
+
+    const payload = {
+
+        id:
+            Number(
+                usuario.id
+            ),
+
+        email:
+            normalizarEmail(
+                usuario.email
+            ),
+
+        tipo:
+            String(
+                usuario.tipo ||
+                ''
+            )
+                .trim()
+                .toLowerCase(),
+
+        criadoEm:
+            agora,
+
+        expiraEm:
+            agora +
+            AUTH_TOKEN_DURACAO
+    };
+
+
+    const payloadCodificado =
+        base64UrlEncode(
+            JSON.stringify(
+                payload
+            )
+        );
+
+
+    const assinatura =
+        assinarToken(
+            payloadCodificado
+        );
+
+
+    return (
+        `${payloadCodificado}.${assinatura}`
+    );
+}
+
+
+// ============================================================
+// VALIDAR TOKEN
+// ============================================================
+
+function validarTokenUsuario(
+    token
+) {
+
+    try {
+
+        const texto =
+            String(
+                token ||
+                ''
+            )
+                .trim();
+
+
+        if (!texto) {
+
+            return null;
+        }
+
+
+        const partes =
+            texto.split(
+                '.'
+            );
+
+
+        if (
+            partes.length !==
+            2
+        ) {
+
+            return null;
+        }
+
+
+        const payloadCodificado =
+            partes[0];
+
+
+        const assinaturaRecebida =
+            partes[1];
+
+
+        const assinaturaEsperada =
+            assinarToken(
+                payloadCodificado
+            );
+
+
+        const bufferRecebido =
+            Buffer.from(
+                assinaturaRecebida
+            );
+
+
+        const bufferEsperado =
+            Buffer.from(
+                assinaturaEsperada
+            );
+
+
+        if (
+            bufferRecebido.length !==
+            bufferEsperado.length
+        ) {
+
+            return null;
+        }
+
+
+        if (
+            !crypto.timingSafeEqual(
+                bufferRecebido,
+                bufferEsperado
+            )
+        ) {
+
+            return null;
+        }
+
+
+        const payload =
+            JSON.parse(
+                base64UrlDecode(
+                    payloadCodificado
+                )
+            );
+
+
+        if (
+            !payload?.email ||
+            !payload?.id
+        ) {
+
+            return null;
+        }
+
+
+        if (
+            Number(
+                payload.expiraEm ||
+                0
+            )
+            <
+            Date.now()
+        ) {
+
+            return null;
+        }
+
+
+        return payload;
+
+
+    } catch {
+
+        return null;
+    }
+}
+
+
+// ============================================================
+// LER TOKEN DA REQUISIÇÃO
+//
+// Authorization:
+// Bearer TOKEN
+// ============================================================
+
+function obterTokenRequisicao(
+    req
+) {
+
+    const authorization =
+        String(
+            req.headers?.authorization ||
+            ''
+        )
+            .trim();
+
+
+    if (
+        authorization
+            .toLowerCase()
+            .startsWith(
+                'bearer '
+            )
+    ) {
+
+        return authorization
+            .slice(
+                7
+            )
+            .trim();
+    }
+
+
+    // Compatibilidade temporária.
+    //
+    // O INDEX novo usará Authorization,
+    // mas deixamos essas opções para testes.
+
+    return String(
+        req.headers?.['x-rs-token']
+        ||
+        req.body?.token
+        ||
+        req.query?.token
+        ||
+        ''
+    )
+        .trim();
+}
+
+
+// ============================================================
+// BUSCAR USUÁRIO NO BANCO
+// ============================================================
+
+async function buscarUsuarioPorEmail(
+    email
+) {
+
+    const emailNormalizado =
+        normalizarEmail(
+            email
+        );
+
+
+    if (!emailNormalizado) {
+
+        return null;
+    }
+
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT
+                id,
+                tipo,
+                nome,
+                email,
+                whatsapp
+
+            FROM usuarios
+
+            WHERE
+                LOWER(
+                    TRIM(email)
+                )
+                =
+                LOWER(
+                    TRIM($1)
+                )
+
+            LIMIT 1
+            `,
+            [
+                emailNormalizado
+            ]
+        );
+
+
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
+}
+
+
+// ============================================================
+// TIPOS DE GESTÃO DO GRUPO RS
+// ============================================================
+
+function usuarioEhGestorRS(
+    usuario
+) {
+
+    if (!usuario) {
+
+        return false;
+    }
+
+
+    const email =
+        normalizarEmail(
+            usuario.email
+        );
+
+
+    const adminEmail =
+        normalizarEmail(
+            process.env.ADMIN_EMAIL
+        );
+
+
+    // ADMIN_EMAIL configurado no Render.
+    if (
+        adminEmail &&
+        email ===
+        adminEmail
+    ) {
+
+        return true;
+    }
+
+
+    const tipo =
+        String(
+            usuario.tipo ||
+            ''
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return [
+        'admin',
+        'administrador',
+        'gestor',
+        'grupo_rs',
+        'grupo rs'
+    ]
+        .includes(
+            tipo
+        );
+}
+
+
+// ============================================================
+// IDENTIFICAR SE É PRESTADOR / COLABORADOR
+// ============================================================
+
+function usuarioEhPrestador(
+    usuario
+) {
+
+    const tipo =
+        String(
+            usuario?.tipo ||
+            ''
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return [
+        'prestador',
+        'colaborador'
+    ]
+        .includes(
+            tipo
+        );
+}
+
+
+// ============================================================
+// BUSCAR CLIENTE SOB DEMANDA DO RESPONSÁVEL
+//
+// Cada empresa cliente fica ligada ao:
+// responsavel_email
+//
+// Exemplo:
+// Gratidão → rosilene@gmail.com
+//
+// Então Rosilene só acessa Gratidão.
+// ============================================================
+
+async function buscarClienteDoResponsavel(
+    email
+) {
+
+    const emailNormalizado =
+        normalizarEmail(
+            email
+        );
+
+
+    if (!emailNormalizado) {
+
+        return null;
+    }
+
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT *
+            FROM clientes_rs
+
+            WHERE
+                ativo = TRUE
+
+            AND
+                LOWER(
+                    TRIM(
+                        COALESCE(
+                            responsavel_email,
+                            ''
+                        )
+                    )
+                )
+                =
+                LOWER(
+                    TRIM($1)
+                )
+
+            LIMIT 1
+            `,
+            [
+                emailNormalizado
+            ]
+        );
+
+
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
+}
+
+
+// ============================================================
+// MIDDLEWARE DE AUTENTICAÇÃO
+//
+// TODA ROTA PRIVADA PASSARÁ POR AQUI.
+// ============================================================
+
+async function autenticarUsuario(
+    req,
+    res,
+    next
+) {
+
+    try {
+
+        const token =
+            obterTokenRequisicao(
+                req
+            );
+
+
+        const payload =
+            validarTokenUsuario(
+                token
+            );
+
+
+        if (!payload) {
+
+            return res
+                .status(
+                    401
+                )
+                .json({
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Sessão inválida ou expirada. Entre novamente no RS Connect.'
+                });
+        }
+
+
+        // ====================================================
+        // CONFIRMAR QUE O USUÁRIO AINDA EXISTE
+        // ====================================================
+
+        const usuario =
+            await buscarUsuarioPorEmail(
+                payload.email
+            );
+
+
+        if (!usuario) {
+
+            return res
+                .status(
+                    401
+                )
+                .json({
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Usuário não encontrado.'
+                });
+        }
+
+
+        // Não confiamos no tipo que estava no token.
+        // Pegamos sempre o tipo atual do banco.
+
+        req.usuario = {
+
+            id:
+                Number(
+                    usuario.id
+                ),
+
+            nome:
+                usuario.nome,
+
+            email:
+                normalizarEmail(
+                    usuario.email
+                ),
+
+            tipo:
+                String(
+                    usuario.tipo ||
+                    ''
+                )
+                    .trim()
+                    .toLowerCase(),
+
+            gestorRS:
+                usuarioEhGestorRS(
+                    usuario
+                ),
+
+            prestador:
+                usuarioEhPrestador(
+                    usuario
+                )
+        };
+
+
+        return next();
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Autenticação:',
+            err
+        );
+
+
+        return res
+            .status(
+                401
+            )
+            .json({
+                sucesso:
+                    false,
+
+                erro:
+                    'Não foi possível validar sua sessão.'
+            });
+    }
+}
+
+
+// ============================================================
+// AUTENTICAÇÃO OPCIONAL
+//
+// Útil em algumas rotas públicas,
+// mas que podem personalizar o resultado
+// quando existe usuário logado.
+// ============================================================
+
+async function autenticarOpcional(
+    req,
+    res,
+    next
+) {
+
+    const token =
+        obterTokenRequisicao(
+            req
+        );
+
+
+    if (!token) {
+
+        req.usuario =
+            null;
+
+
+        return next();
+    }
+
+
+    try {
+
+        const payload =
+            validarTokenUsuario(
+                token
+            );
+
+
+        if (!payload) {
+
+            req.usuario =
+                null;
+
+
+            return next();
+        }
+
+
+        const usuario =
+            await buscarUsuarioPorEmail(
+                payload.email
+            );
+
+
+        if (!usuario) {
+
+            req.usuario =
+                null;
+
+
+            return next();
+        }
+
+
+        req.usuario = {
+
+            id:
+                Number(
+                    usuario.id
+                ),
+
+            nome:
+                usuario.nome,
+
+            email:
+                normalizarEmail(
+                    usuario.email
+                ),
+
+            tipo:
+                String(
+                    usuario.tipo ||
+                    ''
+                )
+                    .trim()
+                    .toLowerCase(),
+
+            gestorRS:
+                usuarioEhGestorRS(
+                    usuario
+                ),
+
+            prestador:
+                usuarioEhPrestador(
+                    usuario
+                )
+        };
+
+
+        return next();
+
+
+    } catch {
+
+        req.usuario =
+            null;
+
+
+        return next();
+    }
+}
+
+
+// ============================================================
+// PRIVACIDADE — CONTEXTO DO USUÁRIO
+// ============================================================
+
+async function obterContextoPrivacidade(
+    usuario
+) {
+
+    if (!usuario) {
+
+        return {
+            autenticado:
+                false,
+
+            gestorRS:
+                false,
+
+            empresaCliente:
+                false,
+
+            prestador:
+                false,
+
+            clienteId:
+                null,
+
+            cliente:
+                null
+        };
+    }
+
+
+    // ========================================================
+    // GRUPO RS / ADMIN
+    //
+    // PODE VER TUDO.
+    // ========================================================
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return {
+            autenticado:
+                true,
+
+            gestorRS:
+                true,
+
+            empresaCliente:
+                false,
+
+            prestador:
+                false,
+
+            clienteId:
+                null,
+
+            cliente:
+                null
+        };
+    }
+
+
+    // ========================================================
+    // VERIFICAR SE O E-MAIL É RESPONSÁVEL DE ALGUM CLIENTE
+    // ========================================================
+
+    const cliente =
+        await buscarClienteDoResponsavel(
+            usuario.email
+        );
+
+
+    if (cliente) {
+
+        return {
+            autenticado:
+                true,
+
+            gestorRS:
+                false,
+
+            empresaCliente:
+                true,
+
+            prestador:
+                false,
+
+            clienteId:
+                Number(
+                    cliente.id
+                ),
+
+            cliente
+        };
+    }
+
+
+    // ========================================================
+    // PRESTADOR / COLABORADOR
+    // ========================================================
+
+    return {
+        autenticado:
+            true,
+
+        gestorRS:
+            false,
+
+        empresaCliente:
+            false,
+
+        prestador:
+            true,
+
+        clienteId:
+            null,
+
+        cliente:
+            null
+    };
+}
+
+
+// ============================================================
+// VERIFICAR ACESSO AO CLIENTE
+// ============================================================
+
+async function usuarioPodeAcessarCliente(
+    usuario,
+    clienteId
+) {
+
+    if (!usuario) {
+
+        return false;
+    }
+
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    const contexto =
+        await obterContextoPrivacidade(
+            usuario
+        );
+
+
+    if (
+        !contexto.empresaCliente
+    ) {
+
+        return false;
+    }
+
+
+    return (
+        Number(
+            contexto.clienteId
+        )
+        ===
+        Number(
+            clienteId
+        )
+    );
+}
+
+
+// ============================================================
+// GARANTIR ACESSO AO CLIENTE
+//
+// Pode ser usado diretamente nas rotas:
+//
+// if (!(await exigirAcessoCliente(...))) return;
+// ============================================================
+
+async function exigirAcessoCliente(
+    req,
+    res,
+    clienteId
+) {
+
+    const permitido =
+        await usuarioPodeAcessarCliente(
+            req.usuario,
+            clienteId
+        );
+
+
+    if (!permitido) {
+
+        res
+            .status(
+                403
+            )
+            .json({
+                sucesso:
+                    false,
+
+                erro:
+                    'Você não tem permissão para acessar dados desta empresa.'
+            });
+
+
+        return false;
+    }
+
+
+    return true;
+}
+
+
+// ============================================================
+// VERIFICAR SE COLABORADOR PERTENCE AO CLIENTE
+// ============================================================
+
+async function colaboradorPertenceAoCliente(
+    clienteId,
+    emailColaborador
+) {
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT
+                id
+
+            FROM
+                clientes_rs_colaboradores
+
+            WHERE
+                cliente_id =
+                $1
+
+            AND
+                LOWER(
+                    colaborador_email
+                )
+                =
+                LOWER($2)
+
+            AND
+                ativo =
+                TRUE
+
+            LIMIT 1
+            `,
+            [
+                Number(
+                    clienteId
+                ),
+
+                normalizarEmail(
+                    emailColaborador
+                )
+            ]
+        );
+
+
+    return (
+        resultado.rows.length >
+        0
+    );
+}
+
+
+// ============================================================
+// ACESSO À JORNADA
+//
+// PODE:
+// - ADMIN/GRUPO RS
+// - EMPRESA DONA DO CLIENTE
+// - PRÓPRIO COLABORADOR
+//
+// NÃO PODE:
+// - OUTRA EMPRESA
+// - OUTRO COLABORADOR
+// ============================================================
+
+async function usuarioPodeAcessarJornada(
+    usuario,
+    jornadaId
+) {
+
+    if (!usuario) {
+
+        return false;
+    }
+
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT
+                id,
+                cliente_id,
+                colaborador_email
+
+            FROM
+                jornadas_clientes
+
+            WHERE
+                id =
+                $1
+
+            LIMIT 1
+            `,
+            [
+                Number(
+                    jornadaId
+                )
+            ]
+        );
+
+
+    const jornada =
+        resultado.rows[0];
+
+
+    if (!jornada) {
+
+        return false;
+    }
+
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    // Próprio colaborador.
+    if (
+        normalizarEmail(
+            jornada.colaborador_email
+        )
+        ===
+        normalizarEmail(
+            usuario.email
+        )
+    ) {
+
+        return true;
+    }
+
+
+    // Responsável da empresa.
+    return usuarioPodeAcessarCliente(
+        usuario,
+        jornada.cliente_id
+    );
+}
+
+
+// ============================================================
+// ACESSO AO SERVIÇO / VAGA
+//
+// ADMIN:
+// → qualquer serviço
+//
+// EMPRESA:
+// → somente serviço criado por ela
+//
+// PRESTADOR:
+// → serviço público no Radar,
+//   ou serviço em que está envolvido.
+// ============================================================
+
+async function usuarioPodeGerenciarServico(
+    usuario,
+    servico
+) {
+
+    if (
+        !usuario ||
+        !servico
+    ) {
+
+        return false;
+    }
+
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    return (
+        normalizarEmail(
+            servico.empresa_email
+        )
+        ===
+        normalizarEmail(
+            usuario.email
+        )
+    );
+}
+
+
+// ============================================================
+// RESPOSTA PADRÃO — ACESSO NEGADO
+// ============================================================
+
+function responderAcessoNegado(
+    res,
+    mensagem =
+        'Você não tem permissão para acessar estas informações.'
+) {
+
+    return res
+        .status(
+            403
+        )
+        .json({
+            sucesso:
+                false,
+
+            erro:
+                mensagem
+        });
+}
+
+
+// ============================================================
+// RECUPERAÇÃO DE SENHA
+// ============================================================
+
+function hashCodigoRecuperacao(
+    email,
+    codigo
+) {
+
+    const segredo =
+        process.env.RESET_TOKEN_SECRET
+        ||
+        process.env.DATABASE_URL
+        ||
+        AUTH_TOKEN_SECRET;
+
+
+    return crypto
+        .createHmac(
+            'sha256',
+            segredo
+        )
+        .update(
+            `${
+                normalizarEmail(
+                    email
+                )
+            }:${
+                String(
+                    codigo
+                )
+                    .trim()
+            }`
+        )
+        .digest(
+            'hex'
+        );
+}
+
+
+// ============================================================
+// ENVIAR E-MAIL DE RECUPERAÇÃO
+// ============================================================
+
+async function enviarEmailRecuperacao(
+    email,
+    codigo
+) {
+
+    const apiKey =
+        String(
+            process.env.RESEND_API_KEY
+            ||
+            ''
+        )
+            .trim();
+
+
+    const remetente =
+        String(
+            process.env.EMAIL_FROM
+            ||
+            'RS Connect <noreply@seudominio.com.br>'
+        )
+            .trim();
+
 
     if (!apiKey) {
+
         throw new Error(
             'RESEND_API_KEY não configurada no Render.'
         );
     }
 
-    const resposta = await fetch(
-        'https://api.resend.com/emails',
-        {
-            method: 'POST',
 
-            headers: {
-                'Authorization': `Bearer ${apiKey}`,
-                'Content-Type': 'application/json'
-            },
+    const resposta =
+        await fetch(
+            'https://api.resend.com/emails',
 
-            body: JSON.stringify({
-                from: remetente,
+            {
+                method:
+                    'POST',
 
-                to: [
-                    normalizarEmail(email)
-                ],
+                headers: {
 
-                subject:
-                    'Código de recuperação — RS Connect',
+                    'Authorization':
+                        `Bearer ${apiKey}`,
 
-                html: `
-                    <div style="font-family:Arial,sans-serif;max-width:520px;margin:auto;padding:24px">
-                        <h2 style="margin-bottom:8px">RS Connect</h2>
+                    'Content-Type':
+                        'application/json'
+                },
 
-                        <p>
-                            Recebemos uma solicitação para redefinir a senha da sua conta.
-                        </p>
 
-                        <div style="
-                            font-size:32px;
-                            font-weight:800;
-                            letter-spacing:8px;
-                            padding:18px;
-                            margin:20px 0;
-                            text-align:center;
-                            border-radius:12px;
-                            background:#f2f6fb;
-                        ">
-                            ${codigo}
-                        </div>
+                body:
+                    JSON.stringify({
 
-                        <p>
-                            Este código expira em <strong>15 minutos</strong>.
-                        </p>
+                        from:
+                            remetente,
 
-                        <p>
-                            Se você não solicitou a recuperação, ignore esta mensagem.
-                        </p>
 
-                        <p style="color:#6b7280;font-size:12px">
-                            Grupo RS Connect — Gestão Profissional de Serviços
-                        </p>
-                    </div>
-                `
-            })
-        }
-    );
+                        to: [
+                            normalizarEmail(
+                                email
+                            )
+                        ],
+
+
+                        subject:
+                            'Código de recuperação — RS Connect',
+
+
+                        html:
+                            `
+                            <div style="
+                                font-family:Arial,sans-serif;
+                                max-width:520px;
+                                margin:auto;
+                                padding:24px;
+                            ">
+
+                                <h2>
+                                    RS Connect
+                                </h2>
+
+                                <p>
+                                    Recebemos uma solicitação para redefinir a senha da sua conta.
+                                </p>
+
+                                <div style="
+                                    font-size:32px;
+                                    font-weight:800;
+                                    letter-spacing:8px;
+                                    padding:18px;
+                                    margin:20px 0;
+                                    text-align:center;
+                                    border-radius:12px;
+                                    background:#f2f6fb;
+                                ">
+                                    ${codigo}
+                                </div>
+
+                                <p>
+                                    Este código expira em
+                                    <strong>
+                                        15 minutos
+                                    </strong>.
+                                </p>
+
+                                <p>
+                                    Se você não solicitou a recuperação,
+                                    ignore esta mensagem.
+                                </p>
+
+                                <p style="
+                                    color:#6b7280;
+                                    font-size:12px;
+                                ">
+                                    Grupo RS Connect
+                                </p>
+
+                            </div>
+                            `
+                    })
+            }
+        );
+
 
     const respostaTexto =
         await resposta.text();
 
-    if (!resposta.ok) {
+
+    if (
+        !resposta.ok
+    ) {
+
         throw new Error(
             `Falha ao enviar e-mail de recuperação: ${respostaTexto}`
         );
@@ -473,11 +1918,12 @@ async function registrarAuditoria(
 
         await pool.query(
             `
-            INSERT INTO auditoria_sistema (
-                usuario_email,
-                acao,
-                detalhes
-            )
+            INSERT INTO
+                auditoria_sistema (
+                    usuario_email,
+                    acao,
+                    detalhes
+                )
 
             VALUES (
                 $1,
@@ -495,6 +1941,7 @@ async function registrarAuditoria(
                 ''
             ]
         );
+
 
     } catch (err) {
 
@@ -521,12 +1968,13 @@ async function registrarLedger(
 
         await pool.query(
             `
-            INSERT INTO ledger_transacoes (
-                servico_id,
-                usuario_email,
-                tipo_movimento,
-                valor
-            )
+            INSERT INTO
+                ledger_transacoes (
+                    servico_id,
+                    usuario_email,
+                    tipo_movimento,
+                    valor
+                )
 
             VALUES (
                 $1,
@@ -548,6 +1996,7 @@ async function registrarLedger(
                 )
             ]
         );
+
 
     } catch (err) {
 
@@ -574,7 +2023,8 @@ async function buscarServico(
             FROM servicos
 
             WHERE
-                id = $1
+                id =
+                $1
 
             LIMIT 1
             `,
@@ -591,6 +2041,10 @@ async function buscarServico(
     );
 }
 
+
+// ============================================================
+// PRESTADOR É TITULAR?
+// ============================================================
 
 function prestadorEhTitular(
     servico,
@@ -609,6 +2063,10 @@ function prestadorEhTitular(
 }
 
 
+// ============================================================
+// EMPRESA É DONA DO SERVIÇO?
+// ============================================================
+
 function empresaEhResponsavel(
     servico,
     email
@@ -624,6 +2082,24 @@ function empresaEhResponsavel(
         )
     );
 }
+
+
+// ============================================================
+// FIM DA PARTE 1
+//
+// PARTE 2 COMEÇA COM:
+// SOCKET + CRIAÇÃO/ATUALIZAÇÃO DAS TABELAS
+// + ESTRUTURA DA JORNADA E PRIVACIDADE NO BANCO
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 2
+//
+// SOCKET + BANCO PRINCIPAL
+// CLIENTES SOB DEMANDA + JORNADA
+// ============================================================
 
 
 // ============================================================
@@ -660,6 +2136,90 @@ function emitirAtualizacao(
         'servicos_atualizados',
         dados
     );
+}
+
+
+// ============================================================
+// SOCKET — ATUALIZAÇÃO PRIVADA DA EMPRESA
+//
+// Em vez de mandar informações detalhadas
+// para todo mundo, podemos avisar apenas
+// a sala daquela empresa.
+// ============================================================
+
+function emitirAtualizacaoEmpresa(
+    email,
+    evento,
+    dados = {}
+) {
+
+    const empresaEmail =
+        normalizarEmail(
+            email
+        );
+
+
+    if (!empresaEmail) {
+        return;
+    }
+
+
+    io.to(
+        `usuario_${empresaEmail}`
+    )
+        .emit(
+            evento,
+            dados
+        );
+
+
+    io.to(
+        `user:${empresaEmail}`
+    )
+        .emit(
+            evento,
+            dados
+        );
+}
+
+
+// ============================================================
+// SOCKET — ATUALIZAÇÃO PRIVADA DO PRESTADOR
+// ============================================================
+
+function emitirAtualizacaoPrestador(
+    email,
+    evento,
+    dados = {}
+) {
+
+    const prestadorEmail =
+        normalizarEmail(
+            email
+        );
+
+
+    if (!prestadorEmail) {
+        return;
+    }
+
+
+    io.to(
+        `usuario_${prestadorEmail}`
+    )
+        .emit(
+            evento,
+            dados
+        );
+
+
+    io.to(
+        `user:${prestadorEmail}`
+    )
+        .emit(
+            evento,
+            dados
+        );
 }
 
 
@@ -708,6 +2268,9 @@ async function criarTabelas() {
                 descricao TEXT,
 
                 criado_em TIMESTAMP
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                atualizado_em TIMESTAMP
                     DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -861,6 +2424,9 @@ async function criarTabelas() {
                 nota_oficial TEXT,
 
                 criado_em TIMESTAMP
+                    DEFAULT CURRENT_TIMESTAMP,
+
+                atualizado_em TIMESTAMP
                     DEFAULT CURRENT_TIMESTAMP
             );
 
@@ -1020,6 +2586,7 @@ async function criarTabelas() {
                     DEFAULT CURRENT_TIMESTAMP
             );
 
+
             CREATE INDEX IF NOT EXISTS
                 idx_recuperacao_senha_email
 
@@ -1030,11 +2597,20 @@ async function criarTabelas() {
         `);
 
 
+        // ====================================================
+        // COMPATIBILIDADE COM BANCO ANTIGO
+        //
+        // Se uma coluna não existir,
+        // ela será criada automaticamente.
+        // ====================================================
+
         const alteracoes = [
 
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS descricao TEXT;",
 
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS cidade TEXT;",
 
@@ -1054,6 +2630,8 @@ async function criarTabelas() {
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_email TEXT;",
 
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_id INTEGER;",
+
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_nome TEXT;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_pix TEXT;",
@@ -1061,6 +2639,8 @@ async function criarTabelas() {
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS prestador_whatsapp TEXT;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS reservas JSONB DEFAULT '[]'::jsonb;",
+
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS mensagens JSONB DEFAULT '[]'::jsonb;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS presenca_confirmada BOOLEAN DEFAULT FALSE;",
 
@@ -1120,7 +2700,9 @@ async function criarTabelas() {
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS contrato_assinado_em TIMESTAMP;",
 
-            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT;"
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS nota_oficial TEXT;",
+
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;"
         ];
 
 
@@ -1135,9 +2717,54 @@ async function criarTabelas() {
         }
 
 
+        // ====================================================
+        // ÍNDICES IMPORTANTES PARA PRIVACIDADE
+        // ====================================================
+
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS
+                idx_servicos_empresa_email
+
+            ON servicos (
+                LOWER(empresa_email)
+            );
+        `);
+
+
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS
+                idx_servicos_prestador_email
+
+            ON servicos (
+                LOWER(prestador_email)
+            );
+        `);
+
+
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS
+                idx_documentos_empresa
+
+            ON documentos_rs (
+                LOWER(empresa_email)
+            );
+        `);
+
+
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS
+                idx_documentos_prestador
+
+            ON documentos_rs (
+                LOWER(prestador_email)
+            );
+        `);
+
+
         console.log(
             '✅ Banco principal verificado.'
         );
+
 
     } catch (err) {
 
@@ -1153,7 +2780,14 @@ async function criarTabelas() {
 
 
 // ============================================================
-// TABELAS DOS CLIENTES FIXOS / JORNADA
+// CLIENTES SOB DEMANDA / JORNADA
+//
+// IMPORTANTE:
+//
+// Cada registro possui cliente_id.
+//
+// É esse campo que garante a separação:
+// empresa X ≠ empresa Y.
 // ============================================================
 
 async function criarTabelasJornadaClientes() {
@@ -1406,11 +3040,86 @@ async function criarTabelasJornadaClientes() {
         `);
 
 
+        // ====================================================
+        // COMPATIBILIDADE COM TABELAS QUE JÁ EXISTEM
+        // ====================================================
+
+        const alteracoesJornada = [
+
+            "ALTER TABLE clientes_rs ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+
+            "ALTER TABLE clientes_rs_colaboradores ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS entrada_validada BOOLEAN DEFAULT FALSE;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS entrada_validada_por TEXT;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS entrada_validada_em TIMESTAMPTZ;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS saida_validada BOOLEAN DEFAULT FALSE;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS saida_validada_por TEXT;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS saida_validada_em TIMESTAMPTZ;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS fechada BOOLEAN DEFAULT FALSE;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS fechada_por TEXT;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS fechada_em TIMESTAMPTZ;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS valor_tipo TEXT DEFAULT 'dia';",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS valor_base NUMERIC(12,2) DEFAULT 0;",
+
+            "ALTER TABLE jornadas_clientes ADD COLUMN IF NOT EXISTS valor_gerado NUMERIC(12,2) DEFAULT 0;"
+        ];
+
+
+        for (
+            const sql
+            of alteracoesJornada
+        ) {
+
+            await pool.query(
+                sql
+            );
+        }
+
+
+        // ====================================================
+        // ÍNDICES PARA PRIVACIDADE E PERFORMANCE
+        // ====================================================
+
         await pool.query(`
             CREATE INDEX IF NOT EXISTS
                 idx_clientes_rs_nome
 
-            ON clientes_rs(nome);
+            ON clientes_rs(
+                nome
+            );
+        `);
+
+
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS
+                idx_clientes_rs_responsavel
+
+            ON clientes_rs(
+                LOWER(responsavel_email)
+            );
+        `);
+
+
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS
+                idx_colaborador_cliente
+
+            ON clientes_rs_colaboradores(
+                cliente_id
+            );
         `);
 
 
@@ -1446,9 +3155,20 @@ async function criarTabelasJornadaClientes() {
         `);
 
 
+        await pool.query(`
+            CREATE INDEX IF NOT EXISTS
+                idx_documentos_jornada
+
+            ON jornadas_clientes_documentos(
+                jornada_id
+            );
+        `);
+
+
         console.log(
-            '✅ Clientes fixos e Jornada verificados.'
+            '✅ Clientes sob demanda e Jornada verificados.'
         );
+
 
     } catch (err) {
 
@@ -1465,6 +3185,9 @@ async function criarTabelasJornadaClientes() {
 
 // ============================================================
 // GERAR JORNADA DO DIA
+//
+// Só gera jornadas dos colaboradores
+// vinculados AO CLIENTE INFORMADO.
 // ============================================================
 
 async function garantirJornadasDiaCliente(
@@ -1546,7 +3269,10 @@ async function garantirJornadasDiaCliente(
                 CURRENT_TIMESTAMP
         `,
         [
-            clienteId,
+            Number(
+                clienteId
+            ),
+
             data
         ]
     );
@@ -1554,7 +3280,7 @@ async function garantirJornadasDiaCliente(
 
 
 // ============================================================
-// BUSCAR JORNADA
+// BUSCAR JORNADA COMPLETA
 // ============================================================
 
 async function buscarJornadaCliente(
@@ -1611,7 +3337,9 @@ async function buscarJornadaCliente(
             LIMIT 1
             `,
             [
-                jornadaId
+                Number(
+                    jornadaId
+                )
             ]
         );
 
@@ -1625,7 +3353,43 @@ async function buscarJornadaCliente(
 
 
 // ============================================================
-// RECALCULAR HORAS / VALOR
+// BUSCAR CLIENTE
+// ============================================================
+
+async function buscarClienteRS(
+    clienteId
+) {
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT *
+            FROM clientes_rs
+
+            WHERE
+                id =
+                $1
+
+            LIMIT 1
+            `,
+            [
+                Number(
+                    clienteId
+                )
+            ]
+        );
+
+
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
+}
+
+
+// ============================================================
+// RECALCULAR HORAS / VALOR DA JORNADA
 // ============================================================
 
 async function recalcularJornadaCliente(
@@ -1639,6 +3403,7 @@ async function recalcularJornadaCliente(
 
 
     if (!jornada) {
+
         return null;
     }
 
@@ -1672,6 +3437,10 @@ async function recalcularJornadaCliente(
             );
 
 
+        // ====================================================
+        // DESCONTAR INTERVALO
+        // ====================================================
+
         if (
             jornada.intervalo_inicio_em &&
             jornada.intervalo_retorno_em
@@ -1700,7 +3469,6 @@ async function recalcularJornadaCliente(
             totalMinutos =
                 Math.max(
                     0,
-
                     totalMinutos -
                     intervalo
                 );
@@ -1714,7 +3482,9 @@ async function recalcularJornadaCliente(
                 totalMinutos /
                 60
             )
-                .toFixed(2)
+                .toFixed(
+                    2
+                )
         );
 
 
@@ -1748,8 +3518,11 @@ async function recalcularJornadaCliente(
                         totalHoras *
                         valorBase
                     )
-                        .toFixed(2)
+                        .toFixed(
+                            2
+                        )
                 );
+
 
         } else {
 
@@ -1762,7 +3535,8 @@ async function recalcularJornadaCliente(
     const resultado =
         await pool.query(
             `
-            UPDATE jornadas_clientes
+            UPDATE
+                jornadas_clientes
 
             SET
                 total_minutos =
@@ -1785,70 +3559,526 @@ async function recalcularJornadaCliente(
             `,
             [
                 totalMinutos,
+
                 totalHoras,
+
                 valorGerado,
-                jornadaId
+
+                Number(
+                    jornadaId
+                )
             ]
         );
 
 
-    return resultado.rows[0];
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
 }
 
 
 // ============================================================
-// FIM DA PARTE 1
-// COLE A PARTE 2 IMEDIATAMENTE ABAIXO
+// PRIVACIDADE — DOCUMENTO DA JORNADA
+//
+// Descobre de qual cliente o documento pertence.
 // ============================================================
+
+async function buscarDocumentoJornada(
+    documentoId
+) {
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT
+                documento.*,
+
+                jornada.cliente_id,
+
+                jornada.colaborador_email
+
+            FROM
+                jornadas_clientes_documentos
+                AS documento
+
+            JOIN
+                jornadas_clientes
+                AS jornada
+
+            ON
+                jornada.id =
+                documento.jornada_id
+
+            WHERE
+                documento.id =
+                $1
+
+            LIMIT 1
+            `,
+            [
+                Number(
+                    documentoId
+                )
+            ]
+        );
+
+
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
+}
+
+
 // ============================================================
-// PARTE 2 — LOGIN + RECUPERAÇÃO DE ACESSO
-// COLE IMEDIATAMENTE ABAIXO DA PARTE 1
+// PRIVACIDADE — ACESSO AO DOCUMENTO
+//
+// ADMIN:
+// → SIM
+//
+// EMPRESA DONA:
+// → SIM
+//
+// COLABORADOR DONO DA JORNADA:
+// → SIM
+//
+// OUTRAS EMPRESAS/PRESTADORES:
+// → NÃO
 // ============================================================
+
+async function usuarioPodeAcessarDocumentoJornada(
+    usuario,
+    documentoId
+) {
+
+    const documento =
+        await buscarDocumentoJornada(
+            documentoId
+        );
+
+
+    if (
+        !usuario ||
+        !documento
+    ) {
+
+        return false;
+    }
+
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    if (
+        normalizarEmail(
+            documento.colaborador_email
+        )
+        ===
+        normalizarEmail(
+            usuario.email
+        )
+    ) {
+
+        return true;
+    }
+
+
+    return usuarioPodeAcessarCliente(
+        usuario,
+        documento.cliente_id
+    );
+}
+
+
+// ============================================================
+// PRIVACIDADE — SERVIÇO AVULSO
+//
+// Prestador pode acessar se:
+// - for titular
+// - estiver na reserva
+//
+// Empresa pode acessar se:
+// - for dona do serviço
+//
+// Gestor:
+// - tudo
+// ============================================================
+
+function prestadorEstaNaReserva(
+    servico,
+    email
+) {
+
+    const emailNormalizado =
+        normalizarEmail(
+            email
+        );
+
+
+    const reservas =
+        parseReservas(
+            servico?.reservas
+        );
+
+
+    return reservas.some(
+        reserva => {
+
+            const emailReserva =
+                normalizarEmail(
+                    typeof reserva ===
+                    'string'
+
+                        ?
+
+                        reserva
+
+                        :
+
+                        reserva?.email
+                        ||
+                        reserva?.prestadorEmail
+                        ||
+                        reserva?.prestador_email
+                );
+
+
+            return (
+                emailReserva ===
+                emailNormalizado
+            );
+        }
+    );
+}
+
+
+// ============================================================
+// USUÁRIO PODE ACESSAR SERVIÇO PRIVADO?
+// ============================================================
+
+function usuarioPodeAcessarServicoPrivado(
+    usuario,
+    servico
+) {
+
+    if (
+        !usuario ||
+        !servico
+    ) {
+
+        return false;
+    }
+
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    const email =
+        normalizarEmail(
+            usuario.email
+        );
+
+
+    if (
+        normalizarEmail(
+            servico.empresa_email
+        )
+        ===
+        email
+    ) {
+
+        return true;
+    }
+
+
+    if (
+        normalizarEmail(
+            servico.prestador_email
+        )
+        ===
+        email
+    ) {
+
+        return true;
+    }
+
+
+    if (
+        prestadorEstaNaReserva(
+            servico,
+            email
+        )
+    ) {
+
+        return true;
+    }
+
+
+    return false;
+}
+
+
+// ============================================================
+// RESUMO SEGURO PARA O RADAR
+//
+// O prestador pode ver as informações da vaga,
+// mas NÃO precisa receber dados administrativos
+// privados da empresa.
+// ============================================================
+
+function servicoPublicoRadar(
+    servico
+) {
+
+    if (!servico) {
+
+        return null;
+    }
+
+
+    return {
+
+        id:
+            servico.id,
+
+        titulo:
+            servico.titulo,
+
+        categoria:
+            servico.categoria,
+
+        local:
+            servico.local,
+
+        cidade:
+            servico.cidade,
+
+        endereco:
+            servico.endereco,
+
+        valor:
+            servico.valor,
+
+        valor_diaria:
+            servico.valor_diaria,
+
+        valor_liquido:
+            servico.valor_liquido,
+
+        data_horario:
+            servico.data_horario,
+
+        horario_fim:
+            servico.horario_fim,
+
+        forma_pgto:
+            servico.forma_pgto,
+
+        descricao:
+            servico.descricao,
+
+        empresa_nome:
+            servico.empresa_nome,
+
+        recorrencia:
+            servico.recorrencia,
+
+        status:
+            servico.status,
+
+        prestador_nome:
+            servico.prestador_nome,
+
+        reservas:
+            parseReservas(
+                servico.reservas
+            )
+                .map(
+                    reserva => {
+
+                        if (
+                            typeof reserva ===
+                            'string'
+                        ) {
+
+                            return {
+                                ocupado:
+                                    true
+                            };
+                        }
+
+
+                        return {
+                            ocupado:
+                                true,
+
+                            nome:
+                                reserva?.nome
+                                ||
+                                'Reserva'
+                        };
+                    }
+                )
+    };
+}
 
 
 // ============================================================
 // HEALTH
 // ============================================================
 
-app.get('/api/health', async (req, res) => {
-    try {
+app.get(
+    '/api/health',
 
-        await pool.query('SELECT 1');
+    async (
+        req,
+        res
+    ) => {
 
-        return res.json({
-            sucesso: true,
-            sistema: 'RS Connect',
-            banco: 'online',
-            horario: horaAtualRS()
-        });
+        try {
 
-    } catch (err) {
+            await pool.query(
+                'SELECT 1'
+            );
 
-        return res.status(500).json({
-            sucesso: false,
-            banco: 'offline'
-        });
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                sistema:
+                    'RS Connect',
+
+                banco:
+                    'online',
+
+                privacidade:
+                    'ativa',
+
+                horario:
+                    horaAtualRS()
+            });
+
+
+        } catch (err) {
+
+            return res
+                .status(
+                    500
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        err.message
+                });
+        }
     }
-});
+);
 
 
 // ============================================================
-// CADASTRO DE USUÁRIO
+// FIM DA PARTE 2
+//
+// PARTE 3:
+// LOGIN + CADASTRO + RECUPERAÇÃO DE SENHA
+// + TOKEN DE SESSÃO
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 3
+//
+// CADASTRO + LOGIN + TOKEN
+// SESSÃO + ALTERAÇÃO DE SENHA
+// RECUPERAÇÃO POR E-MAIL
 // ============================================================
 
-async function cadastrarUsuarioRS(req, res) {
 
-    const dados = req.body || {};
+// ============================================================
+// NORMALIZAR TIPO DO CADASTRO PÚBLICO
+//
+// IMPORTANTE:
+//
+// NINGUÉM PODE SE CADASTRAR COMO ADMIN
+// PELO INDEX OU CHAMANDO A API MANUALMENTE.
+// ============================================================
+
+function tipoCadastroPermitido(
+    tipo
+) {
+
+    const valor =
+        String(
+            tipo ||
+            ''
+        )
+            .trim()
+            .toLowerCase();
+
+
+    if (
+        [
+            'empresa',
+            'prestador',
+            'colaborador'
+        ].includes(
+            valor
+        )
+    ) {
+
+        return valor;
+    }
+
+
+    return 'prestador';
+}
+
+
+// ============================================================
+// CADASTRO
+// ============================================================
+
+async function cadastrarUsuarioRS(
+    req,
+    res
+) {
+
+    const dados =
+        req.body ||
+        {};
+
 
     const email =
         normalizarEmail(
             dados.email
         );
 
+
     const nome =
         String(
-            dados.nome || ''
-        ).trim();
+            dados.nome ||
+            ''
+        )
+            .trim();
+
 
     const senha =
         String(
@@ -1858,29 +4088,50 @@ async function cadastrarUsuarioRS(req, res) {
         );
 
 
+    const tipo =
+        tipoCadastroPermitido(
+            dados.tipo
+        );
+
+
     if (
         !email ||
         !nome ||
         !senha
     ) {
 
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'Nome, e-mail e senha são obrigatórios.'
-        });
+        return res
+            .status(
+                400
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Nome, e-mail e senha são obrigatórios.'
+            });
     }
 
 
     if (
-        senha.length < 6
+        senha.length <
+        6
     ) {
 
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'A senha precisa ter no mínimo 6 caracteres.'
-        });
+        return res
+            .status(
+                400
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'A senha precisa ter no mínimo 6 caracteres.'
+            });
     }
 
 
@@ -1889,13 +4140,20 @@ async function cadastrarUsuarioRS(req, res) {
         const existente =
             await pool.query(
                 `
-                SELECT id
-                FROM usuarios
+                SELECT
+                    id
+
+                FROM
+                    usuarios
 
                 WHERE
-                    LOWER(TRIM(email))
+                    LOWER(
+                        TRIM(email)
+                    )
                     =
-                    LOWER(TRIM($1))
+                    LOWER(
+                        TRIM($1)
+                    )
 
                 LIMIT 1
                 `,
@@ -1909,11 +4167,18 @@ async function cadastrarUsuarioRS(req, res) {
             existente.rows.length
         ) {
 
-            return res.status(409).json({
-                sucesso: false,
-                erro:
-                    'Este e-mail já está cadastrado.'
-            });
+            return res
+                .status(
+                    409
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Este e-mail já está cadastrado.'
+                });
         }
 
 
@@ -1942,21 +4207,22 @@ async function cadastrarUsuarioRS(req, res) {
                     banco,
                     conta,
                     experiencia,
-                    descricao
+                    descricao,
+                    atualizado_em
                 )
 
                 VALUES (
                     $1,$2,$3,$4,
                     $5,$6,$7,$8,
                     $9,$10,$11,$12,
-                    $13,$14,$15,$16
+                    $13,$14,$15,$16,
+                    CURRENT_TIMESTAMP
                 )
 
                 RETURNING *
                 `,
                 [
-                    dados.tipo ||
-                    'prestador',
+                    tipo,
 
                     nome,
 
@@ -2005,13 +4271,16 @@ async function cadastrarUsuarioRS(req, res) {
             );
 
 
+        // ====================================================
+        // PRESTADOR / COLABORADOR
+        // ====================================================
+
         if (
-            String(
-                dados.tipo || ''
-            )
-                .toLowerCase()
-            ===
+            tipo ===
             'prestador'
+            ||
+            tipo ===
+            'colaborador'
         ) {
 
             await pool.query(
@@ -2024,7 +4293,10 @@ async function cadastrarUsuarioRS(req, res) {
                     $1
                 )
 
-                ON CONFLICT (email)
+                ON CONFLICT (
+                    email
+                )
+
                 DO NOTHING
                 `,
                 [
@@ -2034,23 +4306,44 @@ async function cadastrarUsuarioRS(req, res) {
         }
 
 
+        const usuarioBanco =
+            resultado.rows[0];
+
+
         const usuario = {
-            ...resultado.rows[0]
+            ...usuarioBanco
         };
 
 
         delete usuario.senha;
 
 
+        // ====================================================
+        // JÁ DEVOLVE TOKEN
+        //
+        // ASSIM O USUÁRIO PODE ENTRAR LOGO APÓS O CADASTRO.
+        // ====================================================
+
+        const token =
+            gerarTokenUsuario(
+                usuarioBanco
+            );
+
+
         await registrarAuditoria(
             email,
             'CADASTRO',
-            'Novo usuário cadastrado.'
+            `Novo usuário cadastrado como ${tipo}.`
         );
 
 
         return res.json({
-            sucesso: true,
+
+            sucesso:
+                true,
+
+            token,
+
             usuario
         });
 
@@ -2063,14 +4356,25 @@ async function cadastrarUsuarioRS(req, res) {
         );
 
 
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao cadastrar usuário.'
-        });
+        return res
+            .status(
+                500
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Erro ao cadastrar usuário.'
+            });
     }
 }
 
+
+// ============================================================
+// ROTAS DE CADASTRO
+// ============================================================
 
 app.post(
     '/api/cadastro',
@@ -2093,19 +4397,17 @@ app.post(
 // ============================================================
 // LOGIN
 //
-// IMPORTANTE:
-// SENHAS ANTIGAS CONTINUAM FUNCIONANDO.
+// AGORA DEVOLVE:
 //
-// Se estiver em texto antigo:
-// 1. compara normalmente;
-// 2. permite entrar;
-// 3. transforma em scrypt automaticamente.
-//
-// Assim NÃO precisamos redefinir a senha
-// dos prestadores que ainda possuem a senha antiga intacta.
+// token
+// usuario
+// contexto de privacidade
 // ============================================================
 
-async function loginUsuarioRS(req, res) {
+async function loginUsuarioRS(
+    req,
+    res
+) {
 
     const email =
         normalizarEmail(
@@ -2126,11 +4428,18 @@ async function loginUsuarioRS(req, res) {
         !senha
     ) {
 
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'Informe e-mail e senha.'
-        });
+        return res
+            .status(
+                400
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Informe e-mail e senha.'
+            });
     }
 
 
@@ -2143,9 +4452,13 @@ async function loginUsuarioRS(req, res) {
                 FROM usuarios
 
                 WHERE
-                    LOWER(TRIM(email))
+                    LOWER(
+                        TRIM(email)
+                    )
                     =
-                    LOWER(TRIM($1))
+                    LOWER(
+                        TRIM($1)
+                    )
 
                 LIMIT 1
                 `,
@@ -2164,11 +4477,18 @@ async function loginUsuarioRS(req, res) {
             );
 
 
-            return res.status(401).json({
-                sucesso: false,
-                erro:
-                    'E-mail ou senha incorretos.'
-            });
+            return res
+                .status(
+                    401
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'E-mail ou senha incorretos.'
+                });
         }
 
 
@@ -2192,19 +4512,23 @@ async function loginUsuarioRS(req, res) {
             );
 
 
-            return res.status(401).json({
-                sucesso: false,
-                erro:
-                    'E-mail ou senha incorretos.'
-            });
+            return res
+                .status(
+                    401
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'E-mail ou senha incorretos.'
+                });
         }
 
 
         // ====================================================
-        // MIGRAÇÃO AUTOMÁTICA
-        //
-        // Se a senha ainda estiver no formato antigo,
-        // o usuário entra normalmente e o servidor converte.
+        // MIGRAR SENHAS ANTIGAS AUTOMATICAMENTE
         // ====================================================
 
         if (
@@ -2224,10 +4548,15 @@ async function loginUsuarioRS(req, res) {
                 UPDATE usuarios
 
                 SET
-                    senha = $1
+                    senha =
+                        $1,
+
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
 
                 WHERE
-                    id = $2
+                    id =
+                        $2
                 `,
                 [
                     hash,
@@ -2237,9 +4566,19 @@ async function loginUsuarioRS(req, res) {
 
 
             console.log(
-                `🔐 Senha antiga migrada automaticamente: ${email}`
+                `🔐 Senha antiga migrada: ${email}`
             );
         }
+
+
+        // ====================================================
+        // TOKEN ASSINADO
+        // ====================================================
+
+        const token =
+            gerarTokenUsuario(
+                usuarioBanco
+            );
 
 
         const usuario = {
@@ -2248,6 +4587,51 @@ async function loginUsuarioRS(req, res) {
 
 
         delete usuario.senha;
+
+
+        // ====================================================
+        // CONTEXTO DE PRIVACIDADE
+        // ====================================================
+
+        const usuarioSeguro = {
+
+            id:
+                Number(
+                    usuarioBanco.id
+                ),
+
+            nome:
+                usuarioBanco.nome,
+
+            email:
+                normalizarEmail(
+                    usuarioBanco.email
+                ),
+
+            tipo:
+                String(
+                    usuarioBanco.tipo ||
+                    ''
+                )
+                    .trim()
+                    .toLowerCase(),
+
+            gestorRS:
+                usuarioEhGestorRS(
+                    usuarioBanco
+                ),
+
+            prestador:
+                usuarioEhPrestador(
+                    usuarioBanco
+                )
+        };
+
+
+        const contexto =
+            await obterContextoPrivacidade(
+                usuarioSeguro
+            );
 
 
         await registrarAuditoria(
@@ -2263,8 +4647,28 @@ async function loginUsuarioRS(req, res) {
 
 
         return res.json({
-            sucesso: true,
-            usuario
+
+            sucesso:
+                true,
+
+            token,
+
+            usuario,
+
+            privacidade: {
+
+                gestorRS:
+                    contexto.gestorRS,
+
+                empresaCliente:
+                    contexto.empresaCliente,
+
+                prestador:
+                    contexto.prestador,
+
+                clienteId:
+                    contexto.clienteId
+            }
         });
 
 
@@ -2276,14 +4680,25 @@ async function loginUsuarioRS(req, res) {
         );
 
 
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro interno no login.'
-        });
+        return res
+            .status(
+                500
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Erro interno no login.'
+            });
     }
 }
 
+
+// ============================================================
+// ROTAS DE LOGIN
+// ============================================================
 
 app.post(
     '/api/login',
@@ -2298,14 +4713,104 @@ app.post(
 
 
 // ============================================================
-// ALTERAR A PRÓPRIA SENHA
+// VERIFICAR SESSÃO
+//
+// O INDEX poderá chamar essa rota ao abrir o aplicativo.
+//
+// Se token estiver válido:
+// mantém login.
+//
+// Se estiver vencido:
+// pede login novamente.
 // ============================================================
 
-async function alterarSenhaRS(req, res) {
+app.get(
+    '/api/auth/sessao',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const contexto =
+                await obterContextoPrivacidade(
+                    req.usuario
+                );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                usuario:
+                    req.usuario,
+
+                privacidade: {
+
+                    gestorRS:
+                        contexto.gestorRS,
+
+                    empresaCliente:
+                        contexto.empresaCliente,
+
+                    prestador:
+                        contexto.prestador,
+
+                    clienteId:
+                        contexto.clienteId
+                }
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Sessão:',
+                err
+            );
+
+
+            return res
+                .status(
+                    500
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao verificar sessão.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// ALTERAR A PRÓPRIA SENHA
+//
+// IMPORTANTE:
+//
+// NÃO ACEITAMOS MAIS O E-MAIL DO BODY
+// PARA DECIDIR QUAL CONTA ALTERAR.
+//
+// A CONTA VEM DO TOKEN.
+// ============================================================
+
+async function alterarSenhaRS(
+    req,
+    res
+) {
 
     const email =
         normalizarEmail(
-            req.body?.email
+            req.usuario?.email
         );
 
 
@@ -2331,23 +4836,38 @@ async function alterarSenhaRS(req, res) {
         !novaSenha
     ) {
 
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'Informe e-mail, senha atual e nova senha.'
-        });
+        return res
+            .status(
+                400
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Informe a senha atual e a nova senha.'
+            });
     }
 
 
     if (
-        novaSenha.length < 6
+        novaSenha.length <
+        6
     ) {
 
-        return res.status(400).json({
-            sucesso: false,
-            erro:
-                'A nova senha precisa ter no mínimo 6 caracteres.'
-        });
+        return res
+            .status(
+                400
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'A nova senha precisa ter no mínimo 6 caracteres.'
+            });
     }
 
 
@@ -2360,32 +4880,36 @@ async function alterarSenhaRS(req, res) {
                 FROM usuarios
 
                 WHERE
-                    LOWER(TRIM(email))
-                    =
-                    LOWER(TRIM($1))
+                    id =
+                    $1
 
                 LIMIT 1
                 `,
                 [
-                    email
+                    req.usuario.id
                 ]
             );
 
 
-        if (
-            !resultado.rows.length
-        ) {
-
-            return res.status(404).json({
-                sucesso: false,
-                erro:
-                    'Usuário não encontrado.'
-            });
-        }
-
-
         const usuario =
             resultado.rows[0];
+
+
+        if (!usuario) {
+
+            return res
+                .status(
+                    404
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Usuário não encontrado.'
+                });
+        }
 
 
         if (
@@ -2395,11 +4919,18 @@ async function alterarSenhaRS(req, res) {
             )
         ) {
 
-            return res.status(401).json({
-                sucesso: false,
-                erro:
-                    'Senha atual incorreta.'
-            });
+            return res
+                .status(
+                    401
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Senha atual incorreta.'
+                });
         }
 
 
@@ -2414,10 +4945,15 @@ async function alterarSenhaRS(req, res) {
             UPDATE usuarios
 
             SET
-                senha = $1
+                senha =
+                    $1,
+
+                atualizado_em =
+                    CURRENT_TIMESTAMP
 
             WHERE
-                id = $2
+                id =
+                    $2
             `,
             [
                 hash,
@@ -2429,12 +4965,15 @@ async function alterarSenhaRS(req, res) {
         await registrarAuditoria(
             email,
             'ALTERAR_SENHA',
-            'Senha alterada pelo usuário.'
+            'Senha alterada pelo próprio usuário.'
         );
 
 
         return res.json({
-            sucesso: true,
+
+            sucesso:
+                true,
+
             mensagem:
                 'Senha alterada com sucesso.'
         });
@@ -2448,23 +4987,36 @@ async function alterarSenhaRS(req, res) {
         );
 
 
-        return res.status(500).json({
-            sucesso: false,
-            erro:
-                'Erro ao alterar senha.'
-        });
+        return res
+            .status(
+                500
+            )
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Erro ao alterar senha.'
+            });
     }
 }
 
 
+// ============================================================
+// ALTERAÇÃO DE SENHA EXIGE TOKEN
+// ============================================================
+
 app.post(
     '/api/alterar-senha',
+    autenticarUsuario,
     alterarSenhaRS
 );
 
 
 app.post(
     '/api/auth/alterar-senha',
+    autenticarUsuario,
     alterarSenhaRS
 );
 
@@ -2472,25 +5024,21 @@ app.post(
 // ============================================================
 // ESQUECI MINHA SENHA
 //
-// AUTOATENDIMENTO:
+// NÃO PRECISA ESTAR LOGADO.
 //
-// PRESTADOR
-// ↓
-// DIGITA E-MAIL
-// ↓
-// RECEBE CÓDIGO
-// ↓
-// DIGITA CÓDIGO
-// ↓
-// CRIA NOVA SENHA
-//
-// NÃO PRECISA FALAR COM O SUPORTE.
+// 1. Informa e-mail.
+// 2. Código de 6 números.
+// 3. Expira em 15 minutos.
+// 4. Cria nova senha.
 // ============================================================
 
 app.post(
     '/api/auth/esqueci-senha',
 
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         const email =
             normalizarEmail(
@@ -2500,11 +5048,18 @@ app.post(
 
         if (!email) {
 
-            return res.status(400).json({
-                sucesso: false,
-                erro:
-                    'Informe o e-mail da conta.'
-            });
+            return res
+                .status(
+                    400
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Informe o e-mail da conta.'
+                });
         }
 
 
@@ -2521,9 +5076,13 @@ app.post(
                     FROM usuarios
 
                     WHERE
-                        LOWER(TRIM(email))
+                        LOWER(
+                            TRIM(email)
+                        )
                         =
-                        LOWER(TRIM($1))
+                        LOWER(
+                            TRIM($1)
+                        )
 
                     LIMIT 1
                     `,
@@ -2534,7 +5093,9 @@ app.post(
 
 
             // =================================================
-            // NÃO REVELA SE O E-MAIL EXISTE
+            // RESPOSTA NEUTRA
+            //
+            // NÃO REVELA SE O E-MAIL EXISTE.
             // =================================================
 
             if (
@@ -2542,7 +5103,10 @@ app.post(
             ) {
 
                 return res.json({
-                    sucesso: true,
+
+                    sucesso:
+                        true,
+
                     mensagem:
                         'Se o e-mail estiver cadastrado, você receberá um código de recuperação.'
                 });
@@ -2550,8 +5114,9 @@ app.post(
 
 
             // =================================================
-            // LIMITAR SOLICITAÇÕES
-            // Máximo: 3 códigos em 15 minutos.
+            // LIMITE DE SOLICITAÇÕES
+            //
+            // MÁXIMO 3 EM 15 MINUTOS.
             // =================================================
 
             const limiteRes =
@@ -2569,7 +5134,8 @@ app.post(
                         LOWER($1)
 
                     AND
-                        criado_em >
+                        criado_em
+                        >
                         CURRENT_TIMESTAMP
                         -
                         INTERVAL '15 minutes'
@@ -2588,19 +5154,27 @@ app.post(
 
 
             if (
-                totalRecentes >= 3
+                totalRecentes >=
+                3
             ) {
 
-                return res.status(429).json({
-                    sucesso: false,
-                    erro:
-                        'Muitas solicitações. Aguarde alguns minutos antes de tentar novamente.'
-                });
+                return res
+                    .status(
+                        429
+                    )
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Muitas solicitações. Aguarde alguns minutos antes de tentar novamente.'
+                    });
             }
 
 
             // =================================================
-            // CÓDIGO DE 6 NÚMEROS
+            // GERAR CÓDIGO
             // =================================================
 
             const codigo =
@@ -2628,7 +5202,8 @@ app.post(
                 UPDATE recuperacao_senha
 
                 SET
-                    usado = TRUE
+                    usado =
+                        TRUE
 
                 WHERE
                     LOWER(email)
@@ -2636,7 +5211,8 @@ app.post(
                     LOWER($1)
 
                 AND
-                    usado = FALSE
+                    usado =
+                        FALSE
                 `,
                 [
                     email
@@ -2695,12 +5271,14 @@ app.post(
                 );
 
 
+                // Invalidar código se o e-mail não saiu.
                 await pool.query(
                     `
                     UPDATE recuperacao_senha
 
                     SET
-                        usado = TRUE
+                        usado =
+                            TRUE
 
                     WHERE
                         LOWER(email)
@@ -2708,10 +5286,12 @@ app.post(
                         LOWER($1)
 
                     AND
-                        codigo_hash = $2
+                        codigo_hash =
+                            $2
 
                     AND
-                        usado = FALSE
+                        usado =
+                            FALSE
                     `,
                     [
                         email,
@@ -2720,11 +5300,18 @@ app.post(
                 );
 
 
-                return res.status(503).json({
-                    sucesso: false,
-                    erro:
-                        'O envio de recuperação por e-mail ainda não está configurado.'
-                });
+                return res
+                    .status(
+                        503
+                    )
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'O serviço de recuperação por e-mail ainda não está configurado. Procure o suporte do Grupo RS.'
+                    });
             }
 
 
@@ -2741,7 +5328,10 @@ app.post(
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
+
                 mensagem:
                     'Código enviado para seu e-mail. Ele expira em 15 minutos.'
             });
@@ -2755,29 +5345,19 @@ app.post(
             );
 
 
-            return res.status(500).json({
-                sucesso: false,
-                erro:
-                    'Não foi possível iniciar a recuperação de senha.'
-            });
+            return res
+                .status(
+                    500
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Não foi possível iniciar a recuperação de senha.'
+                });
         }
-    }
-);
-
-
-// ============================================================
-// ALIAS PARA INDEX ANTIGO
-// ============================================================
-
-app.post(
-    '/api/esqueci-senha',
-
-    async (req, res, next) => {
-
-        req.url =
-            '/api/auth/esqueci-senha';
-
-        return next();
     }
 );
 
@@ -2789,7 +5369,10 @@ app.post(
 app.post(
     '/api/auth/redefinir-senha',
 
-    async (req, res) => {
+    async (
+        req,
+        res
+    ) => {
 
         const email =
             normalizarEmail(
@@ -2819,37 +5402,60 @@ app.post(
             !novaSenha
         ) {
 
-            return res.status(400).json({
-                sucesso: false,
-                erro:
-                    'Informe e-mail, código e nova senha.'
-            });
+            return res
+                .status(
+                    400
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Informe e-mail, código e nova senha.'
+                });
         }
 
 
         if (
-            !/^\d{6}$/.test(
-                codigo
-            )
+            !/^\d{6}$/
+                .test(
+                    codigo
+                )
         ) {
 
-            return res.status(400).json({
-                sucesso: false,
-                erro:
-                    'O código deve conter 6 números.'
-            });
+            return res
+                .status(
+                    400
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'O código deve conter 6 números.'
+                });
         }
 
 
         if (
-            novaSenha.length < 6
+            novaSenha.length <
+            6
         ) {
 
-            return res.status(400).json({
-                sucesso: false,
-                erro:
-                    'A nova senha precisa ter no mínimo 6 caracteres.'
-            });
+            return res
+                .status(
+                    400
+                )
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'A nova senha precisa ter no mínimo 6 caracteres.'
+                });
         }
 
 
@@ -2867,7 +5473,8 @@ app.post(
                         LOWER($1)
 
                     AND
-                        usado = FALSE
+                        usado =
+                        FALSE
 
                     ORDER BY
                         criado_em DESC
@@ -2880,27 +5487,34 @@ app.post(
                 );
 
 
-            const token =
+            const recuperacao =
                 tokenRes.rows[0];
 
 
-            if (!token) {
+            if (!recuperacao) {
 
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'Código inválido ou já utilizado.'
-                });
+                return res
+                    .status(
+                        400
+                    )
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Código inválido ou já utilizado.'
+                    });
             }
 
 
             // =================================================
-            // VERIFICAR EXPIRAÇÃO
+            // EXPIRAÇÃO
             // =================================================
 
             if (
                 new Date(
-                    token.expira_em
+                    recuperacao.expira_em
                 )
                 <
                 new Date()
@@ -2911,35 +5525,45 @@ app.post(
                     UPDATE recuperacao_senha
 
                     SET
-                        usado = TRUE
+                        usado =
+                            TRUE
 
                     WHERE
-                        id = $1
+                        id =
+                            $1
                     `,
                     [
-                        token.id
+                        recuperacao.id
                     ]
                 );
 
 
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'Este código expirou. Solicite um novo código.'
-                });
+                return res
+                    .status(
+                        400
+                    )
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Este código expirou. Solicite um novo código.'
+                    });
             }
 
 
             // =================================================
-            // MÁXIMO DE 5 TENTATIVAS
+            // MÁXIMO 5 TENTATIVAS
             // =================================================
 
             if (
                 Number(
-                    token.tentativas ||
+                    recuperacao.tentativas ||
                     0
                 )
-                >= 5
+                >=
+                5
             ) {
 
                 await pool.query(
@@ -2947,22 +5571,31 @@ app.post(
                     UPDATE recuperacao_senha
 
                     SET
-                        usado = TRUE
+                        usado =
+                            TRUE
 
                     WHERE
-                        id = $1
+                        id =
+                            $1
                     `,
                     [
-                        token.id
+                        recuperacao.id
                     ]
                 );
 
 
-                return res.status(429).json({
-                    sucesso: false,
-                    erro:
-                        'Número máximo de tentativas atingido. Solicite um novo código.'
-                });
+                return res
+                    .status(
+                        429
+                    )
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Número máximo de tentativas atingido. Solicite um novo código.'
+                    });
             }
 
 
@@ -2973,42 +5606,43 @@ app.post(
                 );
 
 
+            const hashBancoBuffer =
+                Buffer.from(
+                    String(
+                        recuperacao.codigo_hash ||
+                        ''
+                    ),
+                    'hex'
+                );
+
+
+            const hashCodigoBuffer =
+                Buffer.from(
+                    String(
+                        codigoHash ||
+                        ''
+                    ),
+                    'hex'
+                );
+
+
             let hashCorreto =
                 false;
 
 
-            try {
-
-                const bufferBanco =
-                    Buffer.from(
-                        token.codigo_hash,
-                        'hex'
-                    );
-
-
-                const bufferDigitado =
-                    Buffer.from(
-                        codigoHash,
-                        'hex'
-                    );
-
+            if (
+                hashBancoBuffer.length ===
+                hashCodigoBuffer.length
+                &&
+                hashBancoBuffer.length >
+                0
+            ) {
 
                 hashCorreto =
-                    (
-                        bufferBanco.length ===
-                        bufferDigitado.length
-                    )
-                    &&
                     crypto.timingSafeEqual(
-                        bufferBanco,
-                        bufferDigitado
+                        hashBancoBuffer,
+                        hashCodigoBuffer
                     );
-
-
-            } catch {
-
-                hashCorreto =
-                    false;
             }
 
 
@@ -3025,24 +5659,32 @@ app.post(
                             tentativas + 1
 
                     WHERE
-                        id = $1
+                        id =
+                            $1
                     `,
                     [
-                        token.id
+                        recuperacao.id
                     ]
                 );
 
 
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'Código incorreto.'
-                });
+                return res
+                    .status(
+                        400
+                    )
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Código incorreto.'
+                    });
             }
 
 
             // =================================================
-            // BUSCAR USUÁRIO
+            // LOCALIZAR CONTA
             // =================================================
 
             const usuarioRes =
@@ -3056,9 +5698,13 @@ app.post(
                     FROM usuarios
 
                     WHERE
-                        LOWER(TRIM(email))
+                        LOWER(
+                            TRIM(email)
+                        )
                         =
-                        LOWER(TRIM($1))
+                        LOWER(
+                            TRIM($1)
+                        )
 
                     LIMIT 1
                     `,
@@ -3074,11 +5720,18 @@ app.post(
 
             if (!usuario) {
 
-                return res.status(404).json({
-                    sucesso: false,
-                    erro:
-                        'Conta não encontrada.'
-                });
+                return res
+                    .status(
+                        404
+                    )
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Conta não encontrada.'
+                    });
             }
 
 
@@ -3089,29 +5742,34 @@ app.post(
 
 
             // =================================================
-            // TRANSAÇÃO SEGURA
+            // TRANSAÇÃO
             // =================================================
 
-            const client =
+            const clienteBanco =
                 await pool.connect();
 
 
             try {
 
-                await client.query(
+                await clienteBanco.query(
                     'BEGIN'
                 );
 
 
-                await client.query(
+                await clienteBanco.query(
                     `
                     UPDATE usuarios
 
                     SET
-                        senha = $1
+                        senha =
+                            $1,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
                     WHERE
-                        id = $2
+                        id =
+                            $2
                     `,
                     [
                         novaSenhaHash,
@@ -3120,12 +5778,13 @@ app.post(
                 );
 
 
-                await client.query(
+                await clienteBanco.query(
                     `
                     UPDATE recuperacao_senha
 
                     SET
-                        usado = TRUE
+                        usado =
+                            TRUE
 
                     WHERE
                         LOWER(email)
@@ -3133,7 +5792,8 @@ app.post(
                         LOWER($1)
 
                     AND
-                        usado = FALSE
+                        usado =
+                            FALSE
                     `,
                     [
                         email
@@ -3141,14 +5801,14 @@ app.post(
                 );
 
 
-                await client.query(
+                await clienteBanco.query(
                     'COMMIT'
                 );
 
 
             } catch (txErr) {
 
-                await client.query(
+                await clienteBanco.query(
                     'ROLLBACK'
                 );
 
@@ -3158,14 +5818,14 @@ app.post(
 
             } finally {
 
-                client.release();
+                clienteBanco.release();
             }
 
 
             await registrarAuditoria(
                 email,
                 'REDEFINIR_SENHA_AUTOATENDIMENTO',
-                'Senha redefinida pelo próprio usuário através do código de recuperação.'
+                'Senha redefinida pelo próprio usuário através de código enviado por e-mail.'
             );
 
 
@@ -3175,7 +5835,10 @@ app.post(
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
+
                 mensagem:
                     'Senha redefinida com sucesso. Você já pode entrar no RS Connect.'
             });
@@ -3189,368 +5852,398 @@ app.post(
             );
 
 
-            return res.status(500).json({
-                sucesso: false,
-                erro:
-                    'Não foi possível redefinir a senha.'
-            });
-        }
-    }
-);
-
-
-// ============================================================
-// RECUPERAÇÃO ADMINISTRATIVA
-//
-// É SÓ UMA SEGUNDA OPÇÃO DE EMERGÊNCIA.
-// OS MAIS DE MIL PRESTADORES NÃO DEPENDEM DISSO.
-//
-// ADMIN_EMAIL FICA NO RENDER.
-// ============================================================
-
-app.post(
-    '/api/admin/redefinir-senha-segura',
-
-    async (req, res) => {
-
-        try {
-
-            const adminEmail =
-                normalizarEmail(
-                    req.body?.adminEmail
-                );
-
-
-            const adminSenha =
-                String(
-                    req.body?.adminSenha ||
-                    ''
-                );
-
-
-            const alvoEmail =
-                normalizarEmail(
-                    req.body?.email
-                );
-
-
-            const novaSenha =
-                String(
-                    req.body?.novaSenha ||
-                    ''
-                );
-
-
-            const adminPermitido =
-                normalizarEmail(
-                    process.env.ADMIN_EMAIL
-                );
-
-
-            if (
-                !adminPermitido
-            ) {
-
-                return res.status(503).json({
-                    sucesso: false,
-                    erro:
-                        'ADMIN_EMAIL não configurado no Render.'
-                });
-            }
-
-
-            if (
-                !adminEmail ||
-                !adminSenha ||
-                !alvoEmail ||
-                novaSenha.length < 6
-            ) {
-
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'Preencha os dados corretamente.'
-                });
-            }
-
-
-            if (
-                adminEmail !==
-                adminPermitido
-            ) {
-
-                return res.status(403).json({
-                    sucesso: false,
-                    erro:
-                        'Administrador não autorizado.'
-                });
-            }
-
-
-            const adminRes =
-                await pool.query(
-                    `
-                    SELECT
-                        id,
-                        nome,
-                        email,
-                        tipo,
-                        senha
-
-                    FROM usuarios
-
-                    WHERE
-                        LOWER(TRIM(email))
-                        =
-                        LOWER(TRIM($1))
-
-                    LIMIT 1
-                    `,
-                    [
-                        adminEmail
-                    ]
-                );
-
-
-            const admin =
-                adminRes.rows[0];
-
-
-            if (
-                !admin ||
-                !verificarSenha(
-                    adminSenha,
-                    admin.senha
+            return res
+                .status(
+                    500
                 )
-            ) {
+                .json({
 
-                return res.status(401).json({
-                    sucesso: false,
+                    sucesso:
+                        false,
+
                     erro:
-                        'Senha atual do administrador incorreta.'
+                        'Não foi possível redefinir a senha.'
                 });
-            }
-
-
-            const alvoRes =
-                await pool.query(
-                    `
-                    SELECT
-                        id,
-                        nome,
-                        email
-
-                    FROM usuarios
-
-                    WHERE
-                        LOWER(TRIM(email))
-                        =
-                        LOWER(TRIM($1))
-
-                    LIMIT 1
-                    `,
-                    [
-                        alvoEmail
-                    ]
-                );
-
-
-            const alvo =
-                alvoRes.rows[0];
-
-
-            if (!alvo) {
-
-                return res.status(404).json({
-                    sucesso: false,
-                    erro:
-                        'Conta não encontrada.'
-                });
-            }
-
-
-            const hash =
-                gerarHashSenha(
-                    novaSenha
-                );
-
-
-            await pool.query(
-                `
-                UPDATE usuarios
-
-                SET
-                    senha = $1
-
-                WHERE
-                    id = $2
-                `,
-                [
-                    hash,
-                    alvo.id
-                ]
-            );
-
-
-            await registrarAuditoria(
-                adminEmail,
-                'RESET_SENHA_SUPORTE',
-                `Acesso redefinido para ${alvoEmail}.`
-            );
-
-
-            console.log(
-                `🔐 Suporte redefiniu a senha de ${alvoEmail}`
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Senha redefinida com sucesso.',
-
-                usuario: {
-                    id:
-                        alvo.id,
-
-                    nome:
-                        alvo.nome,
-
-                    email:
-                        alvo.email
-                }
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Recuperação segura:',
-                err
-            );
-
-
-            return res.status(500).json({
-                sucesso: false,
-                erro:
-                    'Erro ao redefinir o acesso.'
-            });
         }
     }
 );
 
 
 // ============================================================
-// CONSULTAR SE A CONTA EXISTE
-// ============================================================
-
-app.post(
-    '/api/conta/existe',
-
-    async (req, res) => {
-
-        try {
-
-            const email =
-                normalizarEmail(
-                    req.body?.email
-                );
-
-
-            if (!email) {
-
-                return res.status(400).json({
-                    sucesso: false,
-                    erro:
-                        'Informe o e-mail.'
-                });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT
-                        id,
-                        nome,
-                        email,
-                        tipo
-
-                    FROM usuarios
-
-                    WHERE
-                        LOWER(TRIM(email))
-                        =
-                        LOWER(TRIM($1))
-
-                    LIMIT 1
-                    `,
-                    [
-                        email
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                existe:
-                    resultado.rows.length > 0
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Consultar conta:',
-                err
-            );
-
-
-            return res.status(500).json({
-                sucesso: false,
-                erro:
-                    'Erro ao consultar conta.'
-            });
-        }
-    }
-);
-
-
-// ============================================================
-// FIM DA PARTE 2
-// COLE A PARTE 3 IMEDIATAMENTE ABAIXO
+// FIM DA PARTE 3
+//
+// PARTE 4:
+// SERVIÇOS / VAGAS
+// + PRIVACIDADE ENTRE EMPRESAS
+// + RADAR DO PRESTADOR
+// + FILA / TITULAR / RESERVAS
 // ============================================================
 // ============================================================
 // RS CONNECT — SERVER.JS
-// PARTE 3
-// SERVIÇOS + RADAR + TITULAR + RESERVAS
-// PRESENÇA + CHECK-IN
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 4
+//
+// SERVIÇOS / VAGAS
+// RADAR + PRIVACIDADE
+// PUBLICAÇÃO + TITULAR + RESERVAS
+// SAIR DA VAGA
 // ============================================================
+
+
+// ============================================================
+// SERVIÇO VISÍVEL PARA O PRESTADOR
+//
+// NÃO DEVOLVE:
+//
+// e-mail interno da empresa
+// WhatsApp administrativo
+// PIX de outro prestador
+// documentos internos
+// informações financeiras administrativas
+// ============================================================
+
+function servicoParaPrestador(
+    servico
+) {
+
+    if (!servico) {
+        return null;
+    }
+
+
+    const emailPrestador =
+        normalizarEmail(
+            servico.prestador_email
+        );
+
+
+    return {
+
+        id:
+            servico.id,
+
+        titulo:
+            servico.titulo,
+
+        categoria:
+            servico.categoria,
+
+        local:
+            servico.local,
+
+        cidade:
+            servico.cidade,
+
+        endereco:
+            servico.endereco,
+
+        valor:
+            servico.valor,
+
+        valor_diaria:
+            servico.valor_diaria,
+
+        valor_liquido:
+            servico.valor_liquido,
+
+        data_horario:
+            servico.data_horario,
+
+        horario_fim:
+            servico.horario_fim,
+
+        forma_pgto:
+            servico.forma_pgto,
+
+        descricao:
+            servico.descricao,
+
+        recorrencia:
+            servico.recorrencia,
+
+        status:
+            servico.status,
+
+        empresa_nome:
+            servico.empresa_nome,
+
+        responsavel_servico:
+            servico.responsavel_servico,
+
+        prestador_nome:
+            servico.prestador_nome,
+
+        prestador_email:
+            emailPrestador,
+
+        reservas:
+            parseReservas(
+                servico.reservas
+            )
+                .map(
+                    reserva => {
+
+                        if (
+                            typeof reserva ===
+                            'string'
+                        ) {
+
+                            return {
+                                ocupado:
+                                    true
+                            };
+                        }
+
+
+                        return {
+
+                            ocupado:
+                                true,
+
+                            nome:
+                                reserva?.nome
+                                ||
+                                'Reserva'
+                        };
+                    }
+                ),
+
+        presenca_confirmada:
+            Boolean(
+                servico.presenca_confirmada
+            ),
+
+        presenca_hora:
+            servico.presenca_hora,
+
+        status_checkin:
+            servico.status_checkin,
+
+        checkin_hora:
+            servico.checkin_hora,
+
+        intervalo_inicio:
+            servico.intervalo_inicio,
+
+        intervalo_fim:
+            servico.intervalo_fim,
+
+        intervalo_retorno:
+            servico.intervalo_retorno,
+
+        em_intervalo:
+            Boolean(
+                servico.em_intervalo
+            ),
+
+        checkout_hora:
+            servico.checkout_hora,
+
+        validado_empresa:
+            Boolean(
+                servico.validado_empresa
+            ),
+
+        pagamento_autorizado:
+            Boolean(
+                servico.pagamento_autorizado
+            ),
+
+        pagamento_realizado:
+            Boolean(
+                servico.pagamento_realizado
+            )
+    };
+}
 
 
 // ============================================================
 // LISTAR SERVIÇOS
+//
+// ADMIN / GRUPO RS:
+// → todos
+//
+// EMPRESA:
+// → somente serviços criados por ela
+//
+// PRESTADOR:
+// → Radar + serviços em que está envolvido
+//
+// UMA EMPRESA NUNCA RECEBE SERVIÇO DA OUTRA.
 // ============================================================
 
 app.get(
     '/api/servicos',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
+            const usuario =
+                req.usuario;
+
+
+            // =================================================
+            // GRUPO RS / ADMIN
+            // =================================================
+
+            if (
+                usuario.gestorRS
+            ) {
+
+                const resultado =
+                    await pool.query(
+                        `
+                        SELECT *
+                        FROM servicos
+
+                        ORDER BY
+                            id DESC
+                        `
+                    );
+
+
+                return res.json(
+                    resultado.rows
+                );
+            }
+
+
+            // =================================================
+            // EMPRESA
+            //
+            // SERVIÇOS SOMENTE DA PRÓPRIA CONTA.
+            // =================================================
+
+            if (
+                usuario.tipo ===
+                'empresa'
+            ) {
+
+                const resultado =
+                    await pool.query(
+                        `
+                        SELECT *
+                        FROM servicos
+
+                        WHERE
+                            LOWER(
+                                empresa_email
+                            )
+                            =
+                            LOWER($1)
+
+                        ORDER BY
+                            id DESC
+                        `,
+                        [
+                            usuario.email
+                        ]
+                    );
+
+
+                return res.json(
+                    resultado.rows
+                );
+            }
+
+
+            // =================================================
+            // PRESTADOR
+            //
+            // O RADAR PODE MOSTRAR VAGAS DISPONÍVEIS,
+            // MAS COM DADOS CONTROLADOS.
+            // =================================================
+
             const resultado =
-                await pool.query(`
+                await pool.query(
+                    `
                     SELECT *
                     FROM servicos
-                    ORDER BY id DESC
-                `);
+
+                    WHERE
+
+                        LOWER(
+                            COALESCE(
+                                status,
+                                ''
+                            )
+                        )
+                        NOT IN (
+                            'cancelado'
+                        )
+
+                    ORDER BY
+                        id DESC
+                    `
+                );
+
+
+            const lista =
+                resultado.rows
+                    .filter(
+                        servico => {
+
+                            const status =
+                                String(
+                                    servico.status ||
+                                    ''
+                                )
+                                    .toLowerCase();
+
+
+                            const ehTitular =
+                                normalizarEmail(
+                                    servico.prestador_email
+                                )
+                                ===
+                                usuario.email;
+
+
+                            const ehReserva =
+                                prestadorEstaNaReserva(
+                                    servico,
+                                    usuario.email
+                                );
+
+
+                            // Serviço ativo aparece no Radar.
+                            if (
+                                status ===
+                                'ativo'
+                                ||
+                                status ===
+                                'aguardando_confirmacao'
+                            ) {
+
+                                return true;
+                            }
+
+
+                            // Serviços em andamento/finalizados
+                            // aparecem apenas para quem participou.
+                            return (
+                                ehTitular ||
+                                ehReserva
+                            );
+                        }
+                    )
+                    .map(
+                        servico =>
+                            servicoParaPrestador(
+                                servico
+                            )
+                    );
 
 
             return res.json(
-                resultado.rows
+                lista
             );
 
 
@@ -3563,9 +6256,14 @@ app.get(
 
 
             return res
-                .status(500)
+                .status(
+                    500
+                )
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao buscar serviços.'
                 });
@@ -3575,13 +6273,18 @@ app.get(
 
 
 // ============================================================
-// BUSCAR SERVIÇO INDIVIDUAL
+// SERVIÇO INDIVIDUAL
 // ============================================================
 
 app.get(
     '/api/servicos/:id',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -3596,18 +6299,125 @@ app.get(
             if (!servico) {
 
                 return res
-                    .status(404)
+                    .status(
+                        404
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
             }
 
 
+            const usuario =
+                req.usuario;
+
+
+            // =================================================
+            // ADMIN
+            // =================================================
+
+            if (
+                usuario.gestorRS
+            ) {
+
+                return res.json({
+
+                    sucesso:
+                        true,
+
+                    servico
+                });
+            }
+
+
+            // =================================================
+            // EMPRESA
+            //
+            // SÓ SERVIÇO DELA.
+            // =================================================
+
+            if (
+                usuario.tipo ===
+                'empresa'
+            ) {
+
+                if (
+                    normalizarEmail(
+                        servico.empresa_email
+                    )
+                    !==
+                    usuario.email
+                ) {
+
+                    return responderAcessoNegado(
+                        res,
+                        'Este serviço pertence a outra empresa.'
+                    );
+                }
+
+
+                return res.json({
+
+                    sucesso:
+                        true,
+
+                    servico
+                });
+            }
+
+
+            // =================================================
+            // PRESTADOR
+            //
+            // Só recebe versão controlada.
+            // =================================================
+
+            const status =
+                String(
+                    servico.status ||
+                    ''
+                )
+                    .toLowerCase();
+
+
+            const envolvido =
+                usuarioPodeAcessarServicoPrivado(
+                    usuario,
+                    servico
+                );
+
+
+            if (
+                !envolvido
+                &&
+                ![
+                    'ativo',
+                    'aguardando_confirmacao'
+                ].includes(
+                    status
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res
+                );
+            }
+
+
             return res.json({
-                sucesso: true,
-                servico
+
+                sucesso:
+                    true,
+
+                servico:
+                    servicoParaPrestador(
+                        servico
+                    )
             });
 
 
@@ -3620,9 +6430,14 @@ app.get(
 
 
             return res
-                .status(500)
+                .status(
+                    500
+                )
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao buscar serviço.'
                 });
@@ -3633,25 +6448,53 @@ app.get(
 
 // ============================================================
 // PUBLICAR SERVIÇO
+//
+// A EMPRESA NÃO ESCOLHE MAIS:
+// empresa_email
+//
+// O SERVER PEGA DO TOKEN.
+//
+// Isso impede Empresa X de cadastrar
+// serviço fingindo ser Empresa Y.
 // ============================================================
 
 app.post(
     '/api/servicos',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const dados =
-            req.body || {};
+            req.body ||
+            {};
 
 
         try {
 
-            const empresaEmail =
-                normalizarEmail(
-                    dados.empresaEmail ||
-                    dados.empresa_email ||
-                    dados.email
+            // =================================================
+            // SOMENTE EMPRESA OU GRUPO RS
+            // =================================================
+
+            if (
+                !req.usuario.gestorRS
+                &&
+                req.usuario.tipo !==
+                'empresa'
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Somente empresas podem publicar serviços.'
                 );
+            }
+
+
+            const empresaEmail =
+                req.usuario.email;
 
 
             const valorUnitario =
@@ -3680,89 +6523,78 @@ app.post(
             ) {
 
                 valorTotal =
-                    valorUnitario * 4;
-            }
+                    valorUnitario *
+                    4;
 
 
-            if (
+            } else if (
                 recorrencia ===
                 'quinzenal'
             ) {
 
                 valorTotal =
-                    valorUnitario * 2;
+                    valorUnitario *
+                    2;
             }
 
 
             const taxa =
-                valorTotal * 0.10;
+                valorTotal *
+                0.10;
 
 
             const valorLiquido =
-                valorTotal - taxa;
+                valorTotal -
+                taxa;
+
+
+            // =================================================
+            // NOME DA EMPRESA VEM DO USUÁRIO LOGADO
+            // =================================================
+
+            const usuarioEmpresaRes =
+                await pool.query(
+                    `
+                    SELECT
+                        nome,
+                        whatsapp
+
+                    FROM usuarios
+
+                    WHERE
+                        id =
+                        $1
+
+                    LIMIT 1
+                    `,
+                    [
+                        req.usuario.id
+                    ]
+                );
+
+
+            const empresaUsuario =
+                usuarioEmpresaRes.rows[0];
 
 
             let empresaNome =
                 String(
+                    empresaUsuario?.nome ||
                     dados.empresaNome ||
                     dados.empresa_nome ||
-                    ''
+                    'Empresa'
                 )
                     .trim();
 
 
-            if (
-                !empresaNome &&
-                empresaEmail
-            ) {
-
-                const empresaRes =
-                    await pool.query(
-                        `
-                        SELECT nome
-                        FROM usuarios
-
-                        WHERE
-                            LOWER(TRIM(email))
-                            =
-                            LOWER(TRIM($1))
-
-                        LIMIT 1
-                        `,
-                        [
-                            empresaEmail
-                        ]
-                    );
-
-
-                empresaNome =
-                    empresaRes.rows[0]?.nome ||
-                    '';
-            }
-
-
-            const dataHorario =
-                dados.dataHorario ||
-                dados.data_horario ||
-                (
-                    dados.data &&
-                    (
-                        dados.horario ||
-                        dados.horario_inicio
-                    )
-
-                        ?
-
-                        `${dados.data}T${
-                            dados.horario ||
-                            dados.horario_inicio
-                        }`
-
-                        :
-
-                        dados.data ||
-                        'A combinar'
-                );
+            const empresaWhatsapp =
+                String(
+                    empresaUsuario?.whatsapp ||
+                    dados.empresaWhatsapp ||
+                    dados.empresa_whatsapp ||
+                    ''
+                )
+                    .trim();
 
 
             const resultado =
@@ -3789,7 +6621,8 @@ app.post(
                         responsavel_servico,
                         whatsapp_responsavel,
                         recorrencia,
-                        status
+                        status,
+                        atualizado_em
                     )
 
                     VALUES (
@@ -3797,7 +6630,8 @@ app.post(
                         $6,$7,$8,$9,$10,
                         $11,$12,$13,$14,$15,
                         $16,$17,$18,$19,$20,
-                        'ativo'
+                        'ativo',
+                        CURRENT_TIMESTAMP
                     )
 
                     RETURNING *
@@ -3830,7 +6664,27 @@ app.post(
 
                         valorTotal,
 
-                        dataHorario,
+                        dados.dataHorario ||
+                        dados.data_horario ||
+                        (
+                            dados.data &&
+                            (
+                                dados.horario ||
+                                dados.horario_inicio
+                            )
+
+                                ?
+
+                                `${dados.data}T${
+                                    dados.horario ||
+                                    dados.horario_inicio
+                                }`
+
+                                :
+
+                                dados.data ||
+                                'A combinar'
+                        ),
 
                         dados.horarioFim ||
                         dados.horario_fim ||
@@ -3854,17 +6708,15 @@ app.post(
 
                         empresaNome,
 
-                        dados.empresaWhatsapp ||
-                        dados.empresa_whatsapp ||
-                        '',
+                        empresaWhatsapp,
 
                         dados.responsavelServico ||
                         dados.responsavel_servico ||
-                        '',
+                        empresaNome,
 
                         dados.whatsappResponsavel ||
                         dados.whatsapp_responsavel ||
-                        '',
+                        empresaWhatsapp,
 
                         recorrencia
                     ]
@@ -3895,10 +6747,21 @@ app.post(
             );
 
 
+            emitirAtualizacaoEmpresa(
+                empresaEmail,
+                'meus_servicos_atualizados',
+                {
+                    servicoId:
+                        servico.id
+                }
+            );
+
+
             return res.json({
-                sucesso: true,
-                mensagem:
-                    'Serviço publicado com sucesso.',
+
+                sucesso:
+                    true,
+
                 servico
             });
 
@@ -3912,9 +6775,14 @@ app.post(
 
 
             return res
-                .status(500)
+                .status(
+                    500
+                )
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao publicar serviço: ' +
                         err.message
@@ -3927,16 +6795,23 @@ app.post(
 // ============================================================
 // ACEITAR VAGA
 //
-// REGRA:
-// 1 TITULAR
-// +
-// 2 RESERVAS
+// NÃO USA MAIS:
+//
+// req.body.email
+// req.body.prestadorEmail
+//
+// USA O TOKEN.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/aceitar',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
@@ -3945,6 +6820,20 @@ app.post(
 
 
         try {
+
+            if (
+                req.usuario.gestorRS
+                ||
+                req.usuario.tipo ===
+                'empresa'
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Somente prestadores podem aceitar vagas.'
+                );
+            }
+
 
             const servico =
                 await buscarServico(
@@ -3955,9 +6844,14 @@ app.post(
             if (!servico) {
 
                 return res
-                    .status(404)
+                    .status(
+                        404
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -3965,59 +6859,17 @@ app.post(
 
 
             const prestadorEmail =
-                normalizarEmail(
-                    req.body?.prestadorEmail ||
-                    req.body?.prestador_email ||
-                    req.body?.email
-                );
+                req.usuario.email;
 
 
-            let prestadorNome =
-                String(
-                    req.body?.prestadorNome ||
-                    req.body?.prestador_nome ||
-                    ''
-                )
-                    .trim();
+            // =================================================
+            // DADOS DO PRESTADOR VÊM DO BANCO
+            // =================================================
 
-
-            let prestadorPix =
-                String(
-                    req.body?.prestadorPix ||
-                    req.body?.prestador_pix ||
-                    ''
-                )
-                    .trim();
-
-
-            let prestadorWhatsapp =
-                String(
-                    req.body?.prestadorWhatsapp ||
-                    req.body?.prestador_whatsapp ||
-                    ''
-                )
-                    .trim();
-
-
-            if (!prestadorEmail) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Prestador não informado.'
-                    });
-            }
-
-
-            // Busca informações do usuário
-            // caso o INDEX não tenha enviado tudo.
-            const usuarioRes =
+            const prestadorRes =
                 await pool.query(
                     `
                     SELECT
-                        id,
                         nome,
                         pix,
                         whatsapp
@@ -4025,50 +6877,40 @@ app.post(
                     FROM usuarios
 
                     WHERE
-                        LOWER(TRIM(email))
-                        =
-                        LOWER(TRIM($1))
+                        id =
+                        $1
 
                     LIMIT 1
                     `,
                     [
-                        prestadorEmail
+                        req.usuario.id
                     ]
                 );
 
 
-            const usuario =
-                usuarioRes.rows[0];
+            const prestadorBanco =
+                prestadorRes.rows[0];
 
 
-            if (!usuario) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Prestador não encontrado no cadastro.'
-                    });
-            }
+            const prestadorNome =
+                String(
+                    prestadorBanco?.nome ||
+                    prestadorEmail
+                );
 
 
-            prestadorNome =
-                prestadorNome ||
-                usuario.nome ||
-                prestadorEmail;
+            const prestadorPix =
+                String(
+                    prestadorBanco?.pix ||
+                    ''
+                );
 
 
-            prestadorPix =
-                prestadorPix ||
-                usuario.pix ||
-                '';
-
-
-            prestadorWhatsapp =
-                prestadorWhatsapp ||
-                usuario.whatsapp ||
-                '';
+            const prestadorWhatsapp =
+                String(
+                    prestadorBanco?.whatsapp ||
+                    ''
+                );
 
 
             const statusServico =
@@ -4076,29 +6918,28 @@ app.post(
                     servico.status ||
                     ''
                 )
-                    .trim()
                     .toLowerCase();
 
 
-            const statusBloqueados = [
-                'cancelado',
-                'finalizado',
-                'validado',
-                'pago',
-                'encerrado'
-            ];
-
-
             if (
-                statusBloqueados.includes(
+                [
+                    'cancelado',
+                    'finalizado',
+                    'pago'
+                ].includes(
                     statusServico
                 )
             ) {
 
                 return res
-                    .status(409)
+                    .status(
+                        409
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Esta vaga não está mais disponível.'
                     });
@@ -4111,61 +6952,48 @@ app.post(
                 );
 
 
-            // Já é titular
             if (
-                normalizarEmail(
-                    servico.prestador_email
+                prestadorEhTitular(
+                    servico,
+                    prestadorEmail
                 )
-                ===
-                prestadorEmail
             ) {
 
                 return res
-                    .status(400)
+                    .status(
+                        409
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Você já é o Titular desta vaga.'
                     });
             }
 
 
-            // Já está na reserva
             const jaReserva =
-                reservas.some(
-                    reserva => {
-
-                        const emailReserva =
-                            normalizarEmail(
-                                typeof reserva ===
-                                'string'
-
-                                    ?
-
-                                    reserva
-
-                                    :
-
-                                    reserva.email ||
-                                    reserva.prestadorEmail ||
-                                    reserva.prestador_email
-                            );
-
-
-                        return (
-                            emailReserva ===
-                            prestadorEmail
-                        );
-                    }
+                prestadorEstaNaReserva(
+                    servico,
+                    prestadorEmail
                 );
 
 
-            if (jaReserva) {
+            if (
+                jaReserva
+            ) {
 
                 return res
-                    .status(400)
+                    .status(
+                        409
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Você já está na reserva desta vaga.'
                     });
@@ -4173,8 +7001,7 @@ app.post(
 
 
             // =================================================
-            // NÃO POSSUI TITULAR
-            // ENTÃO O PRIMEIRO PRESTADOR VIRA TITULAR.
+            // PRIMEIRO PRESTADOR = TITULAR
             // =================================================
 
             if (
@@ -4203,10 +7030,18 @@ app.post(
                                 $5,
 
                             status =
-                                'aguardando_confirmacao'
+                                'aguardando_confirmacao',
+
+                            atualizado_em =
+                                CURRENT_TIMESTAMP
 
                         WHERE
-                            id = $6
+                            id =
+                                $6
+
+                        AND
+                            prestador_email
+                            IS NULL
 
                         RETURNING *
                         `,
@@ -4219,11 +7054,32 @@ app.post(
 
                             prestadorWhatsapp,
 
-                            usuario.id,
+                            req.usuario.id,
 
                             servicoId
                         ]
                     );
+
+
+                // Outro usuário pode ter clicado
+                // ao mesmo tempo.
+                if (
+                    !resultado.rows.length
+                ) {
+
+                    return res
+                        .status(
+                            409
+                        )
+                        .json({
+
+                            sucesso:
+                                false,
+
+                            erro:
+                                'Outro prestador assumiu a vaga primeiro. Atualize o Radar.'
+                        });
+                }
 
 
                 await registrarAuditoria(
@@ -4238,18 +7094,21 @@ app.post(
                 );
 
 
-                io.emit(
-                    'vaga_atualizada',
+                emitirAtualizacaoEmpresa(
+                    servico.empresa_email,
+                    'prestador_assumiu_vaga',
                     {
                         servicoId,
-                        titular:
-                            prestadorEmail
+
+                        prestadorNome
                     }
                 );
 
 
                 return res.json({
-                    sucesso: true,
+
+                    sucesso:
+                        true,
 
                     mensagem:
                         'Você assumiu a vaga como Titular.',
@@ -4258,24 +7117,33 @@ app.post(
                         'titular',
 
                     servico:
-                        resultado.rows[0]
+                        servicoParaPrestador(
+                            resultado.rows[0]
+                        )
                 });
             }
 
 
             // =================================================
-            // TITULAR JÁ EXISTE
-            // ENTRAR NA RESERVA
+            // RESERVAS
+            //
+            // 1 TITULAR + ATÉ 2 RESERVAS
             // =================================================
 
             if (
-                reservas.length >= 2
+                reservas.length >=
+                2
             ) {
 
                 return res
-                    .status(409)
+                    .status(
+                        409
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Esta vaga já possui Titular e duas Reservas.'
                     });
@@ -4283,6 +7151,7 @@ app.post(
 
 
             reservas.push({
+
                 email:
                     prestadorEmail,
 
@@ -4308,10 +7177,14 @@ app.post(
 
                     SET
                         reservas =
-                            $1::jsonb
+                            $1::jsonb,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
                     WHERE
-                        id = $2
+                        id =
+                            $2
 
                     RETURNING *
                     `,
@@ -4337,18 +7210,10 @@ app.post(
             );
 
 
-            io.emit(
-                'vaga_atualizada',
-                {
-                    servicoId,
-                    reservas:
-                        reservas.length
-                }
-            );
-
-
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
                     `Você entrou como Reserva ${reservas.length}.`,
@@ -4357,7 +7222,9 @@ app.post(
                     `reserva_${reservas.length}`,
 
                 servico:
-                    resultado.rows[0]
+                    servicoParaPrestador(
+                        resultado.rows[0]
+                    )
             });
 
 
@@ -4370,9 +7237,14 @@ app.post(
 
 
             return res
-                .status(500)
+                .status(
+                    500
+                )
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao aceitar vaga.'
                 });
@@ -4382,13 +7254,20 @@ app.post(
 
 
 // ============================================================
-// SAIR DA VAGA / RESERVA
+// SAIR DA VAGA
+//
+// SOMENTE O PRÓPRIO PRESTADOR LOGADO.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/sair-vaga',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
@@ -4396,27 +7275,25 @@ app.post(
             );
 
 
-        const email =
-            normalizarEmail(
-                req.body?.email ||
-                req.body?.prestadorEmail ||
-                req.body?.prestador_email
-            );
-
-
-        if (!email) {
-
-            return res
-                .status(400)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Prestador não informado.'
-                });
-        }
-
-
         try {
+
+            if (
+                req.usuario.tipo ===
+                'empresa'
+                ||
+                req.usuario.gestorRS
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Esta função é exclusiva do prestador.'
+                );
+            }
+
+
+            const email =
+                req.usuario.email;
+
 
             const servico =
                 await buscarServico(
@@ -4427,9 +7304,14 @@ app.post(
             if (!servico) {
 
                 return res
-                    .status(404)
+                    .status(
+                        404
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -4464,9 +7346,11 @@ app.post(
 
                                     :
 
-                                    reserva.email ||
-                                    reserva.prestadorEmail ||
-                                    reserva.prestador_email
+                                    reserva?.email
+                                    ||
+                                    reserva?.prestadorEmail
+                                    ||
+                                    reserva?.prestador_email
                             );
 
 
@@ -4479,14 +7363,21 @@ app.post(
 
 
             if (
-                !ehTitular &&
-                indiceReserva === -1
+                !ehTitular
+                &&
+                indiceReserva ===
+                -1
             ) {
 
                 return res
-                    .status(400)
+                    .status(
+                        400
+                    )
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Você não está vinculado a esta vaga.'
                     });
@@ -4494,22 +7385,32 @@ app.post(
 
 
             // =================================================
-            // TITULAR QUER SAIR
+            // TITULAR
             // =================================================
 
-            if (ehTitular) {
+            if (
+                ehTitular
+            ) {
 
                 if (
-                    servico.presenca_confirmada ||
-                    servico.checkin_hora ||
-                    servico.intervalo_inicio ||
+                    servico.presenca_confirmada
+                    ||
+                    servico.checkin_hora
+                    ||
+                    servico.intervalo_inicio
+                    ||
                     servico.checkout_hora
                 ) {
 
                     return res
-                        .status(409)
+                        .status(
+                            409
+                        )
                         .json({
-                            sucesso: false,
+
+                            sucesso:
+                                false,
+
                             erro:
                                 'A jornada já foi iniciada. Não é possível sair da vaga.'
                         });
@@ -4524,7 +7425,9 @@ app.post(
                         null;
 
 
-                if (novoTitular) {
+                if (
+                    novoTitular
+                ) {
 
                     const novoEmail =
                         normalizarEmail(
@@ -4583,16 +7486,16 @@ app.post(
                             '';
 
 
-                    const usuarioNovoRes =
+                    const novoUsuarioRes =
                         await pool.query(
                             `
                             SELECT id
                             FROM usuarios
 
                             WHERE
-                                LOWER(TRIM(email))
+                                LOWER(email)
                                 =
-                                LOWER(TRIM($1))
+                                LOWER($1)
 
                             LIMIT 1
                             `,
@@ -4602,8 +7505,9 @@ app.post(
                         );
 
 
-                    const novoPrestadorId =
-                        usuarioNovoRes.rows[0]?.id ||
+                    const novoUsuarioId =
+                        novoUsuarioRes.rows[0]?.id
+                        ||
                         null;
 
 
@@ -4688,10 +7592,14 @@ app.post(
                                 NULL,
 
                             checkout_longitude =
-                                NULL
+                                NULL,
+
+                            atualizado_em =
+                                CURRENT_TIMESTAMP
 
                         WHERE
-                            id = $7
+                            id =
+                                $7
                         `,
                         [
                             novoEmail,
@@ -4702,7 +7610,7 @@ app.post(
 
                             novoWhatsapp,
 
-                            novoPrestadorId,
+                            novoUsuarioId,
 
                             JSON.stringify(
                                 reservas
@@ -4720,133 +7628,112 @@ app.post(
                     );
 
 
-                    await registrarAuditoria(
-                        email,
-                        'SAIR_VAGA_TITULAR',
-                        `Titular saiu do serviço #${servicoId}.`
-                    );
-
-
-                    emitirAtualizacao(
-                        servicoId
-                    );
-
-
-                    io.emit(
-                        'vaga_atualizada',
+                    emitirAtualizacaoPrestador(
+                        novoEmail,
+                        'promovido_titular',
                         {
-                            servicoId,
-                            titular:
-                                novoEmail,
-                            reservas:
-                                reservas.length
+                            servicoId
                         }
                     );
 
 
-                    return res.json({
-                        sucesso: true,
-                        mensagem:
-                            'Você saiu da vaga. A primeira reserva virou Titular.'
-                    });
+                } else {
+
+                    await pool.query(
+                        `
+                        UPDATE servicos
+
+                        SET
+                            prestador_email =
+                                NULL,
+
+                            prestador_nome =
+                                NULL,
+
+                            prestador_pix =
+                                NULL,
+
+                            prestador_whatsapp =
+                                NULL,
+
+                            prestador_id =
+                                NULL,
+
+                            reservas =
+                                '[]'::jsonb,
+
+                            status =
+                                'ativo',
+
+                            presenca_confirmada =
+                                FALSE,
+
+                            presenca_hora =
+                                NULL,
+
+                            presenca_latitude =
+                                NULL,
+
+                            presenca_longitude =
+                                NULL,
+
+                            presenca_precisao =
+                                NULL,
+
+                            selfie_confirmacao =
+                                NULL,
+
+                            status_checkin =
+                                'pendente',
+
+                            checkin_hora =
+                                NULL,
+
+                            checkin_foto =
+                                NULL,
+
+                            checkin_latitude =
+                                NULL,
+
+                            checkin_longitude =
+                                NULL,
+
+                            intervalo_inicio =
+                                NULL,
+
+                            intervalo_fim =
+                                NULL,
+
+                            intervalo_retorno =
+                                NULL,
+
+                            em_intervalo =
+                                FALSE,
+
+                            checkout_hora =
+                                NULL,
+
+                            checkout_foto =
+                                NULL,
+
+                            checkout_latitude =
+                                NULL,
+
+                            checkout_longitude =
+                                NULL,
+
+                            atualizado_em =
+                                CURRENT_TIMESTAMP
+
+                        WHERE
+                            id =
+                                $1
+                        `,
+                        [
+                            servicoId
+                        ]
+                    );
                 }
-
-
-                // =================================================
-                // NÃO TEM RESERVA
-                // VAGA VOLTA PARA O RADAR
-                // =================================================
-
-                await pool.query(
-                    `
-                    UPDATE servicos
-
-                    SET
-                        prestador_email =
-                            NULL,
-
-                        prestador_nome =
-                            NULL,
-
-                        prestador_pix =
-                            NULL,
-
-                        prestador_whatsapp =
-                            NULL,
-
-                        prestador_id =
-                            NULL,
-
-                        reservas =
-                            '[]'::jsonb,
-
-                        status =
-                            'ativo',
-
-                        presenca_confirmada =
-                            FALSE,
-
-                        presenca_hora =
-                            NULL,
-
-                        presenca_latitude =
-                            NULL,
-
-                        presenca_longitude =
-                            NULL,
-
-                        presenca_precisao =
-                            NULL,
-
-                        selfie_confirmacao =
-                            NULL,
-
-                        status_checkin =
-                            'pendente',
-
-                        checkin_hora =
-                            NULL,
-
-                        checkin_foto =
-                            NULL,
-
-                        checkin_latitude =
-                            NULL,
-
-                        checkin_longitude =
-                            NULL,
-
-                        intervalo_inicio =
-                            NULL,
-
-                        intervalo_fim =
-                            NULL,
-
-                        intervalo_retorno =
-                            NULL,
-
-                        em_intervalo =
-                            FALSE,
-
-                        checkout_hora =
-                            NULL,
-
-                        checkout_foto =
-                            NULL,
-
-                        checkout_latitude =
-                            NULL,
-
-                        checkout_longitude =
-                            NULL
-
-                    WHERE
-                        id = $1
-                    `,
-                    [
-                        servicoId
-                    ]
-                );
 
 
                 await registrarAuditoria(
@@ -4861,28 +7748,27 @@ app.post(
                 );
 
 
-                io.emit(
-                    'vaga_atualizada',
-                    {
-                        servicoId,
-                        titular:
-                            null,
-                        reservas:
-                            0
-                    }
-                );
-
-
                 return res.json({
-                    sucesso: true,
+
+                    sucesso:
+                        true,
+
                     mensagem:
-                        'Você saiu da vaga. Ela voltou para o Radar.'
+                        novoTitular
+
+                            ?
+
+                            'Você saiu da vaga. A primeira reserva virou Titular.'
+
+                            :
+
+                            'Você saiu da vaga. Ela voltou para o Radar.'
                 });
             }
 
 
             // =================================================
-            // RESERVA QUER SAIR
+            // REMOVER APENAS A PRÓPRIA RESERVA
             // =================================================
 
             reservas.splice(
@@ -4897,10 +7783,14 @@ app.post(
 
                 SET
                     reservas =
-                        $1::jsonb
+                        $1::jsonb,
+
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
 
                 WHERE
-                    id = $2
+                    id =
+                        $2
                 `,
                 [
                     JSON.stringify(
@@ -4924,18 +7814,11 @@ app.post(
             );
 
 
-            io.emit(
-                'vaga_atualizada',
-                {
-                    servicoId,
-                    reservas:
-                        reservas.length
-                }
-            );
-
-
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
+
                 mensagem:
                     'Você saiu da reserva.'
             });
@@ -4950,9 +7833,14 @@ app.post(
 
 
             return res
-                .status(500)
+                .status(
+                    500
+                )
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao sair da vaga.'
                 });
@@ -4962,30 +7850,34 @@ app.post(
 
 
 // ============================================================
-// ALIAS — DESISTIR DA VAGA
+// FIM DA PARTE 4
+//
+// PARTE 5:
+//
+// PRESENÇA + CHECK-IN
+// INTERVALO + RETORNO
+// CHECK-OUT
+// VALIDAÇÃO DA EMPRESA
+//
+// TUDO PROTEGIDO PELO TOKEN.
 // ============================================================
-
-app.post(
-    '/api/servicos/:id/desistir',
-
-    async (req, res, next) => {
-
-        req.url =
-            `/api/servicos/${req.params.id}/sair-vaga`;
-
-        return next();
-    }
-);
+// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 5
+//
+// PRESENÇA + CHECK-IN
+// INTERVALO + RETORNO
+// CHECK-OUT + VALIDAÇÃO DA EMPRESA
+// ============================================================
 
 
 // ============================================================
 // CONFIRMAR PRESENÇA
 //
-// TITULAR
-// +
-// FOTO
-// +
-// GPS
+// SOMENTE O TITULAR LOGADO.
+// FOTO + GPS OBRIGATÓRIOS.
 // ============================================================
 
 async function confirmarPresencaRS(
@@ -4997,26 +7889,6 @@ async function confirmarPresencaRS(
         Number(
             req.params.id
         );
-
-
-    const email =
-        normalizarEmail(
-            req.body?.email ||
-            req.body?.prestadorEmail ||
-            req.body?.prestador_email
-        );
-
-
-    if (!email) {
-
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-                erro:
-                    'Prestador não informado.'
-            });
-    }
 
 
     try {
@@ -5039,6 +7911,10 @@ async function confirmarPresencaRS(
         }
 
 
+        const email =
+            req.usuario.email;
+
+
         if (
             !prestadorEhTitular(
                 servico,
@@ -5046,13 +7922,10 @@ async function confirmarPresencaRS(
             )
         ) {
 
-            return res
-                .status(403)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Somente o Titular pode confirmar presença.'
-                });
+            return responderAcessoNegado(
+                res,
+                'Somente o Titular desta vaga pode confirmar presença.'
+            );
         }
 
 
@@ -5076,11 +7949,12 @@ async function confirmarPresencaRS(
 
             return res.json({
                 sucesso: true,
-
                 mensagem:
                     'A presença já está confirmada.',
-
-                servico
+                servico:
+                    servicoParaPrestador(
+                        servico
+                    )
             });
         }
 
@@ -5121,12 +7995,9 @@ async function confirmarPresencaRS(
 
 
         if (
-            latitude === undefined ||
-            longitude === undefined ||
-            latitude === null ||
-            longitude === null ||
-            latitude === '' ||
-            longitude === ''
+            latitude === undefined
+            ||
+            longitude === undefined
         ) {
 
             return res
@@ -5171,10 +8042,14 @@ async function confirmarPresencaRS(
                         $5,
 
                     status =
-                        'confirmado'
+                        'confirmado',
+
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
 
                 WHERE
-                    id = $6
+                    id =
+                        $6
 
                 RETURNING *
                 `,
@@ -5207,19 +8082,30 @@ async function confirmarPresencaRS(
         );
 
 
-        emitirAtualizacao(
-            servicoId
-        );
-
-
-        io.emit(
+        emitirAtualizacaoPrestador(
+            email,
             'presenca_confirmada',
             {
                 servicoId,
-                prestadorEmail:
-                    email,
                 hora
             }
+        );
+
+
+        emitirAtualizacaoEmpresa(
+            servico.empresa_email,
+            'presenca_confirmada',
+            {
+                servicoId,
+                prestadorNome:
+                    servico.prestador_nome,
+                hora
+            }
+        );
+
+
+        emitirAtualizacao(
+            servicoId
         );
 
 
@@ -5232,7 +8118,9 @@ async function confirmarPresencaRS(
             hora,
 
             servico:
-                resultado.rows[0]
+                servicoParaPrestador(
+                    resultado.rows[0]
+                )
         });
 
 
@@ -5255,14 +8143,20 @@ async function confirmarPresencaRS(
 }
 
 
+// ============================================================
+// ROTAS DE PRESENÇA
+// ============================================================
+
 app.post(
     '/api/servicos/:id/confirmar-presenca',
+    autenticarUsuario,
     confirmarPresencaRS
 );
 
 
 app.post(
     '/api/servicos/:id/presenca',
+    autenticarUsuario,
     confirmarPresencaRS
 );
 
@@ -5270,39 +8164,24 @@ app.post(
 // ============================================================
 // CHECK-IN
 //
-// SOMENTE DEPOIS DA CONFIRMAÇÃO DE PRESENÇA
-// FOTO + GPS OBRIGATÓRIOS
+// FOTO + GPS.
+// SOMENTE TITULAR.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/checkin',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
                 req.params.id
             );
-
-
-        const email =
-            normalizarEmail(
-                req.body?.email ||
-                req.body?.prestadorEmail ||
-                req.body?.prestador_email
-            );
-
-
-        if (!email) {
-
-            return res
-                .status(400)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Prestador não informado.'
-                });
-        }
 
 
         try {
@@ -5325,6 +8204,10 @@ app.post(
             }
 
 
+            const email =
+                req.usuario.email;
+
+
             if (
                 !prestadorEhTitular(
                     servico,
@@ -5332,31 +8215,15 @@ app.post(
                 )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente o Titular pode fazer check-in.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Somente o Titular pode registrar a entrada.'
+                );
             }
 
 
-            // Serviço já terminou.
             if (
-                servico.checkout_hora ||
-                [
-                    'finalizado',
-                    'validado',
-                    'pago',
-                    'encerrado'
-                ].includes(
-                    String(
-                        servico.status ||
-                        ''
-                    )
-                        .toLowerCase()
-                )
+                servico.checkout_hora
             ) {
 
                 return res
@@ -5387,20 +8254,13 @@ app.post(
                 servico.checkin_hora
             ) {
 
-                return res.json({
-                    sucesso: true,
-
-                    mensagem:
-                        `CHECK-IN FINALIZADO às ${servico.checkin_hora}.`,
-
-                    jaRealizado:
-                        true,
-
-                    hora:
-                        servico.checkin_hora,
-
-                    servico
-                });
+                return res
+                    .status(409)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            `CHECK-IN FINALIZADO às ${servico.checkin_hora}.`
+                    });
             }
 
 
@@ -5434,12 +8294,9 @@ app.post(
 
 
             if (
-                latitude === undefined ||
-                longitude === undefined ||
-                latitude === null ||
-                longitude === null ||
-                latitude === '' ||
-                longitude === ''
+                latitude === undefined
+                ||
+                longitude === undefined
             ) {
 
                 return res
@@ -5481,10 +8338,14 @@ app.post(
                             'em_andamento',
 
                         em_intervalo =
-                            FALSE
+                            FALSE,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
                     WHERE
-                        id = $5
+                        id =
+                            $5
 
                     RETURNING *
                     `,
@@ -5513,21 +8374,30 @@ app.post(
             );
 
 
-            emitirAtualizacao(
-                servicoId
-            );
-
-
-            io.emit(
+            emitirAtualizacaoPrestador(
+                email,
                 'checkin_realizado',
                 {
                     servicoId,
-
-                    prestadorEmail:
-                        email,
-
                     hora
                 }
+            );
+
+
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'checkin_realizado',
+                {
+                    servicoId,
+                    prestadorNome:
+                        servico.prestador_nome,
+                    hora
+                }
+            );
+
+
+            emitirAtualizacao(
+                servicoId
             );
 
 
@@ -5540,7 +8410,9 @@ app.post(
                 hora,
 
                 servico:
-                    resultado.rows[0]
+                    servicoParaPrestador(
+                        resultado.rows[0]
+                    )
             });
 
 
@@ -5565,155 +8437,6 @@ app.post(
 
 
 // ============================================================
-// CONSULTAR POSIÇÃO DO PRESTADOR NA VAGA
-// ============================================================
-
-app.get(
-    '/api/servicos/:id/posicao/:email',
-
-    async (req, res) => {
-
-        try {
-
-            const servicoId =
-                Number(
-                    req.params.id
-                );
-
-
-            const email =
-                normalizarEmail(
-                    req.params.email
-                );
-
-
-            const servico =
-                await buscarServico(
-                    servicoId
-                );
-
-
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            if (
-                prestadorEhTitular(
-                    servico,
-                    email
-                )
-            ) {
-
-                return res.json({
-                    sucesso: true,
-                    vinculado:
-                        true,
-                    posicao:
-                        'titular'
-                });
-            }
-
-
-            const reservas =
-                parseReservas(
-                    servico.reservas
-                );
-
-
-            const indice =
-                reservas.findIndex(
-                    reserva => {
-
-                        const emailReserva =
-                            normalizarEmail(
-                                typeof reserva ===
-                                'string'
-
-                                    ?
-
-                                    reserva
-
-                                    :
-
-                                    reserva.email ||
-                                    reserva.prestador_email ||
-                                    reserva.prestadorEmail
-                            );
-
-
-                        return (
-                            emailReserva ===
-                            email
-                        );
-                    }
-                );
-
-
-            if (
-                indice >= 0
-            ) {
-
-                return res.json({
-                    sucesso: true,
-
-                    vinculado:
-                        true,
-
-                    posicao:
-                        `reserva_${indice + 1}`
-                });
-            }
-
-
-            return res.json({
-                sucesso: true,
-                vinculado:
-                    false,
-                posicao:
-                    null
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Consultar posição:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao consultar posição.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// FIM DA PARTE 3
-// COLE A PARTE 4 IMEDIATAMENTE ABAIXO
-// ============================================================
-// ============================================================
-// RS CONNECT — SERVER.JS
-// PARTE 4
-// INTERVALO + RETORNO + CÁLCULO DE HORAS + CHECK-OUT
-// ============================================================
-
-
-// ============================================================
 // INICIAR INTERVALO
 // ============================================================
 
@@ -5726,26 +8449,6 @@ async function iniciarIntervaloRS(
         Number(
             req.params.id
         );
-
-
-    const email =
-        normalizarEmail(
-            req.body?.email ||
-            req.body?.prestadorEmail ||
-            req.body?.prestador_email
-        );
-
-
-    if (!email) {
-
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-                erro:
-                    'Prestador não informado.'
-            });
-    }
 
 
     try {
@@ -5768,9 +8471,9 @@ async function iniciarIntervaloRS(
         }
 
 
-        // ====================================================
-        // SOMENTE O TITULAR
-        // ====================================================
+        const email =
+            req.usuario.email;
+
 
         if (
             !prestadorEhTitular(
@@ -5779,19 +8482,12 @@ async function iniciarIntervaloRS(
             )
         ) {
 
-            return res
-                .status(403)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Somente o Titular pode iniciar o intervalo.'
-                });
+            return responderAcessoNegado(
+                res,
+                'Somente o Titular pode iniciar o intervalo.'
+            );
         }
 
-
-        // ====================================================
-        // PRECISA TER CHECK-IN
-        // ====================================================
 
         if (
             !servico.checkin_hora
@@ -5807,24 +8503,8 @@ async function iniciarIntervaloRS(
         }
 
 
-        // ====================================================
-        // NÃO PODE ESTAR FINALIZADO
-        // ====================================================
-
         if (
-            servico.checkout_hora ||
-            [
-                'finalizado',
-                'validado',
-                'pago',
-                'encerrado'
-            ].includes(
-                String(
-                    servico.status ||
-                    ''
-                )
-                    .toLowerCase()
-            )
+            servico.checkout_hora
         ) {
 
             return res
@@ -5836,10 +8516,6 @@ async function iniciarIntervaloRS(
                 });
         }
 
-
-        // ====================================================
-        // JÁ ESTÁ NO INTERVALO
-        // ====================================================
 
         if (
             servico.em_intervalo
@@ -5854,10 +8530,6 @@ async function iniciarIntervaloRS(
                 });
         }
 
-
-        // ====================================================
-        // INTERVALO JÁ FOI USADO
-        // ====================================================
 
         if (
             servico.intervalo_inicio
@@ -5877,38 +8549,38 @@ async function iniciarIntervaloRS(
             horaAtualRS();
 
 
-        const resultado =
-            await pool.query(
-                `
-                UPDATE servicos
+        await pool.query(
+            `
+            UPDATE servicos
 
-                SET
-                    intervalo_inicio =
-                        $1,
+            SET
+                intervalo_inicio =
+                    $1,
 
-                    intervalo_fim =
-                        NULL,
+                intervalo_fim =
+                    NULL,
 
-                    intervalo_retorno =
-                        NULL,
+                intervalo_retorno =
+                    NULL,
 
-                    em_intervalo =
-                        TRUE,
+                em_intervalo =
+                    TRUE,
 
-                    status =
-                        'em_intervalo'
+                status =
+                    'em_intervalo',
 
-                WHERE
-                    id =
-                        $2
+                atualizado_em =
+                    CURRENT_TIMESTAMP
 
-                RETURNING *
-                `,
-                [
-                    hora,
-                    servicoId
-                ]
-            );
+            WHERE
+                id =
+                    $2
+            `,
+            [
+                hora,
+                servicoId
+            ]
+        );
 
 
         await registrarAuditoria(
@@ -5918,19 +8590,28 @@ async function iniciarIntervaloRS(
         );
 
 
-        emitirAtualizacao(
-            servicoId
-        );
-
-
-        io.emit(
+        emitirAtualizacaoPrestador(
+            email,
             'intervalo_iniciado',
             {
                 servicoId,
-                prestadorEmail:
-                    email,
                 hora
             }
+        );
+
+
+        emitirAtualizacaoEmpresa(
+            servico.empresa_email,
+            'intervalo_iniciado',
+            {
+                servicoId,
+                hora
+            }
+        );
+
+
+        emitirAtualizacao(
+            servicoId
         );
 
 
@@ -5940,10 +8621,7 @@ async function iniciarIntervaloRS(
             mensagem:
                 'Intervalo iniciado.',
 
-            hora,
-
-            servico:
-                resultado.rows[0]
+            hora
         });
 
 
@@ -5967,17 +8645,19 @@ async function iniciarIntervaloRS(
 
 
 // ============================================================
-// ROTAS DE INICIAR INTERVALO
+// ROTAS DE INÍCIO DE INTERVALO
 // ============================================================
 
 app.post(
     '/api/servicos/:id/intervalo/iniciar',
+    autenticarUsuario,
     iniciarIntervaloRS
 );
 
 
 app.post(
     '/api/servicos/:id/iniciar-intervalo',
+    autenticarUsuario,
     iniciarIntervaloRS
 );
 
@@ -5995,26 +8675,6 @@ async function retornarIntervaloRS(
         Number(
             req.params.id
         );
-
-
-    const email =
-        normalizarEmail(
-            req.body?.email ||
-            req.body?.prestadorEmail ||
-            req.body?.prestador_email
-        );
-
-
-    if (!email) {
-
-        return res
-            .status(400)
-            .json({
-                sucesso: false,
-                erro:
-                    'Prestador não informado.'
-            });
-    }
 
 
     try {
@@ -6037,9 +8697,9 @@ async function retornarIntervaloRS(
         }
 
 
-        // ====================================================
-        // SOMENTE TITULAR
-        // ====================================================
+        const email =
+            req.usuario.email;
+
 
         if (
             !prestadorEhTitular(
@@ -6048,19 +8708,12 @@ async function retornarIntervaloRS(
             )
         ) {
 
-            return res
-                .status(403)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Somente o Titular pode retornar do intervalo.'
-                });
+            return responderAcessoNegado(
+                res,
+                'Somente o Titular pode retornar do intervalo.'
+            );
         }
 
-
-        // ====================================================
-        // PRECISA TER INICIADO
-        // ====================================================
 
         if (
             !servico.intervalo_inicio
@@ -6076,35 +8729,19 @@ async function retornarIntervaloRS(
         }
 
 
-        // ====================================================
-        // SE NÃO ESTÁ EM INTERVALO, JÁ VOLTOU
-        // ====================================================
-
         if (
             !servico.em_intervalo
         ) {
 
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'O retorno do intervalo já foi registrado.',
-
-                jaRealizado:
-                    true,
-
-                hora:
-                    servico.intervalo_fim ||
-                    servico.intervalo_retorno,
-
-                servico
-            });
+            return res
+                .status(409)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'O retorno do intervalo já foi registrado.'
+                });
         }
 
-
-        // ====================================================
-        // NÃO PODE ESTAR FINALIZADO
-        // ====================================================
 
         if (
             servico.checkout_hora
@@ -6124,35 +8761,35 @@ async function retornarIntervaloRS(
             horaAtualRS();
 
 
-        const resultado =
-            await pool.query(
-                `
-                UPDATE servicos
+        await pool.query(
+            `
+            UPDATE servicos
 
-                SET
-                    intervalo_fim =
-                        $1,
+            SET
+                intervalo_fim =
+                    $1,
 
-                    intervalo_retorno =
-                        $1,
+                intervalo_retorno =
+                    $1,
 
-                    em_intervalo =
-                        FALSE,
+                em_intervalo =
+                    FALSE,
 
-                    status =
-                        'em_andamento'
+                status =
+                    'em_andamento',
 
-                WHERE
-                    id =
-                        $2
+                atualizado_em =
+                    CURRENT_TIMESTAMP
 
-                RETURNING *
-                `,
-                [
-                    hora,
-                    servicoId
-                ]
-            );
+            WHERE
+                id =
+                    $2
+            `,
+            [
+                hora,
+                servicoId
+            ]
+        );
 
 
         await registrarAuditoria(
@@ -6162,19 +8799,28 @@ async function retornarIntervaloRS(
         );
 
 
-        emitirAtualizacao(
-            servicoId
-        );
-
-
-        io.emit(
+        emitirAtualizacaoPrestador(
+            email,
             'intervalo_finalizado',
             {
                 servicoId,
-                prestadorEmail:
-                    email,
                 hora
             }
+        );
+
+
+        emitirAtualizacaoEmpresa(
+            servico.empresa_email,
+            'intervalo_finalizado',
+            {
+                servicoId,
+                hora
+            }
+        );
+
+
+        emitirAtualizacao(
+            servicoId
         );
 
 
@@ -6184,10 +8830,7 @@ async function retornarIntervaloRS(
             mensagem:
                 'Retorno do intervalo registrado.',
 
-            hora,
-
-            servico:
-                resultado.rows[0]
+            hora
         });
 
 
@@ -6216,24 +8859,27 @@ async function retornarIntervaloRS(
 
 app.post(
     '/api/servicos/:id/intervalo/voltar',
+    autenticarUsuario,
     retornarIntervaloRS
 );
 
 
 app.post(
     '/api/servicos/:id/intervalo/retornar',
+    autenticarUsuario,
     retornarIntervaloRS
 );
 
 
 app.post(
     '/api/servicos/:id/voltar-intervalo',
+    autenticarUsuario,
     retornarIntervaloRS
 );
 
 
 // ============================================================
-// CONVERTER HORÁRIO EM SEGUNDOS
+// FUNÇÃO AUXILIAR DE HORÁRIOS
 // ============================================================
 
 function horarioParaSegundos(
@@ -6281,11 +8927,7 @@ function horarioParaSegundos(
 // ============================================================
 // CALCULAR TEMPO TRABALHADO
 //
-// ENTRADA
-// -
-// INTERVALO
-// -
-// SAÍDA
+// DESCONTA O INTERVALO.
 // ============================================================
 
 function calcularTempoTrabalhado(
@@ -6306,7 +8948,8 @@ function calcularTempoTrabalhado(
 
 
     if (
-        entrada === null ||
+        entrada === null
+        ||
         saida === null
     ) {
 
@@ -6323,14 +8966,6 @@ function calcularTempoTrabalhado(
         saida -
         entrada;
 
-
-    // ========================================================
-    // VIRADA DE DIA
-    //
-    // Ex:
-    // entrada 22:00
-    // saída 06:00
-    // ========================================================
 
     if (
         total <
@@ -6351,17 +8986,15 @@ function calcularTempoTrabalhado(
 
     const fimIntervalo =
         horarioParaSegundos(
-            servico.intervalo_fim ||
+            servico.intervalo_fim
+            ||
             servico.intervalo_retorno
         );
 
 
-    // ========================================================
-    // DESCONTAR INTERVALO
-    // ========================================================
-
     if (
-        inicioIntervalo !== null &&
+        inicioIntervalo !== null
+        &&
         fimIntervalo !== null
     ) {
 
@@ -6419,7 +9052,6 @@ function calcularTempoTrabalhado(
                 60
             ),
 
-
         horasDecimal:
             Number(
                 (
@@ -6428,7 +9060,6 @@ function calcularTempoTrabalhado(
                 )
                     .toFixed(2)
             ),
-
 
         texto:
             `${horas}h ${
@@ -6447,44 +9078,28 @@ function calcularTempoTrabalhado(
 // ============================================================
 // CHECK-OUT
 //
-// FOTO + GPS
+// FOTO + GPS OBRIGATÓRIOS.
 //
 // AO FINALIZAR:
-// STATUS = FINALIZADO
-//
-// ISSO É IMPORTANTE:
-// NÃO PODE VOLTAR PARA CONFIRMAR PRESENÇA.
+// - serviço sai da área ativa no INDEX;
+// - permanece salvo no banco;
+// - poderá aparecer no Histórico/PDF.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/checkout',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
                 req.params.id
             );
-
-
-        const email =
-            normalizarEmail(
-                req.body?.email ||
-                req.body?.prestadorEmail ||
-                req.body?.prestador_email
-            );
-
-
-        if (!email) {
-
-            return res
-                .status(400)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Prestador não informado.'
-                });
-        }
 
 
         try {
@@ -6507,9 +9122,9 @@ app.post(
             }
 
 
-            // =================================================
-            // SOMENTE O TITULAR
-            // =================================================
+            const email =
+                req.usuario.email;
+
 
             if (
                 !prestadorEhTitular(
@@ -6518,19 +9133,12 @@ app.post(
                 )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente o Titular pode registrar a saída.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Somente o Titular pode registrar a saída.'
+                );
             }
 
-
-            // =================================================
-            // PRECISA TER CHECK-IN
-            // =================================================
 
             if (
                 !servico.checkin_hora
@@ -6546,36 +9154,19 @@ app.post(
             }
 
 
-            // =================================================
-            // JÁ FINALIZOU
-            //
-            // NÃO VOLTA PARA CONFIRMAR PRESENÇA.
-            // =================================================
-
             if (
                 servico.checkout_hora
             ) {
 
-                return res.json({
-                    sucesso: true,
-
-                    jaFinalizado:
-                        true,
-
-                    mensagem:
-                        `SERVIÇO FINALIZADO às ${servico.checkout_hora}.`,
-
-                    hora:
-                        servico.checkout_hora,
-
-                    servico
-                });
+                return res
+                    .status(409)
+                    .json({
+                        sucesso: false,
+                        erro:
+                            `CHECK-OUT FINALIZADO às ${servico.checkout_hora}.`
+                    });
             }
 
-
-            // =================================================
-            // NÃO PODE SAIR DURANTE INTERVALO
-            // =================================================
 
             if (
                 servico.em_intervalo
@@ -6608,10 +9199,6 @@ app.post(
                 req.body?.lng;
 
 
-            // =================================================
-            // FOTO OBRIGATÓRIA
-            // =================================================
-
             if (!foto) {
 
                 return res
@@ -6624,17 +9211,10 @@ app.post(
             }
 
 
-            // =================================================
-            // GPS OBRIGATÓRIO
-            // =================================================
-
             if (
-                latitude === undefined ||
-                longitude === undefined ||
-                latitude === null ||
-                longitude === null ||
-                latitude === '' ||
-                longitude === ''
+                latitude === undefined
+                ||
+                longitude === undefined
             ) {
 
                 return res
@@ -6651,10 +9231,6 @@ app.post(
                 horaAtualRS();
 
 
-            // =================================================
-            // CALCULAR HORAS
-            // =================================================
-
             const tempo =
                 calcularTempoTrabalhado(
                     servico,
@@ -6662,21 +9238,15 @@ app.post(
                 );
 
 
-            // =================================================
-            // VALOR
-            // =================================================
-
             const valor =
                 numeroRS(
-                    servico.valor_liquido ||
-                    servico.valor_diaria ||
+                    servico.valor_liquido
+                    ||
+                    servico.valor_diaria
+                    ||
                     servico.valor
                 );
 
-
-            // =================================================
-            // FINALIZAR NO BANCO
-            // =================================================
 
             const resultado =
                 await pool.query(
@@ -6703,7 +9273,10 @@ app.post(
                             'finalizado',
 
                         em_intervalo =
-                            FALSE
+                            FALSE,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
                     WHERE
                         id =
@@ -6729,10 +9302,6 @@ app.post(
                 );
 
 
-            // =================================================
-            // LEDGER
-            // =================================================
-
             await registrarLedger(
                 servicoId,
                 email,
@@ -6741,10 +9310,6 @@ app.post(
             );
 
 
-            // =================================================
-            // AUDITORIA
-            // =================================================
-
             await registrarAuditoria(
                 email,
                 'CHECKOUT',
@@ -6752,52 +9317,47 @@ app.post(
             );
 
 
-            // =================================================
-            // WEBSOCKET
-            // =================================================
+            // ================================================
+            // AVISOS PRIVADOS
+            // ================================================
+
+            emitirAtualizacaoPrestador(
+                email,
+                'servico_finalizado',
+                {
+                    servicoId,
+                    checkoutHora:
+                        hora,
+                    totalTrabalhado:
+                        tempo.texto,
+                    valor
+                }
+            );
+
+
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'servico_finalizado',
+                {
+                    servicoId,
+                    prestadorNome:
+                        servico.prestador_nome,
+                    checkoutHora:
+                        hora,
+                    totalTrabalhado:
+                        tempo.texto,
+                    valor
+                }
+            );
+
 
             emitirAtualizacao(
                 servicoId
             );
 
 
-            io.emit(
-                'servico_finalizado',
-                {
-                    servicoId,
-
-                    prestadorEmail:
-                        email,
-
-                    checkoutHora:
-                        hora,
-
-                    totalTrabalhado:
-                        tempo.texto,
-
-                    minutosTrabalhados:
-                        tempo.minutos,
-
-                    horasTrabalhadas:
-                        tempo.horasDecimal,
-
-                    valor
-                }
-            );
-
-
-            // =================================================
-            // RESPOSTA
-            // =================================================
-
             return res.json({
                 sucesso: true,
-
-                finalizado:
-                    true,
-
-                status:
-                    'finalizado',
 
                 mensagem:
                     'Serviço finalizado com sucesso.',
@@ -6816,7 +9376,9 @@ app.post(
                 valor,
 
                 servico:
-                    resultado.rows[0]
+                    servicoParaPrestador(
+                        resultado.rows[0]
+                    )
             });
 
 
@@ -6841,199 +9403,25 @@ app.post(
 
 
 // ============================================================
-// CONSULTAR STATUS DA JORNADA AVULSA
-//
-// AJUDA O INDEX A NÃO MOSTRAR BOTÕES ERRADOS.
-//
-// SE CHECKOUT EXISTIR:
-// FINALIZADO.
-//
-// SE INTERVALO:
-// EM INTERVALO.
-//
-// ETC.
-// ============================================================
-
-app.get(
-    '/api/servicos/:id/jornada-status',
-
-    async (req, res) => {
-
-        try {
-
-            const servicoId =
-                Number(
-                    req.params.id
-                );
-
-
-            const servico =
-                await buscarServico(
-                    servicoId
-                );
-
-
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            let etapa =
-                'aguardando_presenca';
-
-
-            if (
-                servico.presenca_confirmada
-            ) {
-
-                etapa =
-                    'presenca_confirmada';
-            }
-
-
-            if (
-                servico.checkin_hora
-            ) {
-
-                etapa =
-                    'trabalhando';
-            }
-
-
-            if (
-                servico.em_intervalo
-            ) {
-
-                etapa =
-                    'intervalo';
-            }
-
-
-            if (
-                servico.intervalo_inicio &&
-                !servico.em_intervalo &&
-                !servico.checkout_hora
-            ) {
-
-                etapa =
-                    'trabalhando';
-            }
-
-
-            if (
-                servico.checkout_hora
-            ) {
-
-                etapa =
-                    'finalizado';
-            }
-
-
-            if (
-                String(
-                    servico.status ||
-                    ''
-                )
-                    .toLowerCase()
-                ===
-                'pago'
-            ) {
-
-                etapa =
-                    'pago';
-            }
-
-
-            return res.json({
-                sucesso: true,
-
-                servicoId,
-
-                etapa,
-
-                status:
-                    servico.status,
-
-                presencaConfirmada:
-                    Boolean(
-                        servico.presenca_confirmada
-                    ),
-
-                presencaHora:
-                    servico.presenca_hora,
-
-                checkin:
-                    servico.checkin_hora,
-
-                intervaloInicio:
-                    servico.intervalo_inicio,
-
-                intervaloRetorno:
-                    servico.intervalo_fim ||
-                    servico.intervalo_retorno,
-
-                emIntervalo:
-                    Boolean(
-                        servico.em_intervalo
-                    ),
-
-                checkout:
-                    servico.checkout_hora,
-
-                finalizado:
-                    Boolean(
-                        servico.checkout_hora
-                    )
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Status jornada:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao consultar status da jornada.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// FIM DA PARTE 4
-// COLE A PARTE 5 IMEDIATAMENTE ABAIXO
-// ============================================================
-// ============================================================
-// RS CONNECT — SERVER.JS
-// PARTE 5
-// VALIDAÇÃO + CANCELAMENTO + HISTÓRICO
-// PAGAMENTOS + COMPROVANTES
-// ============================================================
-
-
-// ============================================================
 // VALIDAR SERVIÇO PELA EMPRESA
+//
+// SOMENTE:
+//
+// - EMPRESA DONA DO SERVIÇO
+// - GRUPO RS / ADMIN
+//
+// OUTRA EMPRESA RECEBE 403.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/validar',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
@@ -7041,14 +9429,6 @@ app.post(
             );
 
 
-        const email =
-            normalizarEmail(
-                req.body?.email ||
-                req.body?.empresaEmail ||
-                req.body?.empresa_email
-            );
-
-
         try {
 
             const servico =
@@ -7069,31 +9449,25 @@ app.post(
             }
 
 
-            // =================================================
-            // SOMENTE A EMPRESA DO SERVIÇO
-            // =================================================
+            // ================================================
+            // PRIVACIDADE
+            // ================================================
 
             if (
-                servico.empresa_email &&
+                !req.usuario.gestorRS
+                &&
                 !empresaEhResponsavel(
                     servico,
-                    email
+                    req.usuario.email
                 )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente a empresa responsável pode validar este serviço.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Somente a empresa responsável por este serviço pode validar.'
+                );
             }
 
-
-            // =================================================
-            // PRESTADOR PRECISA TER FINALIZADO
-            // =================================================
 
             if (
                 !servico.checkout_hora
@@ -7109,10 +9483,6 @@ app.post(
             }
 
 
-            // =================================================
-            // SE JÁ FOI VALIDADO
-            // =================================================
-
             if (
                 servico.validado_empresa
             ) {
@@ -7120,11 +9490,8 @@ app.post(
                 return res.json({
                     sucesso: true,
 
-                    jaValidado:
-                        true,
-
                     mensagem:
-                        'Este serviço já foi validado pela empresa.',
+                        'Este serviço já foi validado.',
 
                     servico
                 });
@@ -7144,10 +9511,14 @@ app.post(
                             CURRENT_TIMESTAMP,
 
                         status =
-                            'validado'
+                            'validado',
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
                     WHERE
-                        id = $1
+                        id =
+                            $1
 
                     RETURNING *
                     `,
@@ -7158,9 +9529,27 @@ app.post(
 
 
             await registrarAuditoria(
-                email,
+                req.usuario.email,
                 'VALIDAR_SERVICO',
-                `Empresa validou o serviço #${servicoId}.`
+                `Serviço #${servicoId} validado pela empresa.`
+            );
+
+
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'servico_validado',
+                {
+                    servicoId
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                servico.prestador_email,
+                'servico_validado',
+                {
+                    servicoId
+                }
             );
 
 
@@ -7169,21 +9558,11 @@ app.post(
             );
 
 
-            io.emit(
-                'servico_validado',
-                {
-                    servicoId,
-                    empresaEmail:
-                        email
-                }
-            );
-
-
             return res.json({
                 sucesso: true,
 
                 mensagem:
-                    'Serviço validado pela empresa.',
+                    'Serviço validado com sucesso.',
 
                 servico:
                     resultado.rows[0]
@@ -7211,172 +9590,357 @@ app.post(
 
 
 // ============================================================
-// CANCELAR SERVIÇO
+// FIM DA PARTE 5
+//
+// PARTE 6:
+//
+// CLIENTES SOB DEMANDA
+// CADASTRO DE CLIENTE
+// VINCULAR COLABORADOR
+// LISTAR COLABORADORES
+//
+// COM A PRIVACIDADE:
+//
+// EMPRESA X NÃO VÊ EMPRESA Y.
+// ============================================================
+GRUPO RS / ADMIN
+→ cadastra clientes
+→ vincula colaboradores
+→ vê todos
+
+RESPONSÁVEL DO CLIENTE GRATIDÃO
+→ vê somente Gratidão
+→ vê somente colaboradores da Gratidão
+→ NÃO vê SMT, PortoX etc.
+
+RESPONSÁVEL DA SMT
+→ vê somente SMT
+
+COLABORADOR / PRESTADOR
+→ não vê cadastro/lista de clientes
+→ verá somente a própria Jornada
+// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 7
+//
+// JORNADA DOS CLIENTES SOB DEMANDA
+//
+// - JORNADA DO DIA
+// - MINHA JORNADA
+// - HISTÓRICO
+// - CHECK-IN FOTO + GPS
+// - INTERVALO
+// - RETORNO
+// - CHECK-OUT
+// - VALIDAÇÃO PELO RESPONSÁVEL
 // ============================================================
 
-app.patch(
-    '/api/servicos/:id/cancelar',
 
-    async (req, res) => {
+// ============================================================
+// JORNADA SEGURA PARA O COLABORADOR
+//
+// Não devolve informações administrativas
+// que não interessam ao colaborador.
+// ============================================================
 
-        const servicoId =
+function jornadaParaColaborador(
+    jornada
+) {
+
+    if (!jornada) {
+
+        return null;
+    }
+
+
+    return {
+
+        id:
+            jornada.id,
+
+        cliente_id:
+            jornada.cliente_id,
+
+        cliente_nome:
+            jornada.cliente_nome,
+
+        cliente_endereco:
+            jornada.cliente_endereco,
+
+        cliente_cidade:
+            jornada.cliente_cidade,
+
+        cliente_uf:
+            jornada.cliente_uf,
+
+        colaborador_nome:
+            jornada.colaborador_nome,
+
+        colaborador_email:
+            jornada.colaborador_email,
+
+        funcao:
+            jornada.funcao,
+
+        data:
+            jornada.data,
+
+        horario_previsto:
+            jornada.horario_previsto,
+
+        status:
+            jornada.status,
+
+        entrada_em:
+            jornada.entrada_em,
+
+        entrada_validada:
+            Boolean(
+                jornada.entrada_validada
+            ),
+
+        intervalo_inicio_em:
+            jornada.intervalo_inicio_em,
+
+        intervalo_retorno_em:
+            jornada.intervalo_retorno_em,
+
+        saida_em:
+            jornada.saida_em,
+
+        saida_validada:
+            Boolean(
+                jornada.saida_validada
+            ),
+
+        total_minutos:
             Number(
-                req.params.id
-            );
+                jornada.total_minutos ||
+                0
+            ),
 
+        total_horas:
+            Number(
+                jornada.total_horas ||
+                0
+            ),
+
+        valor_tipo:
+            jornada.valor_tipo,
+
+        valor_base:
+            numeroRS(
+                jornada.valor_base
+            ),
+
+        valor_gerado:
+            numeroRS(
+                jornada.valor_gerado
+            ),
+
+        fechada:
+            Boolean(
+                jornada.fechada
+            ),
+
+        observacoes:
+            jornada.observacoes
+    };
+}
+
+
+// ============================================================
+// VERIFICAR SE É O PRÓPRIO COLABORADOR
+// ============================================================
+
+function usuarioEhDonoJornada(
+    usuario,
+    jornada
+) {
+
+    if (
+        !usuario ||
+        !jornada
+    ) {
+
+        return false;
+    }
+
+
+    return (
+        normalizarEmail(
+            usuario.email
+        )
+        ===
+        normalizarEmail(
+            jornada.colaborador_email
+        )
+    );
+}
+
+
+// ============================================================
+// JORNADAS DO CLIENTE
+//
+// GRUPO RS:
+// → pode consultar qualquer cliente.
+//
+// RESPONSÁVEL:
+// → somente o próprio cliente.
+//
+// PRESTADOR:
+// → não pode usar esta rota administrativa.
+// ============================================================
+
+app.get(
+    '/api/jornada-clientes/:id/jornadas',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
-            const servico =
-                await buscarServico(
-                    servicoId
+            const clienteId =
+                Number(
+                    req.params.id
                 );
 
 
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            const empresaEmail =
-                normalizarEmail(
-                    req.body?.empresa_email ||
-                    req.body?.empresaEmail ||
-                    req.body?.email
+            const permitido =
+                await usuarioPodeAcessarCliente(
+                    req.usuario,
+                    clienteId
                 );
 
 
-            if (
-                servico.empresa_email &&
-                !empresaEhResponsavel(
-                    servico,
-                    empresaEmail
-                )
-            ) {
+            if (!permitido) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente a empresa responsável pode cancelar este serviço.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para visualizar jornadas deste cliente.'
+                );
             }
 
 
-            if (
-                servico.checkout_hora
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Não é possível cancelar um serviço finalizado.'
-                    });
-            }
-
-
-            if (
+            const data =
                 String(
-                    servico.status ||
-                    ''
+                    req.query?.data ||
+                    dataAtualRS()
                 )
-                    .toLowerCase()
-                ===
-                'cancelado'
-            ) {
-
-                return res.json({
-                    sucesso: true,
-
-                    jaCancelado:
-                        true,
-
-                    mensagem:
-                        'Este serviço já está cancelado.',
-
-                    servico
-                });
-            }
+                    .slice(
+                        0,
+                        10
+                    );
 
 
-            const motivo =
-                String(
-                    req.body?.motivo ||
-                    'Cancelado pela empresa'
-                )
-                    .trim();
+            // Garante somente as jornadas
+            // daquele cliente.
+            await garantirJornadasDiaCliente(
+                clienteId,
+                data
+            );
 
 
-            const resultado =
+            const jornadas =
                 await pool.query(
                     `
-                    UPDATE servicos
+                    SELECT
 
-                    SET
-                        status =
-                            'cancelado',
+                        jornada.*,
 
-                        motivo_cancelamento =
-                            $1
+                        cliente.nome
+                            AS cliente_nome,
+
+                        cliente.endereco
+                            AS cliente_endereco,
+
+                        cliente.cidade
+                            AS cliente_cidade,
+
+                        cliente.uf
+                            AS cliente_uf
+
+                    FROM
+                        jornadas_clientes
+                        AS jornada
+
+                    JOIN
+                        clientes_rs
+                        AS cliente
+
+                    ON
+                        cliente.id =
+                        jornada.cliente_id
 
                     WHERE
-                        id = $2
+                        jornada.cliente_id =
+                        $1
 
-                    RETURNING *
+                    AND
+                        jornada.data =
+                        $2::date
+
+                    ORDER BY
+                        jornada.colaborador_nome
                     `,
                     [
-                        motivo,
-                        servicoId
+                        clienteId,
+                        data
                     ]
                 );
 
 
-            await registrarAuditoria(
-                empresaEmail,
-                'CANCELAR_SERVICO',
-                `Serviço #${servicoId} cancelado. Motivo: ${motivo}`
-            );
+            const fechamento =
+                await pool.query(
+                    `
+                    SELECT *
+                    FROM
+                        fechamentos_clientes
 
+                    WHERE
+                        cliente_id =
+                        $1
 
-            emitirAtualizacao(
-                servicoId
-            );
+                    AND
+                        data =
+                        $2::date
 
-
-            io.emit(
-                'servico_cancelado',
-                {
-                    servicoId,
-                    motivo
-                }
-            );
+                    LIMIT 1
+                    `,
+                    [
+                        clienteId,
+                        data
+                    ]
+                );
 
 
             return res.json({
-                sucesso: true,
 
-                mensagem:
-                    'Serviço cancelado.',
+                sucesso:
+                    true,
 
-                servico:
-                    resultado.rows[0]
+                data,
+
+                jornadas:
+                    jornadas.rows,
+
+                fechamento:
+                    fechamento.rows[0]
+                    ||
+                    null
             });
 
 
         } catch (err) {
 
             console.error(
-                '❌ Cancelar serviço:',
+                '❌ Jornadas cliente:',
                 err
             );
 
@@ -7384,9 +9948,12 @@ app.patch(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
-                        'Erro ao cancelar serviço.'
+                        'Erro ao carregar jornadas.'
                 });
         }
     }
@@ -7394,23 +9961,4059 @@ app.patch(
 
 
 // ============================================================
-// HISTÓRICO DO PRESTADOR
+// HISTÓRICO DO CLIENTE
+//
+// Empresa X só pesquisa histórico da Empresa X.
 // ============================================================
 
 app.get(
-    '/api/prestador/:email/historico',
+    '/api/jornada-clientes/:id/historico',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
+            const clienteId =
+                Number(
+                    req.params.id
+                );
+
+
+            const permitido =
+                await usuarioPodeAcessarCliente(
+                    req.usuario,
+                    clienteId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem acesso ao histórico deste cliente.'
+                );
+            }
+
+
             const email =
                 normalizarEmail(
-                    req.params.email
+                    req.query?.colaborador_email
+                );
+
+
+            const limite =
+                Math.min(
+                    Math.max(
+                        Number(
+                            req.query?.limite ||
+                            180
+                        ),
+                        1
+                    ),
+                    500
+                );
+
+
+            let resultado;
+
+
+            if (email) {
+
+                resultado =
+                    await pool.query(
+                        `
+                        SELECT
+
+                            jornada.*,
+
+                            cliente.nome
+                                AS cliente_nome
+
+                        FROM
+                            jornadas_clientes
+                            AS jornada
+
+                        JOIN
+                            clientes_rs
+                            AS cliente
+
+                        ON
+                            cliente.id =
+                            jornada.cliente_id
+
+                        WHERE
+                            jornada.cliente_id =
+                            $1
+
+                        AND
+                            LOWER(
+                                jornada.colaborador_email
+                            )
+                            =
+                            LOWER($2)
+
+                        ORDER BY
+                            jornada.data DESC,
+                            jornada.id DESC
+
+                        LIMIT
+                            $3
+                        `,
+                        [
+                            clienteId,
+                            email,
+                            limite
+                        ]
+                    );
+
+
+            } else {
+
+                resultado =
+                    await pool.query(
+                        `
+                        SELECT
+
+                            jornada.*,
+
+                            cliente.nome
+                                AS cliente_nome
+
+                        FROM
+                            jornadas_clientes
+                            AS jornada
+
+                        JOIN
+                            clientes_rs
+                            AS cliente
+
+                        ON
+                            cliente.id =
+                            jornada.cliente_id
+
+                        WHERE
+                            jornada.cliente_id =
+                            $1
+
+                        ORDER BY
+                            jornada.data DESC,
+                            jornada.colaborador_nome
+
+                        LIMIT
+                            $2
+                        `,
+                        [
+                            clienteId,
+                            limite
+                        ]
+                    );
+            }
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                jornadas:
+                    resultado.rows
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Histórico Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar histórico.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// MINHA JORNADA DE HOJE
+//
+// ROTA NOVA E SEGURA.
+//
+// NÃO RECEBE E-MAIL.
+//
+// O SERVER SABE QUEM É PELO TOKEN.
+// ============================================================
+
+async function carregarMinhaJornadaHoje(
+    req,
+    res
+) {
+
+    try {
+
+        if (
+            req.usuario.gestorRS
+            ||
+            req.usuario.tipo ===
+            'empresa'
+        ) {
+
+            return responderAcessoNegado(
+                res,
+                'Esta área é exclusiva do colaborador.'
+            );
+        }
+
+
+        const email =
+            req.usuario.email;
+
+
+        const data =
+            dataAtualRS();
+
+
+        // ====================================================
+        // DESCOBRIR VÍNCULOS DO PRÓPRIO COLABORADOR
+        // ====================================================
+
+        const vinculos =
+            await pool.query(
+                `
+                SELECT
+                    cliente_id
+
+                FROM
+                    clientes_rs_colaboradores
+
+                WHERE
+                    LOWER(
+                        colaborador_email
+                    )
+                    =
+                    LOWER($1)
+
+                AND
+                    ativo =
+                    TRUE
+                `,
+                [
+                    email
+                ]
+            );
+
+
+        // ====================================================
+        // GARANTIR JORNADA SOMENTE NOS CLIENTES
+        // EM QUE ELE ESTÁ REALMENTE VINCULADO.
+        // ====================================================
+
+        for (
+            const vinculo
+            of vinculos.rows
+        ) {
+
+            await garantirJornadasDiaCliente(
+                vinculo.cliente_id,
+                data
+            );
+        }
+
+
+        const resultado =
+            await pool.query(
+                `
+                SELECT
+
+                    jornada.*,
+
+                    cliente.nome
+                        AS cliente_nome,
+
+                    cliente.endereco
+                        AS cliente_endereco,
+
+                    cliente.cidade
+                        AS cliente_cidade,
+
+                    cliente.uf
+                        AS cliente_uf
+
+                FROM
+                    jornadas_clientes
+                    AS jornada
+
+                JOIN
+                    clientes_rs
+                    AS cliente
+
+                ON
+                    cliente.id =
+                    jornada.cliente_id
+
+                WHERE
+                    LOWER(
+                        jornada.colaborador_email
+                    )
+                    =
+                    LOWER($1)
+
+                AND
+                    jornada.data =
+                    $2::date
+
+                ORDER BY
+                    jornada.id
+                `,
+                [
+                    email,
+                    data
+                ]
+            );
+
+
+        return res.json({
+
+            sucesso:
+                true,
+
+            data,
+
+            jornadas:
+                resultado.rows
+                    .map(
+                        jornada =>
+                            jornadaParaColaborador(
+                                jornada
+                            )
+                    )
+        });
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Minha Jornada:',
+            err
+        );
+
+
+        return res
+            .status(500)
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Erro ao carregar sua jornada.'
+            });
+    }
+}
+
+
+// ============================================================
+// ROTA PRINCIPAL NOVA
+// ============================================================
+
+app.get(
+    '/api/minha-jornada/hoje',
+    autenticarUsuario,
+    carregarMinhaJornadaHoje
+);
+
+
+// ============================================================
+// COMPATIBILIDADE COM INDEX ANTIGO
+//
+// Mesmo que alguém altere:
+//
+// /api/jornada-colaborador/outro@email.com/hoje
+//
+// O SERVER IGNORA O E-MAIL DA URL
+// E USA O TOKEN.
+//
+// Isso fecha a brecha.
+// ============================================================
+
+app.get(
+    '/api/jornada-colaborador/:email/hoje',
+
+    autenticarUsuario,
+
+    carregarMinhaJornadaHoje
+);
+
+
+// ============================================================
+// HISTÓRICO DO PRÓPRIO COLABORADOR
+// ============================================================
+
+app.get(
+    '/api/minha-jornada/historico',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            if (
+                req.usuario.gestorRS
+                ||
+                req.usuario.tipo ===
+                'empresa'
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Esta área é exclusiva do colaborador.'
+                );
+            }
+
+
+            const limite =
+                Math.min(
+                    Math.max(
+                        Number(
+                            req.query?.limite ||
+                            180
+                        ),
+                        1
+                    ),
+                    500
                 );
 
 
             const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        jornada.*,
+
+                        cliente.nome
+                            AS cliente_nome,
+
+                        cliente.endereco
+                            AS cliente_endereco,
+
+                        cliente.cidade
+                            AS cliente_cidade,
+
+                        cliente.uf
+                            AS cliente_uf
+
+                    FROM
+                        jornadas_clientes
+                        AS jornada
+
+                    JOIN
+                        clientes_rs
+                        AS cliente
+
+                    ON
+                        cliente.id =
+                        jornada.cliente_id
+
+                    WHERE
+                        LOWER(
+                            jornada.colaborador_email
+                        )
+                        =
+                        LOWER($1)
+
+                    ORDER BY
+                        jornada.data DESC,
+                        jornada.id DESC
+
+                    LIMIT
+                        $2
+                    `,
+                    [
+                        req.usuario.email,
+                        limite
+                    ]
+                );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                jornadas:
+                    resultado.rows
+                        .map(
+                            jornada =>
+                                jornadaParaColaborador(
+                                    jornada
+                                )
+                        )
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Histórico colaborador:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar seu histórico.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// CHECK-IN — CLIENTE SOB DEMANDA
+//
+// SOMENTE O PRÓPRIO COLABORADOR.
+//
+// FOTO + GPS OBRIGATÓRIOS.
+// ============================================================
+
+app.post(
+    '/api/jornada-fixa/:id/checkin',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (!jornada) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada não encontrada.'
+                    });
+            }
+
+
+            // =================================================
+            // NÃO CONFIA NO E-MAIL DO BODY
+            // =================================================
+
+            if (
+                !usuarioEhDonoJornada(
+                    req.usuario,
+                    jornada
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Esta jornada pertence a outro colaborador.'
+                );
+            }
+
+
+            if (
+                jornada.fechada
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Esta jornada está fechada.'
+                    });
+            }
+
+
+            if (
+                jornada.entrada_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A entrada já foi registrada.'
+                    });
+            }
+
+
+            const foto =
+                req.body?.foto
+                ||
+                req.body?.selfie
+                ||
+                req.body?.imagem
+                ||
+                '';
+
+
+            const latitude =
+                req.body?.latitude
+                ??
+                req.body?.lat;
+
+
+            const longitude =
+                req.body?.longitude
+                ??
+                req.body?.lng;
+
+
+            const precisao =
+                req.body?.precisao
+                ??
+                req.body?.accuracy
+                ??
+                '';
+
+
+            if (!foto) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A foto de entrada é obrigatória.'
+                    });
+            }
+
+
+            if (
+                latitude === undefined
+                ||
+                longitude === undefined
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A localização GPS é obrigatória.'
+                    });
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
+
+                    SET
+                        status =
+                            'PRESENTE',
+
+                        entrada_em =
+                            CURRENT_TIMESTAMP,
+
+                        entrada_foto =
+                            $1,
+
+                        entrada_latitude =
+                            $2,
+
+                        entrada_longitude =
+                            $3,
+
+                        entrada_precisao =
+                            $4,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                        $5
+
+                    AND
+                        fechada =
+                        FALSE
+
+                    AND
+                        entrada_em
+                        IS NULL
+
+                    RETURNING *
+                    `,
+                    [
+                        foto,
+
+                        String(
+                            latitude
+                        ),
+
+                        String(
+                            longitude
+                        ),
+
+                        String(
+                            precisao
+                        ),
+
+                        jornadaId
+                    ]
+                );
+
+
+            if (
+                !resultado.rows.length
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Não foi possível registrar a entrada. Atualize sua Jornada.'
+                    });
+            }
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'JORNADA_CHECKIN',
+                `Entrada registrada na jornada #${jornadaId}.`
+            );
+
+
+            await emitirAtualizacaoClienteJornada(
+                jornada.cliente_id,
+                {
+                    acao:
+                        'CHECKIN',
+
+                    jornadaId,
+
+                    colaboradorEmail:
+                        req.usuario.email
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                req.usuario.email,
+                'minha_jornada_atualizada',
+                {
+                    jornadaId
+                }
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Entrada registrada com foto e GPS.',
+
+                jornada:
+                    jornadaParaColaborador({
+                        ...jornada,
+                        ...resultado.rows[0]
+                    })
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Check-in Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao registrar entrada.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// INICIAR INTERVALO
+//
+// SOMENTE O PRÓPRIO COLABORADOR.
+// ============================================================
+
+app.post(
+    '/api/jornada-fixa/:id/intervalo/iniciar',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (!jornada) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada não encontrada.'
+                    });
+            }
+
+
+            if (
+                !usuarioEhDonoJornada(
+                    req.usuario,
+                    jornada
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Esta jornada pertence a outro colaborador.'
+                );
+            }
+
+
+            if (
+                jornada.fechada
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Esta jornada está fechada.'
+                    });
+            }
+
+
+            if (
+                !jornada.entrada_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Registre a entrada primeiro.'
+                    });
+            }
+
+
+            if (
+                jornada.saida_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A jornada já terminou.'
+                    });
+            }
+
+
+            if (
+                jornada.intervalo_inicio_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'O intervalo já foi iniciado.'
+                    });
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
+
+                    SET
+                        status =
+                            'EM_INTERVALO',
+
+                        intervalo_inicio_em =
+                            CURRENT_TIMESTAMP,
+
+                        intervalo_retorno_em =
+                            NULL,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                        $1
+
+                    AND
+                        fechada =
+                        FALSE
+
+                    AND
+                        intervalo_inicio_em
+                        IS NULL
+
+                    RETURNING *
+                    `,
+                    [
+                        jornadaId
+                    ]
+                );
+
+
+            if (
+                !resultado.rows.length
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Não foi possível iniciar o intervalo.'
+                    });
+            }
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'JORNADA_INTERVALO_INICIO',
+                `Intervalo iniciado na jornada #${jornadaId}.`
+            );
+
+
+            await emitirAtualizacaoClienteJornada(
+                jornada.cliente_id,
+                {
+                    acao:
+                        'INTERVALO_INICIADO',
+
+                    jornadaId
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                req.usuario.email,
+                'minha_jornada_atualizada',
+                {
+                    jornadaId
+                }
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Intervalo iniciado.',
+
+                jornada:
+                    jornadaParaColaborador({
+                        ...jornada,
+                        ...resultado.rows[0]
+                    })
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Iniciar intervalo Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao iniciar intervalo.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// RETORNAR DO INTERVALO
+// ============================================================
+
+app.post(
+    '/api/jornada-fixa/:id/intervalo/retornar',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (!jornada) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada não encontrada.'
+                    });
+            }
+
+
+            if (
+                !usuarioEhDonoJornada(
+                    req.usuario,
+                    jornada
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Esta jornada pertence a outro colaborador.'
+                );
+            }
+
+
+            if (
+                jornada.fechada
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Esta jornada está fechada.'
+                    });
+            }
+
+
+            if (
+                !jornada.intervalo_inicio_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'O intervalo ainda não foi iniciado.'
+                    });
+            }
+
+
+            if (
+                jornada.intervalo_retorno_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'O retorno já foi registrado.'
+                    });
+            }
+
+
+            if (
+                jornada.saida_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A jornada já terminou.'
+                    });
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
+
+                    SET
+                        status =
+                            'PRESENTE',
+
+                        intervalo_retorno_em =
+                            CURRENT_TIMESTAMP,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                        $1
+
+                    AND
+                        fechada =
+                        FALSE
+
+                    AND
+                        intervalo_retorno_em
+                        IS NULL
+
+                    RETURNING *
+                    `,
+                    [
+                        jornadaId
+                    ]
+                );
+
+
+            if (
+                !resultado.rows.length
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Não foi possível registrar o retorno.'
+                    });
+            }
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'JORNADA_INTERVALO_RETORNO',
+                `Retorno registrado na jornada #${jornadaId}.`
+            );
+
+
+            await emitirAtualizacaoClienteJornada(
+                jornada.cliente_id,
+                {
+                    acao:
+                        'INTERVALO_RETORNO',
+
+                    jornadaId
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                req.usuario.email,
+                'minha_jornada_atualizada',
+                {
+                    jornadaId
+                }
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Retorno do intervalo registrado.',
+
+                jornada:
+                    jornadaParaColaborador({
+                        ...jornada,
+                        ...resultado.rows[0]
+                    })
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Retorno Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao registrar retorno.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// CHECK-OUT
+//
+// SOMENTE O PRÓPRIO COLABORADOR.
+// FOTO + GPS OBRIGATÓRIOS.
+// ============================================================
+
+app.post(
+    '/api/jornada-fixa/:id/checkout',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (!jornada) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada não encontrada.'
+                    });
+            }
+
+
+            if (
+                !usuarioEhDonoJornada(
+                    req.usuario,
+                    jornada
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Esta jornada pertence a outro colaborador.'
+                );
+            }
+
+
+            if (
+                jornada.fechada
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Esta jornada está fechada.'
+                    });
+            }
+
+
+            if (
+                !jornada.entrada_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Registre a entrada primeiro.'
+                    });
+            }
+
+
+            if (
+                jornada.saida_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A saída já foi registrada.'
+                    });
+            }
+
+
+            if (
+                jornada.intervalo_inicio_em
+                &&
+                !jornada.intervalo_retorno_em
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Registre o retorno do intervalo antes da saída.'
+                    });
+            }
+
+
+            const foto =
+                req.body?.foto
+                ||
+                req.body?.selfie
+                ||
+                req.body?.imagem
+                ||
+                '';
+
+
+            const latitude =
+                req.body?.latitude
+                ??
+                req.body?.lat;
+
+
+            const longitude =
+                req.body?.longitude
+                ??
+                req.body?.lng;
+
+
+            const precisao =
+                req.body?.precisao
+                ??
+                req.body?.accuracy
+                ??
+                '';
+
+
+            if (!foto) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A foto de saída é obrigatória.'
+                    });
+            }
+
+
+            if (
+                latitude === undefined
+                ||
+                longitude === undefined
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'A localização GPS é obrigatória.'
+                    });
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
+
+                    SET
+                        status =
+                            'ENCERRADO',
+
+                        saida_em =
+                            CURRENT_TIMESTAMP,
+
+                        saida_foto =
+                            $1,
+
+                        saida_latitude =
+                            $2,
+
+                        saida_longitude =
+                            $3,
+
+                        saida_precisao =
+                            $4,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                        $5
+
+                    AND
+                        fechada =
+                        FALSE
+
+                    AND
+                        saida_em
+                        IS NULL
+
+                    RETURNING *
+                    `,
+                    [
+                        foto,
+
+                        String(
+                            latitude
+                        ),
+
+                        String(
+                            longitude
+                        ),
+
+                        String(
+                            precisao
+                        ),
+
+                        jornadaId
+                    ]
+                );
+
+
+            if (
+                !resultado.rows.length
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Não foi possível registrar a saída.'
+                    });
+            }
+
+
+            const atualizada =
+                await recalcularJornadaCliente(
+                    jornadaId
+                );
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'JORNADA_CHECKOUT',
+                `Saída registrada na jornada #${jornadaId}.`
+            );
+
+
+            await emitirAtualizacaoClienteJornada(
+                jornada.cliente_id,
+                {
+                    acao:
+                        'CHECKOUT',
+
+                    jornadaId
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                req.usuario.email,
+                'minha_jornada_atualizada',
+                {
+                    jornadaId
+                }
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Saída registrada. Horas e valor calculados.',
+
+                jornada:
+                    jornadaParaColaborador({
+                        ...jornada,
+                        ...atualizada
+                    })
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Checkout Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao registrar saída.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// VALIDAR ENTRADA / SAÍDA
+//
+// REGRA PRINCIPAL:
+//
+// SOMENTE O RESPONSÁVEL CADASTRADO DO CLIENTE
+// PODE VALIDAR.
+//
+// O GRUPO RS / ADMIN TAMBÉM POSSUI ACESSO
+// ADMINISTRATIVO PARA SUPORTE.
+//
+// EMPRESA X NÃO VALIDA EMPRESA Y.
+// ============================================================
+
+app.post(
+    '/api/jornada-fixa/:id/validar',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const tipo =
+                String(
+                    req.body?.tipo ||
+                    ''
+                )
+                    .trim()
+                    .toLowerCase();
+
+
+            if (
+                tipo !==
+                'entrada'
+                &&
+                tipo !==
+                'saida'
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Tipo de validação inválido.'
+                    });
+            }
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (!jornada) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada não encontrada.'
+                    });
+            }
+
+
+            // =================================================
+            // RESPONSÁVEL DO CLIENTE
+            // =================================================
+
+            const ehResponsavel =
+                normalizarEmail(
+                    jornada.responsavel_email
+                )
+                ===
+                normalizarEmail(
+                    req.usuario.email
+                );
+
+
+            if (
+                !ehResponsavel
+                &&
+                !req.usuario.gestorRS
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Somente o responsável deste cliente pode validar.'
+                );
+            }
+
+
+            // =================================================
+            // ENTRADA
+            // =================================================
+
+            if (
+                tipo ===
+                'entrada'
+            ) {
+
+                if (
+                    !jornada.entrada_em
+                ) {
+
+                    return res
+                        .status(409)
+                        .json({
+
+                            sucesso:
+                                false,
+
+                            erro:
+                                'Não existe entrada para validar.'
+                        });
+                }
+
+
+                if (
+                    jornada.entrada_validada
+                ) {
+
+                    return res.json({
+
+                        sucesso:
+                            true,
+
+                        mensagem:
+                            'A entrada já está validada.'
+                    });
+                }
+
+
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
+
+                    SET
+                        entrada_validada =
+                            TRUE,
+
+                        entrada_validada_por =
+                            $1,
+
+                        entrada_validada_em =
+                            CURRENT_TIMESTAMP,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                        $2
+                    `,
+                    [
+                        req.usuario.email,
+                        jornadaId
+                    ]
+                );
+
+
+            } else {
+
+                // =============================================
+                // SAÍDA
+                // =============================================
+
+                if (
+                    !jornada.saida_em
+                ) {
+
+                    return res
+                        .status(409)
+                        .json({
+
+                            sucesso:
+                                false,
+
+                            erro:
+                                'Não existe saída para validar.'
+                        });
+                }
+
+
+                if (
+                    jornada.saida_validada
+                ) {
+
+                    return res.json({
+
+                        sucesso:
+                            true,
+
+                        mensagem:
+                            'A saída já está validada.'
+                    });
+                }
+
+
+                await pool.query(
+                    `
+                    UPDATE
+                        jornadas_clientes
+
+                    SET
+                        saida_validada =
+                            TRUE,
+
+                        saida_validada_por =
+                            $1,
+
+                        saida_validada_em =
+                            CURRENT_TIMESTAMP,
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                        $2
+                    `,
+                    [
+                        req.usuario.email,
+                        jornadaId
+                    ]
+                );
+            }
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+
+                tipo ===
+                'entrada'
+
+                    ?
+
+                    'VALIDAR_ENTRADA_JORNADA'
+
+                    :
+
+                    'VALIDAR_SAIDA_JORNADA',
+
+                `Jornada #${jornadaId}.`
+            );
+
+
+            await emitirAtualizacaoClienteJornada(
+                jornada.cliente_id,
+                {
+                    acao:
+                        tipo ===
+                        'entrada'
+
+                            ?
+
+                            'ENTRADA_VALIDADA'
+
+                            :
+
+                            'SAIDA_VALIDADA',
+
+                    jornadaId
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                jornada.colaborador_email,
+                'minha_jornada_atualizada',
+                {
+                    jornadaId
+                }
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    tipo ===
+                    'entrada'
+
+                        ?
+
+                        'Entrada validada com sucesso.'
+
+                        :
+
+                        'Saída validada com sucesso.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Validação Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao validar jornada.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FECHAR E ARQUIVAR O DIA
+//
+// GRUPO RS OU RESPONSÁVEL DO PRÓPRIO CLIENTE.
+//
+// NÃO APAGA NADA.
+//
+// APENAS:
+// fechada = TRUE
+//
+// Depois fica disponível no Histórico.
+// ============================================================
+
+app.post(
+    '/api/jornada-clientes/:id/fechar-dia',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const clienteId =
+                Number(
+                    req.params.id
+                );
+
+
+            const permitido =
+                await usuarioPodeAcessarCliente(
+                    req.usuario,
+                    clienteId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode fechar a jornada deste cliente.'
+                );
+            }
+
+
+            const data =
+                String(
+                    req.body?.data ||
+                    dataAtualRS()
+                )
+                    .slice(
+                        0,
+                        10
+                    );
+
+
+            // =================================================
+            // NÃO FECHA COM JORNADA ABERTA
+            // =================================================
+
+            const abertas =
+                await pool.query(
+                    `
+                    SELECT
+                        COUNT(*)::int
+                        AS total
+
+                    FROM
+                        jornadas_clientes
+
+                    WHERE
+                        cliente_id =
+                        $1
+
+                    AND
+                        data =
+                        $2::date
+
+                    AND
+                        entrada_em
+                        IS NOT NULL
+
+                    AND
+                        saida_em
+                        IS NULL
+                    `,
+                    [
+                        clienteId,
+                        data
+                    ]
+                );
+
+
+            if (
+                Number(
+                    abertas.rows[0]?.total ||
+                    0
+                )
+                >
+                0
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Existem colaboradores com jornada aberta.'
+                    });
+            }
+
+
+            const fechamento =
+                await pool.query(
+                    `
+                    INSERT INTO
+                        fechamentos_clientes (
+                            cliente_id,
+                            data,
+                            confirmado,
+                            confirmado_por,
+                            confirmado_em,
+                            observacoes
+                        )
+
+                    VALUES (
+                        $1,
+                        $2::date,
+                        TRUE,
+                        $3,
+                        CURRENT_TIMESTAMP,
+                        $4
+                    )
+
+                    ON CONFLICT (
+                        cliente_id,
+                        data
+                    )
+
+                    DO UPDATE SET
+
+                        confirmado =
+                            TRUE,
+
+                        confirmado_por =
+                            EXCLUDED.confirmado_por,
+
+                        confirmado_em =
+                            CURRENT_TIMESTAMP,
+
+                        observacoes =
+                            EXCLUDED.observacoes
+
+                    RETURNING *
+                    `,
+                    [
+                        clienteId,
+
+                        data,
+
+                        req.usuario.email,
+
+                        String(
+                            req.body?.observacoes ||
+                            ''
+                        )
+                    ]
+                );
+
+
+            await pool.query(
+                `
+                UPDATE
+                    jornadas_clientes
+
+                SET
+                    fechada =
+                        TRUE,
+
+                    fechada_por =
+                        $1,
+
+                    fechada_em =
+                        CURRENT_TIMESTAMP,
+
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
+
+                WHERE
+                    cliente_id =
+                        $2
+
+                AND
+                    data =
+                        $3::date
+                `,
+                [
+                    req.usuario.email,
+                    clienteId,
+                    data
+                ]
+            );
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'FECHAR_DIA_CLIENTE',
+                `Cliente #${clienteId}, data ${data}.`
+            );
+
+
+            await emitirAtualizacaoClienteJornada(
+                clienteId,
+                {
+                    acao:
+                        'DIA_FECHADO',
+
+                    data
+                }
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Jornada do dia fechada e arquivada.',
+
+                fechamento:
+                    fechamento.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Fechar dia:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao fechar o dia.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FIM DA PARTE 7
+//
+// PARTE 8:
+//
+// DOCUMENTOS DA JORNADA
+// PDF
+// ASSINATURA
+// DOWNLOAD PROTEGIDO
+// PRIVACIDADE DOS DOCUMENTOS
+//
+// EMPRESA X NÃO VÊ DOCUMENTOS DA EMPRESA Y.
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 8
+//
+// DOCUMENTOS DA JORNADA
+// CONTRATOS
+// PDF
+// DOCUMENTO ASSINADO
+// DOWNLOAD PROTEGIDO
+//
+// REGRA:
+// EMPRESA X NÃO ACESSA DOCUMENTO DA EMPRESA Y
+// COLABORADOR SÓ ACESSA DOCUMENTO DA PRÓPRIA JORNADA
+// GRUPO RS POSSUI ACESSO ADMINISTRATIVO
+// ============================================================
+
+
+// ============================================================
+// VERIFICAR ACESSO À JORNADA / DOCUMENTOS
+// ============================================================
+
+async function usuarioPodeAcessarJornada(
+    usuario,
+    jornadaId
+) {
+
+    try {
+
+        if (!usuario) {
+
+            return false;
+        }
+
+
+        const resultado =
+            await pool.query(
+                `
+                SELECT
+
+                    jornada.id,
+
+                    jornada.cliente_id,
+
+                    jornada.colaborador_email,
+
+                    cliente.responsavel_email
+
+                FROM
+                    jornadas_clientes
+                    AS jornada
+
+                JOIN
+                    clientes_rs
+                    AS cliente
+
+                ON
+                    cliente.id =
+                    jornada.cliente_id
+
+                WHERE
+                    jornada.id =
+                    $1
+
+                LIMIT 1
+                `,
+                [
+                    jornadaId
+                ]
+            );
+
+
+        const jornada =
+            resultado.rows[0];
+
+
+        if (!jornada) {
+
+            return false;
+        }
+
+
+        // ====================================================
+        // GRUPO RS
+        // ====================================================
+
+        if (
+            usuario.gestorRS
+        ) {
+
+            return true;
+        }
+
+
+        // ====================================================
+        // COLABORADOR DA PRÓPRIA JORNADA
+        // ====================================================
+
+        if (
+            normalizarEmail(
+                jornada.colaborador_email
+            )
+            ===
+            normalizarEmail(
+                usuario.email
+            )
+        ) {
+
+            return true;
+        }
+
+
+        // ====================================================
+        // RESPONSÁVEL DO PRÓPRIO CLIENTE
+        // ====================================================
+
+        if (
+            normalizarEmail(
+                jornada.responsavel_email
+            )
+            ===
+            normalizarEmail(
+                usuario.email
+            )
+        ) {
+
+            return true;
+        }
+
+
+        return false;
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Verificar acesso jornada:',
+            err
+        );
+
+
+        return false;
+    }
+}
+
+
+// ============================================================
+// VERIFICAR SE PODE ADMINISTRAR DOCUMENTOS
+//
+// Upload e alterações:
+// Grupo RS ou responsável do próprio cliente.
+//
+// Colaborador pode visualizar os documentos da própria jornada,
+// mas não cadastrar documentos administrativos.
+// ============================================================
+
+async function usuarioPodeAdministrarDocumentosJornada(
+    usuario,
+    jornadaId
+) {
+
+    try {
+
+        if (!usuario) {
+
+            return false;
+        }
+
+
+        if (
+            usuario.gestorRS
+        ) {
+
+            return true;
+        }
+
+
+        const resultado =
+            await pool.query(
+                `
+                SELECT
+                    cliente.responsavel_email
+
+                FROM
+                    jornadas_clientes
+                    AS jornada
+
+                JOIN
+                    clientes_rs
+                    AS cliente
+
+                ON
+                    cliente.id =
+                    jornada.cliente_id
+
+                WHERE
+                    jornada.id =
+                    $1
+
+                LIMIT 1
+                `,
+                [
+                    jornadaId
+                ]
+            );
+
+
+        const registro =
+            resultado.rows[0];
+
+
+        if (!registro) {
+
+            return false;
+        }
+
+
+        return (
+            normalizarEmail(
+                registro.responsavel_email
+            )
+            ===
+            normalizarEmail(
+                usuario.email
+            )
+        );
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Permissão documentos:',
+            err
+        );
+
+
+        return false;
+    }
+}
+
+
+// ============================================================
+// LISTAR DOCUMENTOS DA JORNADA
+//
+// IMPORTANTE:
+// NÃO DEVOLVE O CONTEÚDO BYTEA DO PDF.
+//
+// Só devolve os dados necessários para a tela.
+// ============================================================
+
+app.get(
+    '/api/jornada-fixa/:id/documentos',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            if (
+                !Number.isInteger(
+                    jornadaId
+                )
+                ||
+                jornadaId <= 0
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada inválida.'
+                    });
+            }
+
+
+            const permitido =
+                await usuarioPodeAcessarJornada(
+                    req.usuario,
+                    jornadaId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para visualizar documentos desta jornada.'
+                );
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        id,
+
+                        jornada_id,
+
+                        tipo,
+
+                        nome,
+
+                        mime,
+
+                        assinatura_status,
+
+                        assinado_por,
+
+                        assinado_em,
+
+                        criado_por,
+
+                        criado_em
+
+                    FROM
+                        jornadas_clientes_documentos
+
+                    WHERE
+                        jornada_id =
+                        $1
+
+                    ORDER BY
+                        criado_em DESC,
+                        id DESC
+                    `,
+                    [
+                        jornadaId
+                    ]
+                );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                documentos:
+                    resultado.rows
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Listar documentos Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar documentos.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// UPLOAD DE DOCUMENTO / CONTRATO
+//
+// SOMENTE:
+// - GRUPO RS
+// - RESPONSÁVEL DO PRÓPRIO CLIENTE
+//
+// PDF OBRIGATÓRIO
+// ============================================================
+
+app.post(
+    '/api/jornada-fixa/:id/documentos',
+
+    autenticarUsuario,
+
+    upload.single(
+        'arquivo'
+    ),
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            if (
+                !Number.isInteger(
+                    jornadaId
+                )
+                ||
+                jornadaId <= 0
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada inválida.'
+                    });
+            }
+
+
+            const permitido =
+                await usuarioPodeAdministrarDocumentosJornada(
+                    req.usuario,
+                    jornadaId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para adicionar documentos nesta jornada.'
+                );
+            }
+
+
+            if (
+                !req.file?.buffer
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Selecione um arquivo PDF.'
+                    });
+            }
+
+
+            const nome =
+                String(
+                    req.file.originalname
+                    ||
+                    `documento-${jornadaId}.pdf`
+                )
+                    .trim();
+
+
+            const mime =
+                String(
+                    req.file.mimetype
+                    ||
+                    ''
+                )
+                    .toLowerCase();
+
+
+            // =================================================
+            // VALIDAR PDF
+            // =================================================
+
+            const parecePDF =
+                mime ===
+                'application/pdf'
+                ||
+                nome
+                    .toLowerCase()
+                    .endsWith(
+                        '.pdf'
+                    );
+
+
+            if (!parecePDF) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Somente arquivos PDF são permitidos.'
+                    });
+            }
+
+
+            // =================================================
+            // LIMITE DE SEGURANÇA
+            // 10 MB POR DOCUMENTO
+            // =================================================
+
+            const limiteDocumento =
+                10 *
+                1024 *
+                1024;
+
+
+            if (
+                req.file.buffer.length
+                >
+                limiteDocumento
+            ) {
+
+                return res
+                    .status(413)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'O PDF ultrapassa o limite de 10 MB.'
+                    });
+            }
+
+
+            const tipo =
+                String(
+                    req.body?.tipo
+                    ||
+                    'CONTRATO'
+                )
+                    .trim()
+                    .toUpperCase()
+                    .slice(
+                        0,
+                        80
+                    );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    INSERT INTO
+                        jornadas_clientes_documentos (
+                            jornada_id,
+                            tipo,
+                            nome,
+                            mime,
+                            arquivo,
+                            assinatura_status,
+                            criado_por
+                        )
+
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        'NAO_ASSINADO',
+                        $6
+                    )
+
+                    RETURNING
+
+                        id,
+
+                        jornada_id,
+
+                        tipo,
+
+                        nome,
+
+                        mime,
+
+                        assinatura_status,
+
+                        criado_por,
+
+                        criado_em
+                    `,
+                    [
+                        jornadaId,
+
+                        tipo,
+
+                        nome,
+
+                        'application/pdf',
+
+                        req.file.buffer,
+
+                        req.usuario.email
+                    ]
+                );
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'DOCUMENTO_JORNADA_ENVIADO',
+                `Documento enviado para jornada #${jornadaId}: ${nome}`
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Documento vinculado à jornada com sucesso.',
+
+                documento:
+                    resultado.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Upload documento Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao salvar documento.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// BUSCAR DOCUMENTO PELO ID
+//
+// Esta função NÃO libera o arquivo.
+//
+// Primeiro localiza:
+// documento -> jornada -> cliente
+//
+// Depois as rotas verificam permissão.
+// ============================================================
+
+async function buscarDocumentoJornada(
+    documentoId
+) {
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT
+
+                documento.*,
+
+                jornada.cliente_id,
+
+                jornada.colaborador_email,
+
+                cliente.responsavel_email,
+
+                cliente.nome
+                    AS cliente_nome
+
+            FROM
+                jornadas_clientes_documentos
+                AS documento
+
+            JOIN
+                jornadas_clientes
+                AS jornada
+
+            ON
+                jornada.id =
+                documento.jornada_id
+
+            JOIN
+                clientes_rs
+                AS cliente
+
+            ON
+                cliente.id =
+                jornada.cliente_id
+
+            WHERE
+                documento.id =
+                $1
+
+            LIMIT 1
+            `,
+            [
+                documentoId
+            ]
+        );
+
+
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
+}
+
+
+// ============================================================
+// VERIFICAR ACESSO DIRETO AO DOCUMENTO
+// ============================================================
+
+function usuarioPodeAcessarDocumento(
+    usuario,
+    documento
+) {
+
+    if (
+        !usuario
+        ||
+        !documento
+    ) {
+
+        return false;
+    }
+
+
+    // GRUPO RS
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    const emailUsuario =
+        normalizarEmail(
+            usuario.email
+        );
+
+
+    // COLABORADOR DA JORNADA
+
+    if (
+        emailUsuario
+        ===
+        normalizarEmail(
+            documento.colaborador_email
+        )
+    ) {
+
+        return true;
+    }
+
+
+    // RESPONSÁVEL DO CLIENTE
+
+    if (
+        emailUsuario
+        ===
+        normalizarEmail(
+            documento.responsavel_email
+        )
+    ) {
+
+        return true;
+    }
+
+
+    return false;
+}
+
+
+// ============================================================
+// DOWNLOAD / VISUALIZAÇÃO DO PDF
+//
+// NÃO EXISTE DOWNLOAD PÚBLICO.
+//
+// PRECISA ESTAR LOGADO.
+// ============================================================
+
+app.get(
+    '/api/jornada-documentos/:id/arquivo',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const documentoId =
+                Number(
+                    req.params.id
+                );
+
+
+            if (
+                !Number.isInteger(
+                    documentoId
+                )
+                ||
+                documentoId <= 0
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Documento inválido.'
+                    });
+            }
+
+
+            const documento =
+                await buscarDocumentoJornada(
+                    documentoId
+                );
+
+
+            if (!documento) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Documento não encontrado.'
+                    });
+            }
+
+
+            if (
+                !usuarioPodeAcessarDocumento(
+                    req.usuario,
+                    documento
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para acessar este documento.'
+                );
+            }
+
+
+            if (
+                !documento.arquivo
+            ) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Arquivo não encontrado.'
+                    });
+            }
+
+
+            const nomeSeguro =
+                String(
+                    documento.nome
+                    ||
+                    `documento-${documento.id}.pdf`
+                )
+                    .replace(
+                        /[\r\n"]/g,
+                        ''
+                    );
+
+
+            res.setHeader(
+                'Content-Type',
+                documento.mime
+                ||
+                'application/pdf'
+            );
+
+
+            res.setHeader(
+                'Content-Disposition',
+                `inline; filename="${nomeSeguro}"`
+            );
+
+
+            res.setHeader(
+                'Cache-Control',
+                'private, no-store, no-cache, must-revalidate'
+            );
+
+
+            return res.send(
+                documento.arquivo
+            );
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Abrir documento Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao abrir documento.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// DOWNLOAD FORÇADO
+// ============================================================
+
+app.get(
+    '/api/jornada-documentos/:id/download',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const documentoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const documento =
+                await buscarDocumentoJornada(
+                    documentoId
+                );
+
+
+            if (!documento) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Documento não encontrado.'
+                    });
+            }
+
+
+            if (
+                !usuarioPodeAcessarDocumento(
+                    req.usuario,
+                    documento
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para baixar este documento.'
+                );
+            }
+
+
+            const nomeSeguro =
+                String(
+                    documento.nome
+                    ||
+                    `documento-${documento.id}.pdf`
+                )
+                    .replace(
+                        /[\r\n"]/g,
+                        ''
+                    );
+
+
+            res.setHeader(
+                'Content-Type',
+                documento.mime
+                ||
+                'application/pdf'
+            );
+
+
+            res.setHeader(
+                'Content-Disposition',
+                `attachment; filename="${nomeSeguro}"`
+            );
+
+
+            res.setHeader(
+                'Cache-Control',
+                'private, no-store'
+            );
+
+
+            return res.send(
+                documento.arquivo
+            );
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Download documento:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao baixar documento.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// ENVIAR PDF ASSINADO
+//
+// O arquivo assinado NÃO substitui silenciosamente
+// o original.
+//
+// Criamos outro registro.
+//
+// Assim mantemos:
+// - original
+// - assinado
+// - data
+// - usuário
+// - histórico
+// ============================================================
+
+app.post(
+    '/api/jornada-documentos/:id/assinado',
+
+    autenticarUsuario,
+
+    upload.single(
+        'arquivo'
+    ),
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const documentoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const original =
+                await buscarDocumentoJornada(
+                    documentoId
+                );
+
+
+            if (!original) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Documento original não encontrado.'
+                    });
+            }
+
+
+            // =================================================
+            // QUEM PODE ENVIAR O DOCUMENTO ASSINADO?
+            //
+            // Grupo RS
+            // Responsável do cliente
+            // Colaborador da própria jornada
+            // =================================================
+
+            if (
+                !usuarioPodeAcessarDocumento(
+                    req.usuario,
+                    original
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para enviar este documento assinado.'
+                );
+            }
+
+
+            if (
+                !req.file?.buffer
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Selecione o PDF assinado.'
+                    });
+            }
+
+
+            const nome =
+                String(
+                    req.file.originalname
+                    ||
+                    `assinado-${original.nome}`
+                )
+                    .trim();
+
+
+            const mime =
+                String(
+                    req.file.mimetype
+                    ||
+                    ''
+                )
+                    .toLowerCase();
+
+
+            if (
+                mime !==
+                'application/pdf'
+                &&
+                !nome
+                    .toLowerCase()
+                    .endsWith(
+                        '.pdf'
+                    )
+            ) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'O documento assinado deve ser um PDF.'
+                    });
+            }
+
+
+            const limiteDocumento =
+                10 *
+                1024 *
+                1024;
+
+
+            if (
+                req.file.buffer.length
+                >
+                limiteDocumento
+            ) {
+
+                return res
+                    .status(413)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'O PDF ultrapassa o limite de 10 MB.'
+                    });
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    INSERT INTO
+                        jornadas_clientes_documentos (
+                            jornada_id,
+                            tipo,
+                            nome,
+                            mime,
+                            arquivo,
+                            assinatura_status,
+                            assinado_por,
+                            assinado_em,
+                            criado_por
+                        )
+
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        'application/pdf',
+                        $4,
+                        'ASSINADO',
+                        $5,
+                        CURRENT_TIMESTAMP,
+                        $5
+                    )
+
+                    RETURNING
+
+                        id,
+
+                        jornada_id,
+
+                        tipo,
+
+                        nome,
+
+                        mime,
+
+                        assinatura_status,
+
+                        assinado_por,
+
+                        assinado_em,
+
+                        criado_em
+                    `,
+                    [
+                        original.jornada_id,
+
+                        `${
+                            original.tipo
+                            ||
+                            'DOCUMENTO'
+                        }_ASSINADO`,
+
+                        nome,
+
+                        req.file.buffer,
+
+                        req.usuario.email
+                    ]
+                );
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'DOCUMENTO_JORNADA_ASSINADO',
+                `Documento #${documentoId} assinado e arquivado.`
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Documento assinado arquivado com sucesso.',
+
+                documento:
+                    resultado.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Documento assinado:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao arquivar documento assinado.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// EXCLUIR DOCUMENTO
+//
+// IMPORTANTE:
+// NÃO PERMITIMOS O COLABORADOR APAGAR.
+//
+// SOMENTE:
+// - GRUPO RS
+// - RESPONSÁVEL DO PRÓPRIO CLIENTE
+// ============================================================
+
+app.delete(
+    '/api/jornada-documentos/:id',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const documentoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const documento =
+                await buscarDocumentoJornada(
+                    documentoId
+                );
+
+
+            if (!documento) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Documento não encontrado.'
+                    });
+            }
+
+
+            const permitido =
+                await usuarioPodeAdministrarDocumentosJornada(
+                    req.usuario,
+                    documento.jornada_id
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para excluir este documento.'
+                );
+            }
+
+
+            await pool.query(
+                `
+                DELETE FROM
+                    jornadas_clientes_documentos
+
+                WHERE
+                    id =
+                    $1
+                `,
+                [
+                    documentoId
+                ]
+            );
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'DOCUMENTO_JORNADA_EXCLUIDO',
+                `Documento #${documentoId} excluído da jornada #${documento.jornada_id}.`
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                mensagem:
+                    'Documento excluído.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Excluir documento Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao excluir documento.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// INFORMAÇÕES SOBRE ASSINATURA GOV.BR
+//
+// IMPORTANTE:
+//
+// ESTA ROTA NÃO FINGE QUE O DOCUMENTO FOI
+// ASSINADO PELO GOV.BR.
+//
+// Uma integração real com assinatura eletrônica externa
+// precisa de credenciais, autorização e API apropriada.
+//
+// Por enquanto:
+// - mantém o documento no RS Connect
+// - permite baixar
+// - assinar externamente quando necessário
+// - reenviar o PDF assinado
+// - arquivar junto da jornada
+// ============================================================
+
+app.get(
+    '/api/jornada-assinatura/informacoes',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        return res.json({
+
+            sucesso:
+                true,
+
+            assinatura_interna:
+                true,
+
+            govbr_integrado:
+                false,
+
+            mensagem:
+                'Os documentos podem ser arquivados e assinados externamente. A integração automática com assinatura GOV.BR exige configuração oficial específica.'
+        });
+    }
+);
+
+
+// ============================================================
+// FIM DA PARTE 8
+//
+// PARTE 9:
+//
+// RELATÓRIO / PDF DA JORNADA
+// ARQUIVAMENTO
+// SERVIÇOS FINALIZADOS
+// HISTÓRICO
+// LIMPEZA DA TELA ATIVA
+//
+// O SERVIÇO FINALIZADO SOME DA ÁREA PRINCIPAL,
+// MAS O HISTÓRICO NÃO É APAGADO.
+// ============================================================// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 9
+//
+// HISTÓRICO
+// SERVIÇOS FINALIZADOS
+// RELATÓRIO DA JORNADA
+// ARQUIVAMENTO
+//
+// FINALIZADO NÃO É EXCLUÍDO.
+// ============================================================
+
+
+// ============================================================
+// SERVIÇO ESTÁ FINALIZADO?
+// ============================================================
+
+function servicoEstaFinalizado(
+    servico
+) {
+
+    const status =
+        String(
+            servico?.status ||
+            ''
+        )
+            .trim()
+            .toLowerCase();
+
+
+    return (
+        Boolean(
+            servico?.checkout_hora
+        )
+
+        ||
+
+        [
+            'finalizado',
+            'validado',
+            'pago',
+            'concluido',
+            'concluído'
+        ].includes(
+            status
+        )
+    );
+}
+
+
+// ============================================================
+// HISTÓRICO DE SERVIÇOS
+//
+// GRUPO RS:
+// → TODOS.
+//
+// EMPRESA:
+// → SOMENTE SERVIÇOS DA PRÓPRIA EMPRESA.
+//
+// PRESTADOR:
+// → SOMENTE SERVIÇOS EM QUE ELE FOI TITULAR.
+//
+// NÃO APARECEM SERVIÇOS ATIVOS.
+// ============================================================
+
+app.get(
+    '/api/historico/servicos',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const usuario =
+                req.usuario;
+
+
+            const limite =
+                Math.min(
+                    Math.max(
+                        Number(
+                            req.query?.limite ||
+                            200
+                        ),
+                        1
+                    ),
+                    500
+                );
+
+
+            let resultado;
+
+
+            // =================================================
+            // GRUPO RS
+            // =================================================
+
+            if (
+                usuario.gestorRS
+            ) {
+
+                resultado =
+                    await pool.query(
+                        `
+                        SELECT *
+                        FROM servicos
+
+                        WHERE
+                            checkout_hora
+                            IS NOT NULL
+
+                        OR
+                            LOWER(
+                                COALESCE(
+                                    status,
+                                    ''
+                                )
+                            )
+                            IN (
+                                'finalizado',
+                                'validado',
+                                'pago',
+                                'concluido',
+                                'concluído'
+                            )
+
+                        ORDER BY
+                            atualizado_em DESC,
+                            id DESC
+
+                        LIMIT
+                            $1
+                        `,
+                        [
+                            limite
+                        ]
+                    );
+
+
+                return res.json({
+
+                    sucesso:
+                        true,
+
+                    servicos:
+                        resultado.rows
+                });
+            }
+
+
+            // =================================================
+            // EMPRESA
+            // =================================================
+
+            if (
+                usuario.tipo ===
+                'empresa'
+            ) {
+
+                resultado =
+                    await pool.query(
+                        `
+                        SELECT *
+                        FROM servicos
+
+                        WHERE
+                            LOWER(
+                                empresa_email
+                            )
+                            =
+                            LOWER($1)
+
+                        AND
+                            (
+                                checkout_hora
+                                IS NOT NULL
+
+                                OR
+
+                                LOWER(
+                                    COALESCE(
+                                        status,
+                                        ''
+                                    )
+                                )
+                                IN (
+                                    'finalizado',
+                                    'validado',
+                                    'pago',
+                                    'concluido',
+                                    'concluído'
+                                )
+                            )
+
+                        ORDER BY
+                            atualizado_em DESC,
+                            id DESC
+
+                        LIMIT
+                            $2
+                        `,
+                        [
+                            usuario.email,
+                            limite
+                        ]
+                    );
+
+
+                return res.json({
+
+                    sucesso:
+                        true,
+
+                    servicos:
+                        resultado.rows
+                });
+            }
+
+
+            // =================================================
+            // PRESTADOR
+            // =================================================
+
+            resultado =
                 await pool.query(
                     `
                     SELECT *
@@ -7423,30 +14026,62 @@ app.get(
                         =
                         LOWER($1)
 
+                    AND
+                        (
+                            checkout_hora
+                            IS NOT NULL
+
+                            OR
+
+                            LOWER(
+                                COALESCE(
+                                    status,
+                                    ''
+                                )
+                            )
+                            IN (
+                                'finalizado',
+                                'validado',
+                                'pago',
+                                'concluido',
+                                'concluído'
+                            )
+                        )
+
                     ORDER BY
+                        atualizado_em DESC,
                         id DESC
+
+                    LIMIT
+                        $2
                     `,
                     [
-                        email
+                        usuario.email,
+                        limite
                     ]
                 );
 
 
             return res.json({
-                sucesso: true,
 
-                total:
-                    resultado.rows.length,
+                sucesso:
+                    true,
 
                 servicos:
                     resultado.rows
+                        .map(
+                            servico =>
+                                servicoParaPrestador(
+                                    servico
+                                )
+                        )
             });
 
 
         } catch (err) {
 
             console.error(
-                '❌ Histórico prestador:',
+                '❌ Histórico serviços:',
                 err
             );
 
@@ -7454,9 +14089,12 @@ app.get(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
-                        'Erro ao carregar histórico.'
+                        'Erro ao carregar histórico de serviços.'
                 });
         }
     }
@@ -7464,25 +14102,1184 @@ app.get(
 
 
 // ============================================================
+// HISTÓRICO DE UM SERVIÇO ESPECÍFICO
+// ============================================================
+
+app.get(
+    '/api/historico/servicos/:id',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const servicoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            if (
+                !servicoEstaFinalizado(
+                    servico
+                )
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Este serviço ainda está em andamento.'
+                    });
+            }
+
+
+            if (
+                !usuarioPodeAcessarServicoPrivado(
+                    req.usuario,
+                    servico
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode acessar o histórico deste serviço.'
+                );
+            }
+
+
+            if (
+                req.usuario.gestorRS
+                ||
+                req.usuario.tipo ===
+                'empresa'
+            ) {
+
+                return res.json({
+
+                    sucesso:
+                        true,
+
+                    servico
+                });
+            }
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                servico:
+                    servicoParaPrestador(
+                        servico
+                    )
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Histórico serviço:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar serviço.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// MINHAS JORNADAS ARQUIVADAS
+//
+// COLABORADOR:
+// → APENAS AS PRÓPRIAS.
+//
+// SERVE PARA:
+// "HISTÓRICO DA MINHA JORNADA"
+// ============================================================
+
+app.get(
+    '/api/minha-jornada/arquivadas',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            if (
+                req.usuario.gestorRS
+                ||
+                req.usuario.tipo ===
+                'empresa'
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Esta área é exclusiva do colaborador.'
+                );
+            }
+
+
+            const limite =
+                Math.min(
+                    Math.max(
+                        Number(
+                            req.query?.limite ||
+                            180
+                        ),
+                        1
+                    ),
+                    500
+                );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        jornada.*,
+
+                        cliente.nome
+                            AS cliente_nome,
+
+                        cliente.endereco
+                            AS cliente_endereco,
+
+                        cliente.cidade
+                            AS cliente_cidade,
+
+                        cliente.uf
+                            AS cliente_uf
+
+                    FROM
+                        jornadas_clientes
+                        AS jornada
+
+                    JOIN
+                        clientes_rs
+                        AS cliente
+
+                    ON
+                        cliente.id =
+                        jornada.cliente_id
+
+                    WHERE
+                        LOWER(
+                            jornada.colaborador_email
+                        )
+                        =
+                        LOWER($1)
+
+                    AND
+                        (
+                            jornada.saida_em
+                            IS NOT NULL
+
+                            OR
+
+                            jornada.fechada =
+                            TRUE
+                        )
+
+                    ORDER BY
+                        jornada.data DESC,
+                        jornada.id DESC
+
+                    LIMIT
+                        $2
+                    `,
+                    [
+                        req.usuario.email,
+                        limite
+                    ]
+                );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                jornadas:
+                    resultado.rows
+                        .map(
+                            jornada =>
+                                jornadaParaColaborador(
+                                    jornada
+                                )
+                        )
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Jornadas arquivadas:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar jornadas anteriores.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// RELATÓRIO COMPLETO DA JORNADA
+//
+// Serve como fonte dos dados para:
+//
+// - visualização;
+// - impressão;
+// - Salvar como PDF no INDEX.
+//
+// PRIVACIDADE:
+//
+// ADMIN → QUALQUER.
+//
+// RESPONSÁVEL → SOMENTE SEU CLIENTE.
+//
+// COLABORADOR → SOMENTE SUA JORNADA.
+// ============================================================
+
+app.get(
+    '/api/jornada-fixa/:id/relatorio',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const permitido =
+                await usuarioPodeAcessarJornada(
+                    req.usuario,
+                    jornadaId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem permissão para visualizar este relatório.'
+                );
+            }
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (!jornada) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Jornada não encontrada.'
+                    });
+            }
+
+
+            // =================================================
+            // DOCUMENTOS SEM BYTEA
+            // =================================================
+
+            const documentosRes =
+                await pool.query(
+                    `
+                    SELECT
+
+                        id,
+
+                        jornada_id,
+
+                        tipo,
+
+                        nome,
+
+                        mime,
+
+                        assinatura_status,
+
+                        assinado_por,
+
+                        assinado_em,
+
+                        criado_por,
+
+                        criado_em
+
+                    FROM
+                        jornadas_clientes_documentos
+
+                    WHERE
+                        jornada_id =
+                        $1
+
+                    ORDER BY
+                        criado_em,
+                        id
+                    `,
+                    [
+                        jornadaId
+                    ]
+                );
+
+
+            // =================================================
+            // RELATÓRIO DO COLABORADOR
+            //
+            // NÃO DEVOLVE DADOS ADMINISTRATIVOS EXTRAS.
+            // =================================================
+
+            if (
+                usuarioEhDonoJornada(
+                    req.usuario,
+                    jornada
+                )
+                &&
+                !req.usuario.gestorRS
+            ) {
+
+                return res.json({
+
+                    sucesso:
+                        true,
+
+                    relatorio: {
+
+                        jornada:
+                            jornadaParaColaborador(
+                                jornada
+                            ),
+
+                        documentos:
+                            documentosRes.rows
+                    }
+                });
+            }
+
+
+            // =================================================
+            // RESPONSÁVEL / GRUPO RS
+            // =================================================
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                relatorio: {
+
+                    jornada: {
+
+                        id:
+                            jornada.id,
+
+                        cliente_id:
+                            jornada.cliente_id,
+
+                        cliente_nome:
+                            jornada.cliente_nome,
+
+                        cliente_endereco:
+                            jornada.cliente_endereco,
+
+                        cliente_cidade:
+                            jornada.cliente_cidade,
+
+                        cliente_uf:
+                            jornada.cliente_uf,
+
+                        responsavel_nome:
+                            jornada.responsavel_nome,
+
+                        colaborador_nome:
+                            jornada.colaborador_nome,
+
+                        colaborador_email:
+                            jornada.colaborador_email,
+
+                        funcao:
+                            jornada.funcao,
+
+                        data:
+                            jornada.data,
+
+                        horario_previsto:
+                            jornada.horario_previsto,
+
+                        status:
+                            jornada.status,
+
+                        entrada_em:
+                            jornada.entrada_em,
+
+                        entrada_latitude:
+                            jornada.entrada_latitude,
+
+                        entrada_longitude:
+                            jornada.entrada_longitude,
+
+                        entrada_validada:
+                            Boolean(
+                                jornada.entrada_validada
+                            ),
+
+                        entrada_validada_por:
+                            jornada.entrada_validada_por,
+
+                        entrada_validada_em:
+                            jornada.entrada_validada_em,
+
+                        intervalo_inicio_em:
+                            jornada.intervalo_inicio_em,
+
+                        intervalo_retorno_em:
+                            jornada.intervalo_retorno_em,
+
+                        saida_em:
+                            jornada.saida_em,
+
+                        saida_latitude:
+                            jornada.saida_latitude,
+
+                        saida_longitude:
+                            jornada.saida_longitude,
+
+                        saida_validada:
+                            Boolean(
+                                jornada.saida_validada
+                            ),
+
+                        saida_validada_por:
+                            jornada.saida_validada_por,
+
+                        saida_validada_em:
+                            jornada.saida_validada_em,
+
+                        total_minutos:
+                            Number(
+                                jornada.total_minutos ||
+                                0
+                            ),
+
+                        total_horas:
+                            Number(
+                                jornada.total_horas ||
+                                0
+                            ),
+
+                        valor_tipo:
+                            jornada.valor_tipo,
+
+                        valor_base:
+                            numeroRS(
+                                jornada.valor_base
+                            ),
+
+                        valor_gerado:
+                            numeroRS(
+                                jornada.valor_gerado
+                            ),
+
+                        fechada:
+                            Boolean(
+                                jornada.fechada
+                            ),
+
+                        fechada_por:
+                            jornada.fechada_por,
+
+                        fechada_em:
+                            jornada.fechada_em,
+
+                        observacoes:
+                            jornada.observacoes
+                    },
+
+                    documentos:
+                        documentosRes.rows
+                }
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Relatório Jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao gerar relatório da jornada.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FOTO DE ENTRADA PROTEGIDA
+//
+// Não vamos deixar a foto disponível por uma URL pública.
+//
+// O INDEX busca esta rota usando token.
+// ============================================================
+
+app.get(
+    '/api/jornada-fixa/:id/foto-entrada',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const permitido =
+                await usuarioPodeAcessarJornada(
+                    req.usuario,
+                    jornadaId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res
+                );
+            }
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (
+                !jornada?.entrada_foto
+            ) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Foto de entrada não encontrada.'
+                    });
+            }
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                foto:
+                    jornada.entrada_foto
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Foto entrada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar foto.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// FOTO DE SAÍDA PROTEGIDA
+// ============================================================
+
+app.get(
+    '/api/jornada-fixa/:id/foto-saida',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const jornadaId =
+                Number(
+                    req.params.id
+                );
+
+
+            const permitido =
+                await usuarioPodeAcessarJornada(
+                    req.usuario,
+                    jornadaId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res
+                );
+            }
+
+
+            const jornada =
+                await buscarJornadaCliente(
+                    jornadaId
+                );
+
+
+            if (
+                !jornada?.saida_foto
+            ) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Foto de saída não encontrada.'
+                    });
+            }
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                foto:
+                    jornada.saida_foto
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Foto saída:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar foto.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// RESUMO DO CLIENTE
+//
+// Exemplo:
+// Gratidão
+//
+// presentes: 10
+// ausentes: 2
+// intervalo: 1
+// encerrados: 8
+// total de horas
+// valor gerado
+//
+// SEM MISTURAR OUTRA EMPRESA.
+// ============================================================
+
+app.get(
+    '/api/jornada-clientes/:id/resumo',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const clienteId =
+                Number(
+                    req.params.id
+                );
+
+
+            const permitido =
+                await usuarioPodeAcessarCliente(
+                    req.usuario,
+                    clienteId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não tem acesso ao resumo deste cliente.'
+                );
+            }
+
+
+            const data =
+                String(
+                    req.query?.data ||
+                    dataAtualRS()
+                )
+                    .slice(
+                        0,
+                        10
+                    );
+
+
+            await garantirJornadasDiaCliente(
+                clienteId,
+                data
+            );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        COUNT(*)::int
+                            AS total_colaboradores,
+
+                        COUNT(*)
+                        FILTER (
+                            WHERE
+                                entrada_em
+                                IS NOT NULL
+
+                            AND
+                                saida_em
+                                IS NULL
+                        )::int
+                            AS presentes,
+
+                        COUNT(*)
+                        FILTER (
+                            WHERE
+                                entrada_em
+                                IS NULL
+                        )::int
+                            AS ausentes,
+
+                        COUNT(*)
+                        FILTER (
+                            WHERE
+                                intervalo_inicio_em
+                                IS NOT NULL
+
+                            AND
+                                intervalo_retorno_em
+                                IS NULL
+
+                            AND
+                                saida_em
+                                IS NULL
+                        )::int
+                            AS em_intervalo,
+
+                        COUNT(*)
+                        FILTER (
+                            WHERE
+                                saida_em
+                                IS NOT NULL
+                        )::int
+                            AS encerrados,
+
+                        COALESCE(
+                            SUM(
+                                total_horas
+                            ),
+                            0
+                        )
+                            AS total_horas,
+
+                        COALESCE(
+                            SUM(
+                                valor_gerado
+                            ),
+                            0
+                        )
+                            AS valor_gerado
+
+                    FROM
+                        jornadas_clientes
+
+                    WHERE
+                        cliente_id =
+                        $1
+
+                    AND
+                        data =
+                        $2::date
+                    `,
+                    [
+                        clienteId,
+                        data
+                    ]
+                );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                data,
+
+                resumo:
+                    resultado.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Resumo cliente:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar resumo.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// ARQUIVO HISTÓRICO POR COLABORADOR
+//
+// Exemplo:
+//
+// Mayara
+// → Gratidão
+// → todas as jornadas
+//
+// Somente quem tem acesso à Gratidão
+// consegue executar a busca.
+// ============================================================
+
+app.get(
+    '/api/jornada-clientes/:id/colaborador/:email/historico',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const clienteId =
+                Number(
+                    req.params.id
+                );
+
+
+            const permitido =
+                await usuarioPodeAcessarCliente(
+                    req.usuario,
+                    clienteId
+                );
+
+
+            if (!permitido) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode consultar colaboradores deste cliente.'
+                );
+            }
+
+
+            const colaboradorEmail =
+                normalizarEmail(
+                    req.params.email
+                );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        jornada.*,
+
+                        cliente.nome
+                            AS cliente_nome
+
+                    FROM
+                        jornadas_clientes
+                        AS jornada
+
+                    JOIN
+                        clientes_rs
+                        AS cliente
+
+                    ON
+                        cliente.id =
+                        jornada.cliente_id
+
+                    WHERE
+                        jornada.cliente_id =
+                        $1
+
+                    AND
+                        LOWER(
+                            jornada.colaborador_email
+                        )
+                        =
+                        LOWER($2)
+
+                    ORDER BY
+                        jornada.data DESC,
+                        jornada.id DESC
+                    `,
+                    [
+                        clienteId,
+                        colaboradorEmail
+                    ]
+                );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                jornadas:
+                    resultado.rows
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Histórico colaborador cliente:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao pesquisar histórico do colaborador.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// IMPORTANTE SOBRE EXCLUSÃO
+//
+// NÃO CRIAMOS ROTA PARA APAGAR SERVIÇO FINALIZADO.
+//
+// FINALIZADO:
+// → sai da área ativa;
+// → continua no PostgreSQL;
+// → fica no Histórico;
+// → mantém fotos;
+// → mantém horários;
+// → mantém pagamentos;
+// → mantém documentos;
+// → mantém auditoria.
+//
+// Isso evita perda de dados.
+// ============================================================
+
+
+// ============================================================
+// FIM DA PARTE 9
+//
+// PARTE 10:
+//
+// PAGAMENTOS
+// COMPROVANTES
+// AUTORIZAÇÃO DE PAGAMENTO
+//
+// COM PRIVACIDADE:
+//
+// EMPRESA X NÃO ACESSA PAGAMENTO DA EMPRESA Y.
+// PRESTADOR SÓ ACESSA O PRÓPRIO PAGAMENTO.
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 10
+//
+// PAGAMENTOS
+// AUTORIZAÇÃO
+// REGISTRO
+// COMPROVANTE
+// HISTÓRICO DO PRESTADOR
+//
+// PRIVACIDADE:
+// EMPRESA X NÃO ACESSA PAGAMENTO DA EMPRESA Y.
+// PRESTADOR SÓ VÊ OS PRÓPRIOS PAGAMENTOS.
+// ============================================================
+
+
+// ============================================================
 // AUTORIZAR PAGAMENTO
+//
+// SOMENTE:
+// - EMPRESA DONA DO SERVIÇO
+// - GRUPO RS / ADMIN
 // ============================================================
 
 app.post(
     '/api/servicos/:id/autorizar-pagamento',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
                 req.params.id
-            );
-
-
-        const empresaEmail =
-            normalizarEmail(
-                req.body?.email ||
-                req.body?.empresaEmail ||
-                req.body?.empresa_email
             );
 
 
@@ -7499,38 +15296,31 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
             }
 
 
-            // =================================================
-            // SOMENTE EMPRESA RESPONSÁVEL
-            // =================================================
-
             if (
-                servico.empresa_email &&
+                !req.usuario.gestorRS
+                &&
                 !empresaEhResponsavel(
                     servico,
-                    empresaEmail
+                    req.usuario.email
                 )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente a empresa responsável pode autorizar o pagamento.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Somente a empresa responsável por este serviço pode autorizar o pagamento.'
+                );
             }
 
-
-            // =================================================
-            // SERVIÇO PRECISA ESTAR FINALIZADO
-            // =================================================
 
             if (
                 !servico.checkout_hora
@@ -7539,9 +15329,29 @@ app.post(
                 return res
                     .status(409)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'O serviço precisa estar finalizado antes do pagamento.'
+                    });
+            }
+
+
+            if (
+                !servico.prestador_email
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Este serviço não possui prestador vinculado.'
                     });
             }
 
@@ -7551,23 +15361,31 @@ app.post(
             ) {
 
                 return res.json({
-                    sucesso: true,
 
-                    jaAutorizado:
+                    sucesso:
                         true,
 
                     mensagem:
-                        'O pagamento deste serviço já foi autorizado.',
+                        'O pagamento já está autorizado.',
 
-                    servico
+                    valor:
+                        numeroRS(
+                            servico.valor_liquido
+                            ||
+                            servico.valor_diaria
+                            ||
+                            servico.valor
+                        )
                 });
             }
 
 
             const valor =
                 numeroRS(
-                    servico.valor_liquido ||
-                    servico.valor_diaria ||
+                    servico.valor_liquido
+                    ||
+                    servico.valor_diaria
+                    ||
                     servico.valor
                 );
 
@@ -7575,17 +15393,22 @@ app.post(
             const resultado =
                 await pool.query(
                     `
-                    UPDATE servicos
+                    UPDATE
+                        servicos
 
                     SET
                         pagamento_autorizado =
                             TRUE,
 
                         pagamento_autorizado_em =
+                            CURRENT_TIMESTAMP,
+
+                        atualizado_em =
                             CURRENT_TIMESTAMP
 
                     WHERE
-                        id = $1
+                        id =
+                        $1
 
                     RETURNING *
                     `,
@@ -7595,56 +15418,121 @@ app.post(
                 );
 
 
-            await pool.query(
-                `
-                INSERT INTO pagamentos (
-                    servico_id,
-                    empresa_email,
-                    prestador_email,
-                    valor,
-                    forma_pagamento,
-                    status,
-                    autorizado_em
-                )
+            // =================================================
+            // EVITAR DUPLICAR AUTORIZAÇÃO NA TABELA PAGAMENTOS
+            // =================================================
 
-                VALUES (
-                    $1,
-                    $2,
-                    $3,
-                    $4,
-                    $5,
-                    'AUTORIZADO',
-                    CURRENT_TIMESTAMP
-                )
-                `,
-                [
-                    servicoId,
+            const pagamentoExistente =
+                await pool.query(
+                    `
+                    SELECT
+                        id
 
-                    servico.empresa_email ||
-                    empresaEmail,
+                    FROM
+                        pagamentos
 
-                    servico.prestador_email,
+                    WHERE
+                        servico_id =
+                        $1
 
-                    valor,
+                    AND
+                        status
+                        IN (
+                            'AUTORIZADO',
+                            'PAGO'
+                        )
 
-                    servico.forma_pgto ||
-                    'Pix'
-                ]
-            );
+                    ORDER BY
+                        id DESC
+
+                    LIMIT 1
+                    `,
+                    [
+                        servicoId
+                    ]
+                );
+
+
+            if (
+                !pagamentoExistente.rows.length
+            ) {
+
+                await pool.query(
+                    `
+                    INSERT INTO
+                        pagamentos (
+                            servico_id,
+                            empresa_email,
+                            prestador_email,
+                            valor,
+                            forma_pagamento,
+                            status,
+                            autorizado_em
+                        )
+
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        'AUTORIZADO',
+                        CURRENT_TIMESTAMP
+                    )
+                    `,
+                    [
+                        servicoId,
+
+                        normalizarEmail(
+                            servico.empresa_email
+                        ),
+
+                        normalizarEmail(
+                            servico.prestador_email
+                        ),
+
+                        valor,
+
+                        servico.forma_pgto
+                        ||
+                        'Pix'
+                    ]
+                );
+            }
 
 
             await registrarLedger(
                 servicoId,
-                empresaEmail,
+                req.usuario.email,
                 'PAGAMENTO_AUTORIZADO',
                 valor
             );
 
 
             await registrarAuditoria(
-                empresaEmail,
-                'AUTORIZAR_PAGAMENTO',
-                `Pagamento autorizado para o serviço #${servicoId}.`
+                req.usuario.email,
+                'PAGAMENTO_AUTORIZADO',
+                `Pagamento do serviço #${servicoId} autorizado.`
+            );
+
+
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'pagamento_autorizado',
+                {
+                    servicoId,
+                    valor
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                servico.prestador_email,
+                'pagamento_autorizado',
+                {
+                    servicoId,
+                    valor
+                }
             );
 
 
@@ -7653,21 +15541,10 @@ app.post(
             );
 
 
-            io.emit(
-                'pagamento_autorizado',
-                {
-                    servicoId,
-
-                    prestadorEmail:
-                        servico.prestador_email,
-
-                    valor
-                }
-            );
-
-
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
                     'Pagamento autorizado.',
@@ -7690,7 +15567,10 @@ app.post(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao autorizar pagamento.'
                 });
@@ -7701,24 +15581,27 @@ app.post(
 
 // ============================================================
 // REGISTRAR PAGAMENTO
+//
+// SOMENTE:
+// - EMPRESA DONA DO SERVIÇO
+// - GRUPO RS / ADMIN
+//
+// O PRESTADOR NÃO MARCA O PRÓPRIO PAGAMENTO COMO PAGO.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/pagamento',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
                 req.params.id
-            );
-
-
-        const empresaEmail =
-            normalizarEmail(
-                req.body?.email ||
-                req.body?.empresaEmail ||
-                req.body?.empresa_email
             );
 
 
@@ -7735,7 +15618,10 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -7743,20 +15629,18 @@ app.post(
 
 
             if (
-                servico.empresa_email &&
+                !req.usuario.gestorRS
+                &&
                 !empresaEhResponsavel(
                     servico,
-                    empresaEmail
+                    req.usuario.email
                 )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente a empresa responsável pode registrar o pagamento.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Somente a empresa responsável pode registrar este pagamento.'
+                );
             }
 
 
@@ -7767,35 +15651,79 @@ app.post(
                 return res
                     .status(409)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'O serviço ainda não foi finalizado.'
                     });
             }
 
 
+            if (
+                !servico.pagamento_autorizado
+            ) {
+
+                return res
+                    .status(409)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Autorize o pagamento antes de registrá-lo como pago.'
+                    });
+            }
+
+
+            if (
+                servico.pagamento_realizado
+            ) {
+
+                return res.json({
+
+                    sucesso:
+                        true,
+
+                    mensagem:
+                        'Este pagamento já foi registrado.'
+                });
+            }
+
+
             const valor =
                 numeroRS(
-                    req.body?.valor ||
-                    servico.valor_liquido ||
-                    servico.valor_diaria ||
+                    req.body?.valor
+                    ||
+                    servico.valor_liquido
+                    ||
+                    servico.valor_diaria
+                    ||
                     servico.valor
                 );
 
 
             const formaPagamento =
                 String(
-                    req.body?.formaPagamento ||
-                    req.body?.forma_pagamento ||
-                    servico.forma_pgto ||
+                    req.body?.formaPagamento
+                    ||
+                    req.body?.forma_pagamento
+                    ||
+                    servico.forma_pgto
+                    ||
                     'Pix'
-                );
+                )
+                    .trim();
 
 
             const comprovante =
                 String(
-                    req.body?.comprovante ||
-                    req.body?.arquivo ||
+                    req.body?.comprovante
+                    ||
+                    req.body?.arquivo
+                    ||
                     ''
                 );
 
@@ -7803,7 +15731,8 @@ app.post(
             const resultado =
                 await pool.query(
                     `
-                    UPDATE servicos
+                    UPDATE
+                        servicos
 
                     SET
                         pagamento_realizado =
@@ -7811,15 +15740,6 @@ app.post(
 
                         pagamento_realizado_em =
                             CURRENT_TIMESTAMP,
-
-                        pagamento_autorizado =
-                            TRUE,
-
-                        pagamento_autorizado_em =
-                            COALESCE(
-                                pagamento_autorizado_em,
-                                CURRENT_TIMESTAMP
-                            ),
 
                         comprovante_pagamento =
                             CASE
@@ -7844,10 +15764,14 @@ app.post(
                             END,
 
                         status =
-                            'pago'
+                            'pago',
+
+                        atualizado_em =
+                            CURRENT_TIMESTAMP
 
                     WHERE
-                        id = $2
+                        id =
+                        $2
 
                     RETURNING *
                     `,
@@ -7858,59 +15782,179 @@ app.post(
                 );
 
 
-            await pool.query(
-                `
-                INSERT INTO pagamentos (
-                    servico_id,
-                    empresa_email,
-                    prestador_email,
-                    valor,
-                    forma_pagamento,
-                    status,
-                    comprovante,
-                    pago_em
-                )
+            // =================================================
+            // ATUALIZAR PAGAMENTO EXISTENTE
+            // =================================================
 
-                VALUES (
-                    $1,
-                    $2,
-                    $3,
-                    $4,
-                    $5,
-                    'PAGO',
-                    $6,
-                    CURRENT_TIMESTAMP
-                )
-                `,
-                [
-                    servicoId,
+            const existente =
+                await pool.query(
+                    `
+                    SELECT
+                        id
 
-                    servico.empresa_email ||
-                    empresaEmail,
+                    FROM
+                        pagamentos
 
-                    servico.prestador_email,
+                    WHERE
+                        servico_id =
+                        $1
 
-                    valor,
+                    ORDER BY
+                        id DESC
 
-                    formaPagamento,
+                    LIMIT 1
+                    `,
+                    [
+                        servicoId
+                    ]
+                );
 
-                    comprovante
-                ]
-            );
+
+            if (
+                existente.rows.length
+            ) {
+
+                await pool.query(
+                    `
+                    UPDATE
+                        pagamentos
+
+                    SET
+                        empresa_email =
+                            $1,
+
+                        prestador_email =
+                            $2,
+
+                        valor =
+                            $3,
+
+                        forma_pagamento =
+                            $4,
+
+                        status =
+                            'PAGO',
+
+                        comprovante =
+                            CASE
+
+                                WHEN $5 <> ''
+                                THEN $5
+
+                                ELSE
+                                    comprovante
+
+                            END,
+
+                        pago_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                        $6
+                    `,
+                    [
+                        normalizarEmail(
+                            servico.empresa_email
+                        ),
+
+                        normalizarEmail(
+                            servico.prestador_email
+                        ),
+
+                        valor,
+
+                        formaPagamento,
+
+                        comprovante,
+
+                        existente.rows[0].id
+                    ]
+                );
+
+
+            } else {
+
+                await pool.query(
+                    `
+                    INSERT INTO
+                        pagamentos (
+                            servico_id,
+                            empresa_email,
+                            prestador_email,
+                            valor,
+                            forma_pagamento,
+                            status,
+                            comprovante,
+                            autorizado_em,
+                            pago_em
+                        )
+
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        'PAGO',
+                        $6,
+                        CURRENT_TIMESTAMP,
+                        CURRENT_TIMESTAMP
+                    )
+                    `,
+                    [
+                        servicoId,
+
+                        normalizarEmail(
+                            servico.empresa_email
+                        ),
+
+                        normalizarEmail(
+                            servico.prestador_email
+                        ),
+
+                        valor,
+
+                        formaPagamento,
+
+                        comprovante
+                    ]
+                );
+            }
 
 
             await registrarLedger(
                 servicoId,
-                empresaEmail,
+                req.usuario.email,
                 'PAGAMENTO_REALIZADO',
                 valor
             );
 
 
             await registrarAuditoria(
-                empresaEmail,
+                req.usuario.email,
                 'PAGAMENTO_REALIZADO',
-                `Pagamento registrado no serviço #${servicoId}.`
+                `Pagamento do serviço #${servicoId} registrado.`
+            );
+
+
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'pagamento_realizado',
+                {
+                    servicoId,
+                    valor
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                servico.prestador_email,
+                'pagamento_realizado',
+                {
+                    servicoId,
+                    valor
+                }
             );
 
 
@@ -7919,21 +15963,10 @@ app.post(
             );
 
 
-            io.emit(
-                'pagamento_realizado',
-                {
-                    servicoId,
-
-                    prestadorEmail:
-                        servico.prestador_email,
-
-                    valor
-                }
-            );
-
-
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
                     'Pagamento registrado.',
@@ -7956,7 +15989,10 @@ app.post(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao registrar pagamento.'
                 });
@@ -7966,15 +16002,29 @@ app.post(
 
 
 // ============================================================
-// ENVIAR COMPROVANTE DE PAGAMENTO
+// COMPROVANTE DE PAGAMENTO
+//
+// SOMENTE:
+// - EMPRESA RESPONSÁVEL
+// - GRUPO RS
+//
+// O PRESTADOR PODE VISUALIZAR DEPOIS,
+// MAS NÃO ALTERAR.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/comprovante-pagamento',
 
-    upload.single('arquivo'),
+    autenticarUsuario,
 
-    async (req, res) => {
+    upload.single(
+        'arquivo'
+    ),
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
@@ -7995,36 +16045,29 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
             }
 
 
-            const empresaEmail =
-                normalizarEmail(
-                    req.body?.empresaEmail ||
-                    req.body?.empresa_email ||
-                    req.body?.email
-                );
-
-
             if (
-                servico.empresa_email &&
+                !req.usuario.gestorRS
+                &&
                 !empresaEhResponsavel(
                     servico,
-                    empresaEmail
+                    req.usuario.email
                 )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente a empresa responsável pode enviar o comprovante.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Somente a empresa responsável pode enviar o comprovante.'
+                );
             }
 
 
@@ -8041,7 +16084,9 @@ app.post(
             ) {
 
                 arquivo =
-                    `data:${req.file.mimetype};base64,${
+                    `data:${
+                        req.file.mimetype
+                    };base64,${
                         req.file.buffer
                             .toString(
                                 'base64'
@@ -8050,7 +16095,8 @@ app.post(
 
 
                 nomeArquivo =
-                    req.file.originalname ||
+                    req.file.originalname
+                    ||
                     nomeArquivo;
 
 
@@ -8058,16 +16104,20 @@ app.post(
 
                 arquivo =
                     String(
-                        req.body?.arquivo ||
-                        req.body?.comprovante ||
+                        req.body?.arquivo
+                        ||
+                        req.body?.comprovante
+                        ||
                         ''
                     );
 
 
                 nomeArquivo =
                     String(
-                        req.body?.nomeArquivo ||
-                        req.body?.nome_arquivo ||
+                        req.body?.nomeArquivo
+                        ||
+                        req.body?.nome_arquivo
+                        ||
                         nomeArquivo
                     );
             }
@@ -8078,7 +16128,10 @@ app.post(
                 return res
                     .status(400)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Selecione o comprovante.'
                     });
@@ -8087,7 +16140,8 @@ app.post(
 
             await pool.query(
                 `
-                UPDATE servicos
+                UPDATE
+                    servicos
 
                 SET
                     comprovante_pagamento =
@@ -8112,10 +16166,14 @@ app.post(
                         ),
 
                     status =
-                        'pago'
+                        'pago',
+
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
 
                 WHERE
-                    id = $2
+                    id =
+                        $2
                 `,
                 [
                     arquivo,
@@ -8125,19 +16183,20 @@ app.post(
 
 
             // =================================================
-            // GUARDAR TAMBÉM EM DOCUMENTOS
+            // SALVAR COMPROVANTE NOS DOCUMENTOS DO SERVIÇO
             // =================================================
 
             await pool.query(
                 `
-                INSERT INTO documentos_rs (
-                    servico_id,
-                    empresa_email,
-                    prestador_email,
-                    categoria,
-                    nome,
-                    arquivo
-                )
+                INSERT INTO
+                    documentos_rs (
+                        servico_id,
+                        empresa_email,
+                        prestador_email,
+                        categoria,
+                        nome,
+                        arquivo
+                    )
 
                 VALUES (
                     $1,
@@ -8151,10 +16210,13 @@ app.post(
                 [
                     servicoId,
 
-                    servico.empresa_email ||
-                    empresaEmail,
+                    normalizarEmail(
+                        servico.empresa_email
+                    ),
 
-                    servico.prestador_email,
+                    normalizarEmail(
+                        servico.prestador_email
+                    ),
 
                     nomeArquivo,
 
@@ -8163,10 +16225,154 @@ app.post(
             );
 
 
+            // =================================================
+            // ATUALIZAR TABELA PAGAMENTOS
+            // =================================================
+
+            const valor =
+                numeroRS(
+                    servico.valor_liquido
+                    ||
+                    servico.valor_diaria
+                    ||
+                    servico.valor
+                );
+
+
+            const pagamentoRes =
+                await pool.query(
+                    `
+                    SELECT
+                        id
+
+                    FROM
+                        pagamentos
+
+                    WHERE
+                        servico_id =
+                        $1
+
+                    ORDER BY
+                        id DESC
+
+                    LIMIT 1
+                    `,
+                    [
+                        servicoId
+                    ]
+                );
+
+
+            if (
+                pagamentoRes.rows.length
+            ) {
+
+                await pool.query(
+                    `
+                    UPDATE
+                        pagamentos
+
+                    SET
+                        status =
+                            'PAGO',
+
+                        valor =
+                            $1,
+
+                        comprovante =
+                            $2,
+
+                        pago_em =
+                            CURRENT_TIMESTAMP
+
+                    WHERE
+                        id =
+                            $3
+                    `,
+                    [
+                        valor,
+
+                        arquivo,
+
+                        pagamentoRes.rows[0].id
+                    ]
+                );
+
+
+            } else {
+
+                await pool.query(
+                    `
+                    INSERT INTO
+                        pagamentos (
+                            servico_id,
+                            empresa_email,
+                            prestador_email,
+                            valor,
+                            forma_pagamento,
+                            status,
+                            comprovante,
+                            autorizado_em,
+                            pago_em
+                        )
+
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        'PAGO',
+                        $6,
+                        CURRENT_TIMESTAMP,
+                        CURRENT_TIMESTAMP
+                    )
+                    `,
+                    [
+                        servicoId,
+
+                        normalizarEmail(
+                            servico.empresa_email
+                        ),
+
+                        normalizarEmail(
+                            servico.prestador_email
+                        ),
+
+                        valor,
+
+                        servico.forma_pgto
+                        ||
+                        'Pix',
+
+                        arquivo
+                    ]
+                );
+            }
+
+
             await registrarAuditoria(
-                empresaEmail,
+                req.usuario.email,
                 'COMPROVANTE_PAGAMENTO',
-                `Comprovante registrado no serviço #${servicoId}.`
+                `Comprovante do serviço #${servicoId} registrado.`
+            );
+
+
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'comprovante_pagamento',
+                {
+                    servicoId
+                }
+            );
+
+
+            emitirAtualizacaoPrestador(
+                servico.prestador_email,
+                'comprovante_pagamento',
+                {
+                    servicoId
+                }
             );
 
 
@@ -8175,22 +16381,13 @@ app.post(
             );
 
 
-            io.emit(
-                'comprovante_pagamento',
-                {
-                    servicoId,
-
-                    prestadorEmail:
-                        servico.prestador_email
-                }
-            );
-
-
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
-                    'Comprovante registrado com sucesso.'
+                    'Comprovante registrado.'
             });
 
 
@@ -8205,7 +16402,10 @@ app.post(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao registrar comprovante.'
                 });
@@ -8215,118 +16415,274 @@ app.post(
 
 
 // ============================================================
-// PAGAMENTOS DO PRESTADOR
+// MEUS PAGAMENTOS — PRESTADOR
+//
+// ROTA NOVA:
+//
+// /api/meus-pagamentos
+//
+// NÃO RECEBE E-MAIL.
+//
+// O TOKEN IDENTIFICA O PRESTADOR.
+// ============================================================
+
+async function carregarMeusPagamentos(
+    req,
+    res
+) {
+
+    try {
+
+        if (
+            req.usuario.gestorRS
+            ||
+            req.usuario.tipo ===
+            'empresa'
+        ) {
+
+            return responderAcessoNegado(
+                res,
+                'Esta área é exclusiva do prestador.'
+            );
+        }
+
+
+        const resultado =
+            await pool.query(
+                `
+                SELECT
+
+                    pagamento.*,
+
+                    servico.titulo
+                        AS servico_titulo,
+
+                    servico.categoria
+                        AS servico_categoria,
+
+                    servico.empresa_nome,
+
+                    servico.data_horario
+
+                FROM
+                    pagamentos
+                    AS pagamento
+
+                LEFT JOIN
+                    servicos
+                    AS servico
+
+                ON
+                    servico.id =
+                    pagamento.servico_id
+
+                WHERE
+                    LOWER(
+                        pagamento.prestador_email
+                    )
+                    =
+                    LOWER($1)
+
+                ORDER BY
+                    pagamento.criado_em DESC,
+                    pagamento.id DESC
+                `,
+                [
+                    req.usuario.email
+                ]
+            );
+
+
+        return res.json({
+
+            sucesso:
+                true,
+
+            pagamentos:
+                resultado.rows
+        });
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Meus pagamentos:',
+            err
+        );
+
+
+        return res
+            .status(500)
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Erro ao carregar pagamentos.'
+            });
+    }
+}
+
+
+// ============================================================
+// ROTA PRINCIPAL SEGURA
+// ============================================================
+
+app.get(
+    '/api/meus-pagamentos',
+
+    autenticarUsuario,
+
+    carregarMeusPagamentos
+);
+
+
+// ============================================================
+// COMPATIBILIDADE COM INDEX ANTIGO
+//
+// Mesmo que alguém coloque outro e-mail:
+//
+// /api/prestador/outra-pessoa@gmail.com/pagamentos
+//
+// O SERVER IGNORA O E-MAIL DA URL.
 // ============================================================
 
 app.get(
     '/api/prestador/:email/pagamentos',
 
-    async (req, res) => {
+    autenticarUsuario,
 
-        try {
-
-            const email =
-                normalizarEmail(
-                    req.params.email
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM pagamentos
-
-                    WHERE
-                        LOWER(
-                            prestador_email
-                        )
-                        =
-                        LOWER($1)
-
-                    ORDER BY
-                        criado_em DESC,
-                        id DESC
-                    `,
-                    [
-                        email
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                total:
-                    resultado.rows.length,
-
-                pagamentos:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Pagamentos prestador:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar pagamentos.'
-                });
-        }
-    }
+    carregarMeusPagamentos
 );
 
-
-// ============================================================
-// HISTÓRICO DE PAGAMENTOS
-// ============================================================
 
 app.get(
     '/api/prestador/:email/historico-pagamentos',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    carregarMeusPagamentos
+);
+
+
+// ============================================================
+// PAGAMENTOS DA EMPRESA
+//
+// EMPRESA:
+// → SOMENTE OS PRÓPRIOS.
+//
+// GRUPO RS:
+// → TODOS.
+// ============================================================
+
+app.get(
+    '/api/pagamentos/empresa',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
-            const email =
-                normalizarEmail(
-                    req.params.email
+            let resultado;
+
+
+            if (
+                req.usuario.gestorRS
+            ) {
+
+                resultado =
+                    await pool.query(
+                        `
+                        SELECT
+                            pagamento.*,
+
+                            servico.titulo
+                                AS servico_titulo,
+
+                            servico.prestador_nome
+
+                        FROM
+                            pagamentos
+                            AS pagamento
+
+                        LEFT JOIN
+                            servicos
+                            AS servico
+
+                        ON
+                            servico.id =
+                            pagamento.servico_id
+
+                        ORDER BY
+                            pagamento.criado_em DESC,
+                            pagamento.id DESC
+                        `
+                    );
+
+
+            } else if (
+                req.usuario.tipo ===
+                'empresa'
+            ) {
+
+                resultado =
+                    await pool.query(
+                        `
+                        SELECT
+                            pagamento.*,
+
+                            servico.titulo
+                                AS servico_titulo,
+
+                            servico.prestador_nome
+
+                        FROM
+                            pagamentos
+                            AS pagamento
+
+                        LEFT JOIN
+                            servicos
+                            AS servico
+
+                        ON
+                            servico.id =
+                            pagamento.servico_id
+
+                        WHERE
+                            LOWER(
+                                pagamento.empresa_email
+                            )
+                            =
+                            LOWER($1)
+
+                        ORDER BY
+                            pagamento.criado_em DESC,
+                            pagamento.id DESC
+                        `,
+                        [
+                            req.usuario.email
+                        ]
+                    );
+
+
+            } else {
+
+                return responderAcessoNegado(
+                    res,
+                    'Área exclusiva da empresa.'
                 );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM pagamentos
-
-                    WHERE
-                        LOWER(
-                            prestador_email
-                        )
-                        =
-                        LOWER($1)
-
-                    ORDER BY
-                        criado_em DESC,
-                        id DESC
-                    `,
-                    [
-                        email
-                    ]
-                );
+            }
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 pagamentos:
                     resultado.rows
@@ -8336,7 +16692,7 @@ app.get(
         } catch (err) {
 
             console.error(
-                '❌ Histórico pagamentos:',
+                '❌ Pagamentos empresa:',
                 err
             );
 
@@ -8344,9 +16700,12 @@ app.get(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
-                        'Erro ao carregar histórico de pagamentos.'
+                        'Erro ao carregar pagamentos da empresa.'
                 });
         }
     }
@@ -8354,274 +16713,160 @@ app.get(
 
 
 // ============================================================
-// RESUMO FINANCEIRO DO PRESTADOR
-// ============================================================
-
-app.get(
-    '/api/prestador/:email/resumo-financeiro',
-
-    async (req, res) => {
-
-        try {
-
-            const email =
-                normalizarEmail(
-                    req.params.email
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT
-
-                        COUNT(*)::int
-                            AS total_pagamentos,
-
-                        COALESCE(
-                            SUM(valor),
-                            0
-                        )
-                            AS total_recebido
-
-                    FROM pagamentos
-
-                    WHERE
-                        LOWER(
-                            prestador_email
-                        )
-                        =
-                        LOWER($1)
-
-                    AND
-                        UPPER(
-                            COALESCE(
-                                status,
-                                ''
-                            )
-                        )
-                        =
-                        'PAGO'
-                    `,
-                    [
-                        email
-                    ]
-                );
-
-
-            const pendentes =
-                await pool.query(
-                    `
-                    SELECT
-
-                        COUNT(*)::int
-                            AS total_pendente,
-
-                        COALESCE(
-                            SUM(valor),
-                            0
-                        )
-                            AS valor_pendente
-
-                    FROM pagamentos
-
-                    WHERE
-                        LOWER(
-                            prestador_email
-                        )
-                        =
-                        LOWER($1)
-
-                    AND
-                        UPPER(
-                            COALESCE(
-                                status,
-                                ''
-                            )
-                        )
-                        <>
-                        'PAGO'
-                    `,
-                    [
-                        email
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                recebido:
-                    numeroRS(
-                        resultado.rows[0]?.total_recebido
-                    ),
-
-                totalPagamentos:
-                    Number(
-                        resultado.rows[0]?.total_pagamentos ||
-                        0
-                    ),
-
-                pendente:
-                    numeroRS(
-                        pendentes.rows[0]?.valor_pendente
-                    ),
-
-                totalPendentes:
-                    Number(
-                        pendentes.rows[0]?.total_pendente ||
-                        0
-                    )
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Resumo financeiro:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar resumo financeiro.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// CONSULTAR PAGAMENTO DO SERVIÇO
-// ============================================================
-
-app.get(
-    '/api/servicos/:id/pagamento',
-
-    async (req, res) => {
-
-        try {
-
-            const servicoId =
-                Number(
-                    req.params.id
-                );
-
-
-            const servico =
-                await buscarServico(
-                    servicoId
-                );
-
-
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            const pagamentos =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM pagamentos
-
-                    WHERE
-                        servico_id = $1
-
-                    ORDER BY
-                        id DESC
-                    `,
-                    [
-                        servicoId
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                pagamentoAutorizado:
-                    Boolean(
-                        servico.pagamento_autorizado
-                    ),
-
-                pagamentoRealizado:
-                    Boolean(
-                        servico.pagamento_realizado
-                    ),
-
-                comprovante:
-                    Boolean(
-                        servico.comprovante_pagamento
-                    ),
-
-                status:
-                    servico.status,
-
-                pagamentos:
-                    pagamentos.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Consultar pagamento:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao consultar pagamento.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// FIM DA PARTE 5
-// COLE A PARTE 6 IMEDIATAMENTE ABAIXO
+// FIM DA PARTE 10
+//
+// PARTE 11:
+//
+// DOCUMENTOS DOS SERVIÇOS
+// CONTRATO ASSINADO
+// COMPROVANTES PROTEGIDOS
+// CHAT COM PRIVACIDADE
 // ============================================================
 // ============================================================
 // RS CONNECT — SERVER.JS
-// PARTE 6
-// DOCUMENTOS + CONTRATO + NOTA FISCAL + CHAT
-// ATUALIZADA — DESTINATÁRIO AUTOMÁTICO NO CHAT
-// ============================================================
-
-
-// ============================================================
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 11
+//
 // DOCUMENTOS DOS SERVIÇOS
+// CONTRATO ASSINADO
+// NOTA FISCAL
+// CHAT PRIVADO
+// ============================================================
+
+
+// ============================================================
+// ACESSO A DOCUMENTOS DE SERVIÇO
+//
+// GRUPO RS:
+// → qualquer serviço
+//
+// EMPRESA:
+// → somente serviço dela
+//
+// PRESTADOR:
+// → somente serviço em que participa
+// ============================================================
+
+function usuarioPodeAcessarDocumentoServico(
+    usuario,
+    servico
+) {
+
+    if (
+        !usuario ||
+        !servico
+    ) {
+
+        return false;
+    }
+
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    const email =
+        normalizarEmail(
+            usuario.email
+        );
+
+
+    if (
+        email ===
+        normalizarEmail(
+            servico.empresa_email
+        )
+    ) {
+
+        return true;
+    }
+
+
+    if (
+        email ===
+        normalizarEmail(
+            servico.prestador_email
+        )
+    ) {
+
+        return true;
+    }
+
+
+    return false;
+}
+
+
+// ============================================================
+// QUEM PODE ENVIAR DOCUMENTO ADMINISTRATIVO DO SERVIÇO
+//
+// - Grupo RS
+// - empresa dona do serviço
+// ============================================================
+
+function usuarioPodeAdministrarDocumentoServico(
+    usuario,
+    servico
+) {
+
+    if (
+        !usuario ||
+        !servico
+    ) {
+
+        return false;
+    }
+
+
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    return (
+        normalizarEmail(
+            usuario.email
+        )
+        ===
+        normalizarEmail(
+            servico.empresa_email
+        )
+    );
+}
+
+
+// ============================================================
+// ENVIAR DOCUMENTO DO SERVIÇO
 // ============================================================
 
 app.post(
     '/api/servicos/:id/documentos',
 
-    upload.single('arquivo'),
+    autenticarUsuario,
 
-    async (req, res) => {
+    upload.single(
+        'arquivo'
+    ),
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
                 req.params.id
             );
 
+
         try {
 
             const servico =
@@ -8635,40 +16880,71 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
             }
 
 
+            if (
+                !usuarioPodeAdministrarDocumentoServico(
+                    req.usuario,
+                    servico
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode adicionar documentos neste serviço.'
+                );
+            }
+
+
             let arquivo =
                 '';
 
+
             let nome =
                 'documento';
+
 
             const categoria =
                 String(
                     req.body?.categoria ||
                     'DOCUMENTO'
                 )
-                    .toUpperCase();
+                    .trim()
+                    .toUpperCase()
+                    .slice(
+                        0,
+                        80
+                    );
 
 
-            if (req.file) {
+            if (
+                req.file
+            ) {
 
                 arquivo =
-                    `data:${req.file.mimetype};base64,${
+                    `data:${
+                        req.file.mimetype
+                    };base64,${
                         req.file.buffer
                             .toString(
                                 'base64'
                             )
                     }`;
 
+
                 nome =
-                    req.file.originalname ||
+                    req.file.originalname
+                    ||
                     nome;
+
 
             } else {
 
@@ -8677,6 +16953,7 @@ app.post(
                         req.body?.arquivo ||
                         ''
                     );
+
 
                 nome =
                     String(
@@ -8691,7 +16968,10 @@ app.post(
                 return res
                     .status(400)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Selecione um documento.'
                     });
@@ -8701,49 +16981,90 @@ app.post(
             const resultado =
                 await pool.query(
                     `
-                    INSERT INTO documentos_rs (
+                    INSERT INTO
+                        documentos_rs (
+                            servico_id,
+                            empresa_email,
+                            prestador_email,
+                            categoria,
+                            nome,
+                            arquivo
+                        )
+
+                    VALUES (
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        $6
+                    )
+
+                    RETURNING
+                        id,
                         servico_id,
                         empresa_email,
                         prestador_email,
                         categoria,
                         nome,
-                        arquivo
-                    )
-
-                    VALUES (
-                        $1,$2,$3,$4,$5,$6
-                    )
-
-                    RETURNING *
+                        criado_em
                     `,
                     [
                         servicoId,
-                        servico.empresa_email,
-                        servico.prestador_email,
+
+                        normalizarEmail(
+                            servico.empresa_email
+                        ),
+
+                        normalizarEmail(
+                            servico.prestador_email
+                        )
+                        ||
+                        null,
+
                         categoria,
+
                         nome,
+
                         arquivo
                     ]
                 );
 
 
             await registrarAuditoria(
-                servico.empresa_email ||
-                servico.prestador_email,
-
+                req.usuario.email,
                 'DOCUMENTO_SERVICO',
-
-                `Documento vinculado ao serviço #${servicoId}.`
+                `Documento adicionado ao serviço #${servicoId}.`
             );
 
 
-            emitirAtualizacao(
-                servicoId
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'documentos_atualizados',
+                {
+                    servicoId
+                }
             );
+
+
+            if (
+                servico.prestador_email
+            ) {
+
+                emitirAtualizacaoPrestador(
+                    servico.prestador_email,
+                    'documentos_atualizados',
+                    {
+                        servicoId
+                    }
+                );
+            }
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
                     'Documento arquivado.',
@@ -8756,7 +17077,7 @@ app.post(
         } catch (err) {
 
             console.error(
-                '❌ Documento:',
+                '❌ Documento serviço:',
                 err
             );
 
@@ -8764,7 +17085,10 @@ app.post(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao arquivar documento.'
                 });
@@ -8775,12 +17099,23 @@ app.post(
 
 // ============================================================
 // LISTAR DOCUMENTOS DO SERVIÇO
+//
+// IMPORTANTE:
+// SOMENTE QUEM PARTICIPA DO SERVIÇO.
+//
+// NÃO PRECISA ENTREGAR DOCUMENTOS
+// DE OUTRA EMPRESA.
 // ============================================================
 
 app.get(
     '/api/servicos/:id/documentos',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
@@ -8790,14 +17125,59 @@ app.get(
                 );
 
 
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Serviço não encontrado.'
+                    });
+            }
+
+
+            if (
+                !usuarioPodeAcessarDocumentoServico(
+                    req.usuario,
+                    servico
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode visualizar documentos deste serviço.'
+                );
+            }
+
+
             const resultado =
                 await pool.query(
                     `
-                    SELECT *
-                    FROM documentos_rs
+                    SELECT
+                        id,
+                        servico_id,
+                        empresa_email,
+                        prestador_email,
+                        categoria,
+                        nome,
+                        criado_em
+
+                    FROM
+                        documentos_rs
 
                     WHERE
-                        servico_id = $1
+                        servico_id =
+                        $1
 
                     ORDER BY
                         criado_em DESC,
@@ -8810,10 +17190,9 @@ app.get(
 
 
             return res.json({
-                sucesso: true,
 
-                total:
-                    resultado.rows.length,
+                sucesso:
+                    true,
 
                 documentos:
                     resultado.rows
@@ -8823,7 +17202,7 @@ app.get(
         } catch (err) {
 
             console.error(
-                '❌ Listar documentos:',
+                '❌ Listar documentos serviço:',
                 err
             );
 
@@ -8831,7 +17210,10 @@ app.get(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao carregar documentos.'
                 });
@@ -8841,15 +17223,180 @@ app.get(
 
 
 // ============================================================
+// ABRIR DOCUMENTO DE SERVIÇO
+//
+// Documento não fica público.
+// ============================================================
+
+app.get(
+    '/api/documentos-servicos/:id/arquivo',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const documentoId =
+                Number(
+                    req.params.id
+                );
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        documento.*,
+
+                        servico.empresa_email
+                            AS servico_empresa_email,
+
+                        servico.prestador_email
+                            AS servico_prestador_email
+
+                    FROM
+                        documentos_rs
+                        AS documento
+
+                    JOIN
+                        servicos
+                        AS servico
+
+                    ON
+                        servico.id =
+                        documento.servico_id
+
+                    WHERE
+                        documento.id =
+                        $1
+
+                    LIMIT 1
+                    `,
+                    [
+                        documentoId
+                    ]
+                );
+
+
+            const documento =
+                resultado.rows[0];
+
+
+            if (!documento) {
+
+                return res
+                    .status(404)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Documento não encontrado.'
+                    });
+            }
+
+
+            const servico = {
+
+                empresa_email:
+                    documento.servico_empresa_email,
+
+                prestador_email:
+                    documento.servico_prestador_email
+            };
+
+
+            if (
+                !usuarioPodeAcessarDocumentoServico(
+                    req.usuario,
+                    servico
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode abrir este documento.'
+                );
+            }
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                documento: {
+
+                    id:
+                        documento.id,
+
+                    nome:
+                        documento.nome,
+
+                    categoria:
+                        documento.categoria,
+
+                    arquivo:
+                        documento.arquivo
+                }
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Abrir documento serviço:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao abrir documento.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
 // CONTRATO ASSINADO
+//
+// Pode enviar:
+//
+// - Grupo RS
+// - empresa dona
+// - prestador titular do próprio serviço
+//
+// Assim o colaborador pode devolver o contrato assinado,
+// mas nunca acessar contrato de outro prestador.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/contrato-assinado',
 
-    upload.single('arquivo'),
+    autenticarUsuario,
 
-    async (req, res) => {
+    upload.single(
+        'arquivo'
+    ),
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
@@ -8870,10 +17417,27 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
+            }
+
+
+            if (
+                !usuarioPodeAcessarDocumentoServico(
+                    req.usuario,
+                    servico
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode enviar contrato para este serviço.'
+                );
             }
 
 
@@ -8881,15 +17445,30 @@ app.post(
                 '';
 
 
-            if (req.file) {
+            let nome =
+                'Contrato assinado';
+
+
+            if (
+                req.file
+            ) {
 
                 arquivo =
-                    `data:${req.file.mimetype};base64,${
+                    `data:${
+                        req.file.mimetype
+                    };base64,${
                         req.file.buffer
                             .toString(
                                 'base64'
                             )
                     }`;
+
+
+                nome =
+                    req.file.originalname
+                    ||
+                    nome;
+
 
             } else {
 
@@ -8906,7 +17485,10 @@ app.post(
                 return res
                     .status(400)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Envie o contrato assinado.'
                     });
@@ -8915,15 +17497,22 @@ app.post(
 
             await pool.query(
                 `
-                UPDATE servicos
+                UPDATE
+                    servicos
 
                 SET
-                    contrato_assinado = $1,
+                    contrato_assinado =
+                        $1,
+
                     contrato_assinado_em =
+                        CURRENT_TIMESTAMP,
+
+                    atualizado_em =
                         CURRENT_TIMESTAMP
 
                 WHERE
-                    id = $2
+                    id =
+                        $2
                 `,
                 [
                     arquivo,
@@ -8934,49 +17523,63 @@ app.post(
 
             await pool.query(
                 `
-                INSERT INTO documentos_rs (
-                    servico_id,
-                    empresa_email,
-                    prestador_email,
-                    categoria,
-                    nome,
-                    arquivo
-                )
+                INSERT INTO
+                    documentos_rs (
+                        servico_id,
+                        empresa_email,
+                        prestador_email,
+                        categoria,
+                        nome,
+                        arquivo
+                    )
 
                 VALUES (
                     $1,
                     $2,
                     $3,
                     'CONTRATO_ASSINADO',
-                    'Contrato assinado',
-                    $4
+                    $4,
+                    $5
                 )
                 `,
                 [
                     servicoId,
-                    servico.empresa_email,
-                    servico.prestador_email,
+
+                    normalizarEmail(
+                        servico.empresa_email
+                    ),
+
+                    normalizarEmail(
+                        servico.prestador_email
+                    )
+                    ||
+                    null,
+
+                    nome,
+
                     arquivo
                 ]
             );
 
 
             await registrarAuditoria(
-                servico.prestador_email ||
-                servico.empresa_email,
-
+                req.usuario.email,
                 'CONTRATO_ASSINADO',
-
-                `Contrato assinado arquivado no serviço #${servicoId}.`
+                `Contrato do serviço #${servicoId} arquivado.`
             );
 
 
-            emitirAtualizacao(
-                servicoId
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'contrato_assinado',
+                {
+                    servicoId
+                }
             );
 
 
-            io.emit(
+            emitirAtualizacaoPrestador(
+                servico.prestador_email,
                 'contrato_assinado',
                 {
                     servicoId
@@ -8985,7 +17588,9 @@ app.post(
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
                     'Contrato assinado arquivado.'
@@ -9003,7 +17608,10 @@ app.post(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao arquivar contrato.'
                 });
@@ -9014,14 +17622,24 @@ app.post(
 
 // ============================================================
 // NOTA FISCAL
+//
+// SOMENTE EMPRESA DONA OU GRUPO RS
+// PODE ARQUIVAR NOTA ADMINISTRATIVA.
 // ============================================================
 
 app.post(
     '/api/servicos/:id/nota-oficial',
 
-    upload.single('notaFiscal'),
+    autenticarUsuario,
 
-    async (req, res) => {
+    upload.single(
+        'notaFiscal'
+    ),
+
+    async (
+        req,
+        res
+    ) => {
 
         const servicoId =
             Number(
@@ -9042,10 +17660,27 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
+            }
+
+
+            if (
+                !usuarioPodeAdministrarDocumentoServico(
+                    req.usuario,
+                    servico
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não pode enviar nota fiscal para este serviço.'
+                );
             }
 
 
@@ -9053,22 +17688,39 @@ app.post(
                 '';
 
 
-            if (req.file) {
+            let nome =
+                'Nota fiscal';
+
+
+            if (
+                req.file
+            ) {
 
                 arquivo =
-                    `data:${req.file.mimetype};base64,${
+                    `data:${
+                        req.file.mimetype
+                    };base64,${
                         req.file.buffer
                             .toString(
                                 'base64'
                             )
                     }`;
 
+
+                nome =
+                    req.file.originalname
+                    ||
+                    nome;
+
+
             } else {
 
                 arquivo =
                     String(
-                        req.body?.notaFiscal ||
-                        req.body?.arquivo ||
+                        req.body?.notaFiscal
+                        ||
+                        req.body?.arquivo
+                        ||
                         ''
                     );
             }
@@ -9079,7 +17731,10 @@ app.post(
                 return res
                     .status(400)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Nenhuma nota fiscal enviada.'
                     });
@@ -9088,13 +17743,19 @@ app.post(
 
             await pool.query(
                 `
-                UPDATE servicos
+                UPDATE
+                    servicos
 
                 SET
-                    nota_oficial = $1
+                    nota_oficial =
+                        $1,
+
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
 
                 WHERE
-                    id = $2
+                    id =
+                        $2
                 `,
                 [
                     arquivo,
@@ -9103,53 +17764,57 @@ app.post(
             );
 
 
-            // Guardar também nos documentos
             await pool.query(
                 `
-                INSERT INTO documentos_rs (
-                    servico_id,
-                    empresa_email,
-                    prestador_email,
-                    categoria,
-                    nome,
-                    arquivo
-                )
+                INSERT INTO
+                    documentos_rs (
+                        servico_id,
+                        empresa_email,
+                        prestador_email,
+                        categoria,
+                        nome,
+                        arquivo
+                    )
 
                 VALUES (
                     $1,
                     $2,
                     $3,
                     'NOTA_FISCAL',
-                    'Nota Fiscal',
-                    $4
+                    $4,
+                    $5
                 )
                 `,
                 [
                     servicoId,
-                    servico.empresa_email,
-                    servico.prestador_email,
+
+                    normalizarEmail(
+                        servico.empresa_email
+                    ),
+
+                    normalizarEmail(
+                        servico.prestador_email
+                    )
+                    ||
+                    null,
+
+                    nome,
+
                     arquivo
                 ]
             );
 
 
             await registrarAuditoria(
-                servico.prestador_email ||
-                servico.empresa_email,
-
+                req.usuario.email,
                 'NOTA_FISCAL',
-
-                `Nota fiscal enviada para o serviço #${servicoId}.`
+                `Nota fiscal do serviço #${servicoId} arquivada.`
             );
 
 
-            emitirAtualizacao(
-                servicoId
-            );
-
-
-            io.emit(
-                'nota_fiscal_enviada',
+            emitirAtualizacaoEmpresa(
+                servico.empresa_email,
+                'nota_fiscal_atualizada',
                 {
                     servicoId
                 }
@@ -9157,7 +17822,9 @@ app.post(
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
                     'Nota fiscal enviada.'
@@ -9175,7 +17842,10 @@ app.post(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao enviar nota fiscal.'
                 });
@@ -9186,6 +17856,14 @@ app.post(
 
 // ============================================================
 // CHAT — GARANTIR CONVERSA
+//
+// A CONVERSA É SEMPRE:
+//
+// EMPRESA DONA DO SERVIÇO
+// ↕
+// PRESTADOR TITULAR
+//
+// Não existe conversa entre empresas diferentes.
 // ============================================================
 
 async function garantirConversaServico(
@@ -9193,9 +17871,12 @@ async function garantirConversaServico(
 ) {
 
     if (
-        !servico ||
-        !servico.id ||
-        !servico.empresa_email ||
+        !servico
+        ||
+        !servico.id
+        ||
+        !servico.empresa_email
+        ||
         !servico.prestador_email
     ) {
 
@@ -9215,59 +17896,24 @@ async function garantirConversaServico(
         );
 
 
-    const existente =
+    const resultado =
         await pool.query(
             `
-            SELECT *
-            FROM conversas
-
-            WHERE
-                servico_id = $1
-
-            AND
-                LOWER(
-                    empresa_email
+            INSERT INTO
+                conversas (
+                    servico_id,
+                    empresa_email,
+                    prestador_email,
+                    ativo,
+                    atualizado_em
                 )
-                =
-                LOWER($2)
-
-            AND
-                LOWER(
-                    prestador_email
-                )
-                =
-                LOWER($3)
-
-            LIMIT 1
-            `,
-            [
-                servico.id,
-                empresaEmail,
-                prestadorEmail
-            ]
-        );
-
-
-    if (
-        existente.rows.length
-    ) {
-
-        return existente.rows[0];
-    }
-
-
-    const criada =
-        await pool.query(
-            `
-            INSERT INTO conversas (
-                servico_id,
-                empresa_email,
-                prestador_email,
-                ativo
-            )
 
             VALUES (
-                $1,$2,$3,TRUE
+                $1,
+                $2,
+                $3,
+                TRUE,
+                CURRENT_TIMESTAMP
             )
 
             ON CONFLICT (
@@ -9277,7 +17923,9 @@ async function garantirConversaServico(
             )
 
             DO UPDATE SET
-                ativo = TRUE,
+
+                ativo =
+                    TRUE,
 
                 atualizado_em =
                     CURRENT_TIMESTAMP
@@ -9292,7 +17940,119 @@ async function garantirConversaServico(
         );
 
 
-    return criada.rows[0];
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
+}
+
+
+// ============================================================
+// BUSCAR CONVERSA
+// ============================================================
+
+async function buscarConversa(
+    conversaId
+) {
+
+    const resultado =
+        await pool.query(
+            `
+            SELECT
+
+                conversa.*,
+
+                servico.titulo
+                    AS servico_titulo,
+
+                servico.categoria
+                    AS servico_categoria,
+
+                servico.empresa_nome,
+
+                servico.prestador_nome
+
+            FROM
+                conversas
+                AS conversa
+
+            LEFT JOIN
+                servicos
+                AS servico
+
+            ON
+                servico.id =
+                conversa.servico_id
+
+            WHERE
+                conversa.id =
+                $1
+
+            LIMIT 1
+            `,
+            [
+                Number(
+                    conversaId
+                )
+            ]
+        );
+
+
+    return (
+        resultado.rows[0]
+        ||
+        null
+    );
+}
+
+
+// ============================================================
+// USUÁRIO PARTICIPA DA CONVERSA?
+// ============================================================
+
+function usuarioParticipaConversa(
+    usuario,
+    conversa
+) {
+
+    if (
+        !usuario ||
+        !conversa
+    ) {
+
+        return false;
+    }
+
+
+    // Grupo RS pode acessar para suporte.
+    if (
+        usuario.gestorRS
+    ) {
+
+        return true;
+    }
+
+
+    const email =
+        normalizarEmail(
+            usuario.email
+        );
+
+
+    return (
+        email ===
+        normalizarEmail(
+            conversa.empresa_email
+        )
+
+        ||
+
+        email ===
+        normalizarEmail(
+            conversa.prestador_email
+        )
+    );
 }
 
 
@@ -9303,15 +18063,24 @@ async function garantirConversaServico(
 app.get(
     '/api/servicos/:id/conversa',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
+            const servicoId =
+                Number(
+                    req.params.id
+                );
+
+
             const servico =
                 await buscarServico(
-                    Number(
-                        req.params.id
-                    )
+                    servicoId
                 );
 
 
@@ -9320,7 +18089,10 @@ app.get(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Serviço não encontrado.'
                     });
@@ -9332,12 +18104,29 @@ app.get(
             ) {
 
                 return res
-                    .status(400)
+                    .status(409)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Este serviço ainda não possui Titular.'
                     });
+            }
+
+
+            if (
+                !usuarioPodeAcessarServicoPrivado(
+                    req.usuario,
+                    servico
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Você não participa deste serviço.'
+                );
             }
 
 
@@ -9350,19 +18139,25 @@ app.get(
             if (!conversa) {
 
                 return res
-                    .status(400)
+                    .status(500)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
-                            'Não foi possível criar a conversa.'
+                            'Não foi possível abrir a conversa.'
                     });
             }
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 conversa: {
+
                     ...conversa,
 
                     empresa_nome:
@@ -9372,7 +18167,8 @@ app.get(
                         servico.prestador_nome,
 
                     servico_titulo:
-                        servico.titulo ||
+                        servico.titulo
+                        ||
                         servico.categoria
                 }
             });
@@ -9389,7 +18185,10 @@ app.get(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao abrir conversa.'
                 });
@@ -9399,23 +18198,105 @@ app.get(
 
 
 // ============================================================
-// LISTAR CONVERSAS
+// LISTAR MINHAS CONVERSAS
+//
+// ROTA NOVA:
+//
+// /api/chat/conversas
+//
+// NÃO PRECISA INFORMAR E-MAIL.
 // ============================================================
 
-app.get(
-    '/api/chat/conversas/:email',
+async function listarMinhasConversas(
+    req,
+    res
+) {
 
-    async (req, res) => {
+    try {
 
-        try {
+        const email =
+            req.usuario.email;
 
-            const email =
-                normalizarEmail(
-                    req.params.email
+
+        let resultado;
+
+
+        // ====================================================
+        // ADMIN / GRUPO RS
+        // ====================================================
+
+        if (
+            req.usuario.gestorRS
+        ) {
+
+            resultado =
+                await pool.query(
+                    `
+                    SELECT
+
+                        conversa.*,
+
+                        servico.titulo
+                            AS servico_titulo,
+
+                        servico.empresa_nome,
+
+                        servico.prestador_nome,
+
+                        (
+                            SELECT
+                                mensagem.mensagem
+
+                            FROM
+                                mensagens_chat
+                                AS mensagem
+
+                            WHERE
+                                mensagem.conversa_id =
+                                conversa.id
+
+                            ORDER BY
+                                mensagem.criado_em DESC,
+                                mensagem.id DESC
+
+                            LIMIT 1
+                        )
+                            AS ultima_mensagem,
+
+                        0::int
+                            AS nao_lidas
+
+                    FROM
+                        conversas
+                        AS conversa
+
+                    LEFT JOIN
+                        servicos
+                        AS servico
+
+                    ON
+                        servico.id =
+                        conversa.servico_id
+
+                    WHERE
+                        conversa.ativo =
+                        TRUE
+
+                    ORDER BY
+                        conversa.atualizado_em DESC,
+                        conversa.id DESC
+                    `
                 );
 
 
-            const resultado =
+        } else {
+
+            // =================================================
+            // EMPRESA / PRESTADOR
+            // APENAS CONVERSAS DO PRÓPRIO E-MAIL.
+            // =================================================
+
+            resultado =
                 await pool.query(
                     `
                     SELECT
@@ -9487,18 +18368,25 @@ app.get(
                         conversa.servico_id
 
                     WHERE
-                        LOWER(
-                            conversa.empresa_email
-                        )
-                        =
-                        LOWER($1)
+                        conversa.ativo =
+                        TRUE
 
-                    OR
-                        LOWER(
-                            conversa.prestador_email
+                    AND
+                        (
+                            LOWER(
+                                conversa.empresa_email
+                            )
+                            =
+                            LOWER($1)
+
+                            OR
+
+                            LOWER(
+                                conversa.prestador_email
+                            )
+                            =
+                            LOWER($1)
                         )
-                        =
-                        LOWER($1)
 
                     ORDER BY
                         conversa.atualizado_em DESC,
@@ -9508,180 +18396,98 @@ app.get(
                         email
                     ]
                 );
-
-
-            return res.json({
-                sucesso: true,
-
-                conversas:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Listar conversas:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar conversas.'
-                });
         }
+
+
+        return res.json({
+
+            sucesso:
+                true,
+
+            conversas:
+                resultado.rows
+        });
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Listar conversas:',
+            err
+        );
+
+
+        return res
+            .status(500)
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Erro ao carregar conversas.'
+            });
     }
+}
+
+
+// ============================================================
+// ROTA NOVA SEGURA
+// ============================================================
+
+app.get(
+    '/api/chat/conversas',
+
+    autenticarUsuario,
+
+    listarMinhasConversas
 );
 
 
 // ============================================================
-// LISTAR MENSAGENS DA CONVERSA
+// COMPATIBILIDADE COM INDEX ANTIGO
+//
+// Mesmo que alguém troque:
+// /api/chat/conversas/outro@gmail.com
+//
+// O server IGNORA o e-mail da URL.
+// ============================================================
+
+app.get(
+    '/api/chat/conversas/:email',
+
+    autenticarUsuario,
+
+    listarMinhasConversas
+);
+
+
+// ============================================================
+// LISTAR MENSAGENS DE UMA CONVERSA
 // ============================================================
 
 app.get(
     '/api/chat/conversas/:id/mensagens',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
             const conversaId =
                 Number(
                     req.params.id
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM mensagens_chat
-
-                    WHERE
-                        conversa_id = $1
-
-                    ORDER BY
-                        criado_em ASC,
-                        id ASC
-                    `,
-                    [
-                        conversaId
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagens:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Mensagens:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar mensagens.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// ENVIAR MENSAGEM — CORRIGIDO
-//
-// O INDEX ENVIA:
-// remetente_email
-// mensagem
-//
-// O SERVER DESCOBRE AUTOMATICAMENTE
-// O DESTINATÁRIO DA CONVERSA.
-// ============================================================
-
-app.post(
-    '/api/chat/conversas/:id/mensagens',
-
-    async (req, res) => {
-
-        try {
-
-            const conversaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const remetenteEmail =
-                normalizarEmail(
-                    req.body?.remetente_email ||
-                    req.body?.remetenteEmail ||
-                    req.body?.email
-                );
-
-
-            const mensagem =
-                String(
-                    req.body?.mensagem ||
-                    ''
-                )
-                    .trim();
-
-
-            if (
-                !conversaId ||
-                !remetenteEmail ||
-                !mensagem
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Remetente e mensagem são obrigatórios.'
-                    });
-            }
-
-
-            // =================================================
-            // BUSCAR A CONVERSA
-            // =================================================
-
-            const conversaRes =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM conversas
-
-                    WHERE
-                        id = $1
-
-                    LIMIT 1
-                    `,
-                    [
-                        conversaId
-                    ]
                 );
 
 
             const conversa =
-                conversaRes.rows[0];
+                await buscarConversa(
+                    conversaId
+                );
 
 
             if (!conversa) {
@@ -9689,7 +18495,9 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
 
                         erro:
                             'Conversa não encontrada.'
@@ -9697,1271 +18505,36 @@ app.post(
             }
 
 
-            const empresaEmail =
-                normalizarEmail(
-                    conversa.empresa_email
-                );
-
-
-            const prestadorEmail =
-                normalizarEmail(
-                    conversa.prestador_email
-                );
-
-
-            // =================================================
-            // VERIFICAR SE O REMETENTE PARTICIPA DA CONVERSA
-            // =================================================
-
             if (
-                remetenteEmail !== empresaEmail &&
-                remetenteEmail !== prestadorEmail
+                !usuarioParticipaConversa(
+                    req.usuario,
+                    conversa
+                )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Você não participa desta conversa.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Você não participa desta conversa.'
+                );
             }
-
-
-            // =================================================
-            // DESCOBRIR DESTINATÁRIO AUTOMATICAMENTE
-            //
-            // EMPRESA → PRESTADOR
-            // PRESTADOR → EMPRESA
-            // =================================================
-
-            const destinatarioEmail =
-                remetenteEmail === empresaEmail
-                    ?
-                    prestadorEmail
-                    :
-                    empresaEmail;
-
-
-            if (!destinatarioEmail) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-
-                        erro:
-                            'Não foi possível identificar o destinatário.'
-                    });
-            }
-
-
-            // =================================================
-            // SALVAR MENSAGEM
-            // =================================================
-
-            const resultado =
-                await pool.query(
-                    `
-                    INSERT INTO mensagens_chat (
-                        conversa_id,
-                        remetente_email,
-                        destinatario_email,
-                        mensagem,
-                        lida
-                    )
-
-                    VALUES (
-                        $1,$2,$3,$4,FALSE
-                    )
-
-                    RETURNING *
-                    `,
-                    [
-                        conversaId,
-                        remetenteEmail,
-                        destinatarioEmail,
-                        mensagem
-                    ]
-                );
-
-
-            // =================================================
-            // ATUALIZAR DATA DA CONVERSA
-            // =================================================
-
-            await pool.query(
-                `
-                UPDATE conversas
-
-                SET
-                    atualizado_em =
-                        CURRENT_TIMESTAMP
-
-                WHERE
-                    id = $1
-                `,
-                [
-                    conversaId
-                ]
-            );
-
-
-            const novaMensagem =
-                resultado.rows[0];
-
-
-            // =================================================
-            // WEBSOCKET — SALA DA CONVERSA
-            // =================================================
-
-            io.to(
-                `conversa_${conversaId}`
-            )
-                .emit(
-                    'nova_mensagem',
-                    novaMensagem
-                );
-
-
-            // =================================================
-            // WEBSOCKET — DESTINATÁRIO
-            // =================================================
-
-            io.to(
-                `usuario_${destinatarioEmail}`
-            )
-                .emit(
-                    'mensagem_recebida',
-                    {
-                        conversaId,
-                        servicoId:
-                            conversa.servico_id
-                    }
-                );
-
-
-            // Compatibilidade com sala antiga
-            io.to(
-                `user:${destinatarioEmail}`
-            )
-                .emit(
-                    'nova_mensagem',
-                    novaMensagem
-                );
-
-
-            // Compatibilidade para remetente
-            io.to(
-                `user:${remetenteEmail}`
-            )
-                .emit(
-                    'nova_mensagem',
-                    novaMensagem
-                );
-
-
-            console.log(
-                `💬 CHAT: ${remetenteEmail} → ${destinatarioEmail}`
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    novaMensagem
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Enviar mensagem:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-
-                    erro:
-                        'Erro ao enviar mensagem.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// MARCAR MENSAGENS COMO LIDAS
-// ============================================================
-
-app.post(
-    '/api/chat/conversas/:id/lidas',
-
-    async (req, res) => {
-
-        try {
-
-            const conversaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const email =
-                normalizarEmail(
-                    req.body?.email
-                );
-
-
-            if (!email) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Informe o usuário.'
-                    });
-            }
-
-
-            await pool.query(
-                `
-                UPDATE mensagens_chat
-
-                SET
-                    lida = TRUE
-
-                WHERE
-                    conversa_id = $1
-
-                AND
-                    LOWER(
-                        destinatario_email
-                    )
-                    =
-                    LOWER($2)
-                `,
-                [
-                    conversaId,
-                    email
-                ]
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Mensagens marcadas como lidas.'
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Marcar mensagens:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao atualizar mensagens.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// FIM DA PARTE 6
-// COLE A PARTE 7 CORRIGIDA IMEDIATAMENTE ABAIXO
-// ============================================================
-
-
-
-// ============================================================
-// DOCUMENTOS DOS SERVIÇOS
-// ============================================================
-
-app.post(
-    '/api/servicos/:id/documentos',
-
-    upload.single('arquivo'),
-
-    async (req, res) => {
-
-        const servicoId =
-            Number(
-                req.params.id
-            );
-
-        try {
-
-            const servico =
-                await buscarServico(
-                    servicoId
-                );
-
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            let arquivo =
-                '';
-
-            let nome =
-                'documento';
-
-            const categoria =
-                String(
-                    req.body?.categoria ||
-                    'DOCUMENTO'
-                )
-                    .toUpperCase();
-
-
-            if (req.file) {
-
-                arquivo =
-                    `data:${req.file.mimetype};base64,${
-                        req.file.buffer
-                            .toString(
-                                'base64'
-                            )
-                    }`;
-
-                nome =
-                    req.file.originalname ||
-                    nome;
-
-            } else {
-
-                arquivo =
-                    String(
-                        req.body?.arquivo ||
-                        ''
-                    );
-
-                nome =
-                    String(
-                        req.body?.nome ||
-                        nome
-                    );
-            }
-
-
-            if (!arquivo) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Selecione um documento.'
-                    });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    INSERT INTO documentos_rs (
-                        servico_id,
-                        empresa_email,
-                        prestador_email,
-                        categoria,
-                        nome,
-                        arquivo
-                    )
-
-                    VALUES (
-                        $1,$2,$3,$4,$5,$6
-                    )
-
-                    RETURNING *
-                    `,
-                    [
-                        servicoId,
-
-                        servico.empresa_email,
-
-                        servico.prestador_email,
-
-                        categoria,
-
-                        nome,
-
-                        arquivo
-                    ]
-                );
-
-
-            await registrarAuditoria(
-                servico.empresa_email ||
-                servico.prestador_email,
-
-                'DOCUMENTO_SERVICO',
-
-                `Documento vinculado ao serviço #${servicoId}.`
-            );
-
-
-            emitirAtualizacao(
-                servicoId
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Documento arquivado.',
-
-                documento:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Documento:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao arquivar documento.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// LISTAR DOCUMENTOS DO SERVIÇO
-// ============================================================
-
-app.get(
-    '/api/servicos/:id/documentos',
-
-    async (req, res) => {
-
-        try {
-
-            const servicoId =
-                Number(
-                    req.params.id
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM documentos_rs
-
-                    WHERE
-                        servico_id =
-                        $1
-
-                    ORDER BY
-                        criado_em DESC,
-                        id DESC
-                    `,
-                    [
-                        servicoId
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                total:
-                    resultado.rows.length,
-
-                documentos:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Listar documentos:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar documentos.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// CONTRATO ASSINADO
-// ============================================================
-
-app.post(
-    '/api/servicos/:id/contrato-assinado',
-
-    upload.single('arquivo'),
-
-    async (req, res) => {
-
-        const servicoId =
-            Number(
-                req.params.id
-            );
-
-
-        try {
-
-            const servico =
-                await buscarServico(
-                    servicoId
-                );
-
-
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            let arquivo =
-                '';
-
-
-            if (req.file) {
-
-                arquivo =
-                    `data:${req.file.mimetype};base64,${
-                        req.file.buffer
-                            .toString(
-                                'base64'
-                            )
-                    }`;
-
-            } else {
-
-                arquivo =
-                    String(
-                        req.body?.arquivo ||
-                        ''
-                    );
-            }
-
-
-            if (!arquivo) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Envie o contrato assinado.'
-                    });
-            }
-
-
-            await pool.query(
-                `
-                UPDATE servicos
-
-                SET
-                    contrato_assinado =
-                        $1,
-
-                    contrato_assinado_em =
-                        CURRENT_TIMESTAMP
-
-                WHERE
-                    id =
-                    $2
-                `,
-                [
-                    arquivo,
-                    servicoId
-                ]
-            );
-
-
-            await pool.query(
-                `
-                INSERT INTO documentos_rs (
-                    servico_id,
-                    empresa_email,
-                    prestador_email,
-                    categoria,
-                    nome,
-                    arquivo
-                )
-
-                VALUES (
-                    $1,
-                    $2,
-                    $3,
-                    'CONTRATO_ASSINADO',
-                    'Contrato assinado',
-                    $4
-                )
-                `,
-                [
-                    servicoId,
-
-                    servico.empresa_email,
-
-                    servico.prestador_email,
-
-                    arquivo
-                ]
-            );
-
-
-            await registrarAuditoria(
-                servico.prestador_email ||
-                servico.empresa_email,
-
-                'CONTRATO_ASSINADO',
-
-                `Contrato assinado arquivado no serviço #${servicoId}.`
-            );
-
-
-            emitirAtualizacao(
-                servicoId
-            );
-
-
-            io.emit(
-                'contrato_assinado',
-                {
-                    servicoId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Contrato assinado arquivado.'
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Contrato assinado:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao arquivar contrato.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// NOTA FISCAL
-// ============================================================
-
-app.post(
-    '/api/servicos/:id/nota-oficial',
-
-    upload.single('notaFiscal'),
-
-    async (req, res) => {
-
-        const servicoId =
-            Number(
-                req.params.id
-            );
-
-
-        try {
-
-            const servico =
-                await buscarServico(
-                    servicoId
-                );
-
-
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            let arquivo =
-                '';
-
-
-            if (req.file) {
-
-                arquivo =
-                    `data:${req.file.mimetype};base64,${
-                        req.file.buffer
-                            .toString(
-                                'base64'
-                            )
-                    }`;
-
-            } else {
-
-                arquivo =
-                    String(
-                        req.body?.notaFiscal ||
-                        req.body?.arquivo ||
-                        ''
-                    );
-            }
-
-
-            if (!arquivo) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Nenhuma nota fiscal enviada.'
-                    });
-            }
-
-
-            await pool.query(
-                `
-                UPDATE servicos
-
-                SET
-                    nota_oficial =
-                        $1
-
-                WHERE
-                    id =
-                    $2
-                `,
-                [
-                    arquivo,
-                    servicoId
-                ]
-            );
-
-
-            // Guardar também nos documentos
-            await pool.query(
-                `
-                INSERT INTO documentos_rs (
-                    servico_id,
-                    empresa_email,
-                    prestador_email,
-                    categoria,
-                    nome,
-                    arquivo
-                )
-
-                VALUES (
-                    $1,
-                    $2,
-                    $3,
-                    'NOTA_FISCAL',
-                    'Nota Fiscal',
-                    $4
-                )
-                `,
-                [
-                    servicoId,
-
-                    servico.empresa_email,
-
-                    servico.prestador_email,
-
-                    arquivo
-                ]
-            );
-
-
-            await registrarAuditoria(
-                servico.prestador_email ||
-                servico.empresa_email,
-
-                'NOTA_FISCAL',
-
-                `Nota fiscal enviada para o serviço #${servicoId}.`
-            );
-
-
-            emitirAtualizacao(
-                servicoId
-            );
-
-
-            io.emit(
-                'nota_fiscal_enviada',
-                {
-                    servicoId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Nota fiscal enviada.'
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Nota fiscal:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao enviar nota fiscal.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// CHAT — GARANTIR CONVERSA
-// ============================================================
-
-async function garantirConversaServico(
-    servico
-) {
-
-    if (
-        !servico ||
-        !servico.id ||
-        !servico.empresa_email ||
-        !servico.prestador_email
-    ) {
-
-        return null;
-    }
-
-
-    const empresaEmail =
-        normalizarEmail(
-            servico.empresa_email
-        );
-
-
-    const prestadorEmail =
-        normalizarEmail(
-            servico.prestador_email
-        );
-
-
-    const existente =
-        await pool.query(
-            `
-            SELECT *
-            FROM conversas
-
-            WHERE
-                servico_id =
-                $1
-
-            AND
-                LOWER(
-                    empresa_email
-                )
-                =
-                LOWER($2)
-
-            AND
-                LOWER(
-                    prestador_email
-                )
-                =
-                LOWER($3)
-
-            LIMIT 1
-            `,
-            [
-                servico.id,
-                empresaEmail,
-                prestadorEmail
-            ]
-        );
-
-
-    if (
-        existente.rows.length
-    ) {
-
-        return existente.rows[0];
-    }
-
-
-    const criada =
-        await pool.query(
-            `
-            INSERT INTO conversas (
-                servico_id,
-                empresa_email,
-                prestador_email,
-                ativo
-            )
-
-            VALUES (
-                $1,$2,$3,TRUE
-            )
-
-            ON CONFLICT (
-                servico_id,
-                empresa_email,
-                prestador_email
-            )
-
-            DO UPDATE SET
-                ativo =
-                    TRUE,
-
-                atualizado_em =
-                    CURRENT_TIMESTAMP
-
-            RETURNING *
-            `,
-            [
-                servico.id,
-                empresaEmail,
-                prestadorEmail
-            ]
-        );
-
-
-    return criada.rows[0];
-}
-
-
-// ============================================================
-// ABRIR CONVERSA DO SERVIÇO
-// ============================================================
-
-app.get(
-    '/api/servicos/:id/conversa',
-
-    async (req, res) => {
-
-        try {
-
-            const servico =
-                await buscarServico(
-                    Number(
-                        req.params.id
-                    )
-                );
-
-
-            if (!servico) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Serviço não encontrado.'
-                    });
-            }
-
-
-            if (
-                !servico.prestador_email
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Este serviço ainda não possui Titular.'
-                    });
-            }
-
-
-            const conversa =
-                await garantirConversaServico(
-                    servico
-                );
-
-
-            if (!conversa) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Não foi possível criar a conversa.'
-                    });
-            }
-
-
-            return res.json({
-                sucesso: true,
-
-                conversa: {
-                    ...conversa,
-
-                    empresa_nome:
-                        servico.empresa_nome,
-
-                    prestador_nome:
-                        servico.prestador_nome,
-
-                    servico_titulo:
-                        servico.titulo ||
-                        servico.categoria
-                }
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Abrir conversa:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao abrir conversa.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// LISTAR CONVERSAS
-// ============================================================
-
-app.get(
-    '/api/chat/conversas/:email',
-
-    async (req, res) => {
-
-        try {
-
-            const email =
-                normalizarEmail(
-                    req.params.email
-                );
 
 
             const resultado =
                 await pool.query(
                     `
                     SELECT
-
-                        conversa.*,
-
-                        servico.titulo
-                            AS servico_titulo,
-
-                        servico.empresa_nome,
-
-                        servico.prestador_nome,
-
-                        (
-                            SELECT
-                                mensagem.mensagem
-
-                            FROM
-                                mensagens_chat
-                                AS mensagem
-
-                            WHERE
-                                mensagem.conversa_id =
-                                conversa.id
-
-                            ORDER BY
-                                mensagem.criado_em DESC,
-                                mensagem.id DESC
-
-                            LIMIT 1
-                        )
-                        AS ultima_mensagem,
-
-                        (
-                            SELECT
-                                COUNT(*)::int
-
-                            FROM
-                                mensagens_chat
-                                AS mensagem
-
-                            WHERE
-                                mensagem.conversa_id =
-                                conversa.id
-
-                            AND
-                                LOWER(
-                                    mensagem.destinatario_email
-                                )
-                                =
-                                LOWER($1)
-
-                            AND
-                                mensagem.lida =
-                                FALSE
-                        )
-                        AS nao_lidas
+                        id,
+                        conversa_id,
+                        servico_id,
+                        remetente_email,
+                        destinatario_email,
+                        mensagem,
+                        tipo,
+                        lida,
+                        criado_em
 
                     FROM
-                        conversas
-                        AS conversa
-
-                    LEFT JOIN
-                        servicos
-                        AS servico
-
-                    ON
-                        servico.id =
-                        conversa.servico_id
-
-                    WHERE
-                        LOWER(
-                            conversa.empresa_email
-                        )
-                        =
-                        LOWER($1)
-
-                    OR
-                        LOWER(
-                            conversa.prestador_email
-                        )
-                        =
-                        LOWER($1)
-
-                    ORDER BY
-                        conversa.atualizado_em DESC,
-                        conversa.id DESC
-                    `,
-                    [
-                        email
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                conversas:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Listar conversas:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar conversas.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// LISTAR MENSAGENS DA CONVERSA
-// ============================================================
-
-app.get(
-    '/api/chat/conversas/:id/mensagens',
-
-    async (req, res) => {
-
-        try {
-
-            const conversaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM mensagens_chat
+                        mensagens_chat
 
                     WHERE
                         conversa_id =
@@ -10978,7 +18551,9 @@ app.get(
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagens:
                     resultado.rows
@@ -10988,7 +18563,7 @@ app.get(
         } catch (err) {
 
             console.error(
-                '❌ Mensagens:',
+                '❌ Mensagens chat:',
                 err
             );
 
@@ -10996,7 +18571,10 @@ app.get(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao carregar mensagens.'
                 });
@@ -11007,33 +18585,27 @@ app.get(
 
 // ============================================================
 // ENVIAR MENSAGEM
+//
+// REMETENTE NÃO VEM MAIS DO BODY.
+//
+// REMETENTE = USUÁRIO DO TOKEN.
 // ============================================================
 
 app.post(
     '/api/chat/conversas/:id/mensagens',
 
-    async (req, res) => {
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
 
         try {
 
             const conversaId =
                 Number(
                     req.params.id
-                );
-
-
-            const remetenteEmail =
-                normalizarEmail(
-                    req.body?.remetenteEmail ||
-                    req.body?.remetente_email ||
-                    req.body?.email
-                );
-
-
-            const destinatarioEmail =
-                normalizarEmail(
-                    req.body?.destinatarioEmail ||
-                    req.body?.destinatario_email
                 );
 
 
@@ -11045,42 +18617,43 @@ app.post(
                     .trim();
 
 
+            if (!mensagem) {
+
+                return res
+                    .status(400)
+                    .json({
+
+                        sucesso:
+                            false,
+
+                        erro:
+                            'Digite uma mensagem.'
+                    });
+            }
+
+
             if (
-                !remetenteEmail ||
-                !destinatarioEmail ||
-                !mensagem
+                mensagem.length >
+                5000
             ) {
 
                 return res
                     .status(400)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
-                            'Remetente, destinatário e mensagem são obrigatórios.'
+                            'Mensagem muito longa.'
                     });
             }
 
 
-            const conversaRes =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM conversas
-
-                    WHERE
-                        id =
-                        $1
-
-                    LIMIT 1
-                    `,
-                    [
-                        conversaId
-                    ]
-                );
-
-
             const conversa =
-                conversaRes.rows[0];
+                await buscarConversa(
+                    conversaId
+                );
 
 
             if (!conversa) {
@@ -11088,65 +18661,149 @@ app.post(
                 return res
                     .status(404)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
+
                         erro:
                             'Conversa não encontrada.'
                     });
             }
 
 
-            const participantes = [
-                normalizarEmail(
-                    conversa.empresa_email
-                ),
-
-                normalizarEmail(
-                    conversa.prestador_email
-                )
-            ];
-
-
             if (
-                !participantes.includes(
-                    remetenteEmail
-                )
-                ||
-                !participantes.includes(
-                    destinatarioEmail
+                !usuarioParticipaConversa(
+                    req.usuario,
+                    conversa
                 )
             ) {
 
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Usuário não autorizado nesta conversa.'
-                    });
+                return responderAcessoNegado(
+                    res,
+                    'Você não participa desta conversa.'
+                );
+            }
+
+
+            const empresaEmail =
+                normalizarEmail(
+                    conversa.empresa_email
+                );
+
+
+            const prestadorEmail =
+                normalizarEmail(
+                    conversa.prestador_email
+                );
+
+
+            let remetente =
+                req.usuario.email;
+
+
+            let destinatario =
+                '';
+
+
+            // =================================================
+            // ADMIN / GRUPO RS
+            //
+            // Se gestor estiver dando suporte,
+            // o destinatário precisa ser informado.
+            // =================================================
+
+            if (
+                req.usuario.gestorRS
+                &&
+                remetente !==
+                empresaEmail
+                &&
+                remetente !==
+                prestadorEmail
+            ) {
+
+                const destinoInformado =
+                    normalizarEmail(
+                        req.body?.destinatario_email
+                    );
+
+
+                if (
+                    destinoInformado !==
+                    empresaEmail
+                    &&
+                    destinoInformado !==
+                    prestadorEmail
+                ) {
+
+                    return res
+                        .status(400)
+                        .json({
+
+                            sucesso:
+                                false,
+
+                            erro:
+                                'Informe o destinatário da conversa.'
+                        });
+                }
+
+
+                destinatario =
+                    destinoInformado;
+
+
+            } else {
+
+                destinatario =
+                    remetente ===
+                    empresaEmail
+
+                        ?
+
+                        prestadorEmail
+
+                        :
+
+                        empresaEmail;
             }
 
 
             const resultado =
                 await pool.query(
                     `
-                    INSERT INTO mensagens_chat (
-                        conversa_id,
-                        remetente_email,
-                        destinatario_email,
-                        mensagem,
-                        lida
-                    )
+                    INSERT INTO
+                        mensagens_chat (
+                            conversa_id,
+                            servico_id,
+                            remetente_email,
+                            destinatario_email,
+                            mensagem,
+                            tipo,
+                            lida
+                        )
 
                     VALUES (
-                        $1,$2,$3,$4,FALSE
+                        $1,
+                        $2,
+                        $3,
+                        $4,
+                        $5,
+                        'texto',
+                        FALSE
                     )
 
                     RETURNING *
                     `,
                     [
                         conversaId,
-                        remetenteEmail,
-                        destinatarioEmail,
+
+                        conversa.servico_id,
+
+                        remetente,
+
+                        destinatario,
+
                         mensagem
                     ]
                 );
@@ -11154,7 +18811,8 @@ app.post(
 
             await pool.query(
                 `
-                UPDATE conversas
+                UPDATE
+                    conversas
 
                 SET
                     atualizado_em =
@@ -11162,7 +18820,7 @@ app.post(
 
                 WHERE
                     id =
-                    $1
+                        $1
                 `,
                 [
                     conversaId
@@ -11174,8 +18832,12 @@ app.post(
                 resultado.rows[0];
 
 
+            // =================================================
+            // SOCKET DA CONVERSA
+            // =================================================
+
             io.to(
-                `user:${destinatarioEmail}`
+                `conversa_${conversaId}`
             )
                 .emit(
                     'nova_mensagem',
@@ -11183,17 +18845,26 @@ app.post(
                 );
 
 
-            io.to(
-                `user:${remetenteEmail}`
-            )
-                .emit(
-                    'nova_mensagem',
-                    novaMensagem
-                );
+            // =================================================
+            // SOCKET PRIVADO DO DESTINATÁRIO
+            // =================================================
+
+            emitirAtualizacaoPrestador(
+                destinatario,
+                'mensagem_recebida',
+                {
+                    conversaId,
+
+                    servicoId:
+                        conversa.servico_id
+                }
+            );
 
 
             return res.json({
-                sucesso: true,
+
+                sucesso:
+                    true,
 
                 mensagem:
                     novaMensagem
@@ -11211,7 +18882,10 @@ app.post(
             return res
                 .status(500)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
+
                     erro:
                         'Erro ao enviar mensagem.'
                 });
@@ -11222,3087 +18896,368 @@ app.post(
 
 // ============================================================
 // MARCAR MENSAGENS COMO LIDAS
+//
+// E-MAIL = TOKEN.
+//
+// Mantemos /lida e /lidas
+// para compatibilidade com versões diferentes do INDEX.
 // ============================================================
+
+async function marcarMensagensLidas(
+    req,
+    res
+) {
+
+    try {
+
+        const conversaId =
+            Number(
+                req.params.id
+            );
+
+
+        const conversa =
+            await buscarConversa(
+                conversaId
+            );
+
+
+        if (!conversa) {
+
+            return res
+                .status(404)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Conversa não encontrada.'
+                });
+        }
+
+
+        if (
+            !usuarioParticipaConversa(
+                req.usuario,
+                conversa
+            )
+        ) {
+
+            return responderAcessoNegado(
+                res
+            );
+        }
+
+
+        await pool.query(
+            `
+            UPDATE
+                mensagens_chat
+
+            SET
+                lida =
+                    TRUE
+
+            WHERE
+                conversa_id =
+                    $1
+
+            AND
+                LOWER(
+                    destinatario_email
+                )
+                =
+                LOWER($2)
+            `,
+            [
+                conversaId,
+                req.usuario.email
+            ]
+        );
+
+
+        return res.json({
+
+            sucesso:
+                true
+        });
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Marcar mensagens:',
+            err
+        );
+
+
+        return res
+            .status(500)
+            .json({
+
+                sucesso:
+                    false,
+
+                erro:
+                    'Erro ao marcar mensagens.'
+            });
+    }
+}
+
+
+app.post(
+    '/api/chat/conversas/:id/lida',
+    autenticarUsuario,
+    marcarMensagensLidas
+);
+
 
 app.post(
     '/api/chat/conversas/:id/lidas',
-
-    async (req, res) => {
-
-        try {
-
-            const conversaId =
-                Number(
-                    req.params.id
-                );
+    autenticarUsuario,
+    marcarMensagensLidas
+);
 
 
-            const email =
-                normalizarEmail(
-                    req.body?.email
-                );
+// ============================================================
+// TOTAL DE MENSAGENS NÃO LIDAS
+//
+// ROTA PRINCIPAL:
+// /api/chat/nao-lidas
+//
+// COMPATIBILIDADE:
+// /api/chat/nao-lidas/:email
+//
+// O EMAIL DA URL É IGNORADO.
+// ============================================================
 
+async function contarMensagensNaoLidas(
+    req,
+    res
+) {
 
-            if (!email) {
+    try {
 
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Informe o usuário.'
-                    });
-            }
-
-
+        const resultado =
             await pool.query(
                 `
-                UPDATE mensagens_chat
+                SELECT
+                    COUNT(*)::int
+                    AS total
 
-                SET
-                    lida =
-                        TRUE
+                FROM
+                    mensagens_chat
 
                 WHERE
-                    conversa_id =
-                        $1
-
-                AND
                     LOWER(
                         destinatario_email
                     )
                     =
-                    LOWER($2)
-                `,
-                [
-                    conversaId,
-                    email
-                ]
-            );
-
-
-            return res.json({
-                sucesso: true,
-                mensagem:
-                    'Mensagens marcadas como lidas.'
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Marcar mensagens:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao atualizar mensagens.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// FIM DA PARTE 6
-// COLE A PARTE 7 IMEDIATAMENTE ABAIXO
-// ============================================================
-// RS CONNECT — SERVER.JS
-// PARTE 7 CORRIGIDA
-//
-// CLIENTES FIXOS + COLABORADORES + JORNADA
-// FOTO + GPS + INTERVALO + SAÍDA
-// VALIDAÇÃO DO CLIENTE + HISTÓRICO
-// DOCUMENTOS + CONTRATOS
-//
-// TABELAS REAIS:
-// clientes_rs
-// clientes_rs_colaboradores
-// jornadas_clientes
-// jornadas_clientes_documentos
-// fechamentos_clientes
-// ============================================================
-
-
-// ============================================================
-// LISTAR CLIENTES FIXOS
-// ============================================================
-
-app.get(
-    '/api/jornada-clientes',
-
-    async (req, res) => {
-
-        try {
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT
-                        cliente.*,
-
-                        COUNT(vinculo.id)
-                        FILTER (
-                            WHERE vinculo.ativo = TRUE
-                        )::int
-                        AS colaboradores_ativos
-
-                    FROM clientes_rs AS cliente
-
-                    LEFT JOIN
-                        clientes_rs_colaboradores
-                        AS vinculo
-
-                    ON
-                        vinculo.cliente_id =
-                        cliente.id
-
-                    WHERE
-                        cliente.ativo = TRUE
-
-                    GROUP BY
-                        cliente.id
-
-                    ORDER BY
-                        cliente.nome
-                    `
-                );
-
-
-            return res.json({
-                sucesso: true,
-                clientes:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Clientes fixos:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar clientes.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// CADASTRAR CLIENTE FIXO
-//
-// GRATIDÃO
-// SMT
-// PORTOX
-// ETC.
-// ============================================================
-
-app.post(
-    '/api/jornada-clientes',
-
-    async (req, res) => {
-
-        try {
-
-            const dados =
-                req.body || {};
-
-
-            const nome =
-                String(
-                    dados.nome || ''
-                )
-                    .trim();
-
-
-            if (!nome) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Informe o nome da empresa cliente.'
-                    });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    INSERT INTO clientes_rs (
-                        nome,
-                        cnpj,
-                        responsavel_nome,
-                        responsavel_email,
-                        responsavel_whatsapp,
-                        endereco,
-                        cidade,
-                        uf,
-                        latitude,
-                        longitude,
-                        criado_por
-                    )
-
-                    VALUES (
-                        $1,$2,$3,$4,$5,
-                        $6,$7,$8,$9,$10,$11
-                    )
-
-                    RETURNING *
-                    `,
-                    [
-                        nome,
-
-                        dados.cnpj ||
-                        null,
-
-                        dados.responsavel_nome ||
-                        dados.responsavel ||
-                        null,
-
-                        normalizarEmail(
-                            dados.responsavel_email
-                        ) || null,
-
-                        dados.responsavel_whatsapp ||
-                        null,
-
-                        dados.endereco ||
-                        null,
-
-                        dados.cidade ||
-                        null,
-
-                        dados.uf ||
-                        null,
-
-                        dados.latitude ??
-                        null,
-
-                        dados.longitude ??
-                        null,
-
-                        normalizarEmail(
-                            dados.criado_por ||
-                            dados.email
-                        )
-                        ||
-                        'sistema'
-                    ]
-                );
-
-
-            const cliente =
-                resultado.rows[0];
-
-
-            await registrarAuditoria(
-                dados.criado_por ||
-                dados.email ||
-                'sistema',
-
-                'CADASTRAR_CLIENTE_FIXO',
-
-                `Cliente ${nome} cadastrado na Jornada.`
-            );
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId:
-                        cliente.id
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-                mensagem:
-                    'Cliente cadastrado.',
-                cliente
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Cadastrar cliente:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao cadastrar cliente.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// ATUALIZAR CLIENTE
-// ============================================================
-
-app.patch(
-    '/api/jornada-clientes/:id',
-
-    async (req, res) => {
-
-        try {
-
-            const clienteId =
-                Number(
-                    req.params.id
-                );
-
-
-            const dados =
-                req.body || {};
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    UPDATE clientes_rs
-
-                    SET
-                        nome =
-                            COALESCE(
-                                NULLIF($1,''),
-                                nome
-                            ),
-
-                        cnpj =
-                            COALESCE(
-                                $2,
-                                cnpj
-                            ),
-
-                        responsavel_nome =
-                            COALESCE(
-                                $3,
-                                responsavel_nome
-                            ),
-
-                        responsavel_email =
-                            COALESCE(
-                                $4,
-                                responsavel_email
-                            ),
-
-                        responsavel_whatsapp =
-                            COALESCE(
-                                $5,
-                                responsavel_whatsapp
-                            ),
-
-                        endereco =
-                            COALESCE(
-                                $6,
-                                endereco
-                            ),
-
-                        cidade =
-                            COALESCE(
-                                $7,
-                                cidade
-                            ),
-
-                        uf =
-                            COALESCE(
-                                $8,
-                                uf
-                            ),
-
-                        latitude =
-                            COALESCE(
-                                $9,
-                                latitude
-                            ),
-
-                        longitude =
-                            COALESCE(
-                                $10,
-                                longitude
-                            ),
-
-                        atualizado_em =
-                            CURRENT_TIMESTAMP
-
-                    WHERE
-                        id = $11
-
-                    RETURNING *
-                    `,
-                    [
-                        dados.nome ||
-                        '',
-
-                        dados.cnpj ??
-                        null,
-
-                        dados.responsavel_nome ??
-                        null,
-
-                        dados.responsavel_email
-                            ?
-                            normalizarEmail(
-                                dados.responsavel_email
-                            )
-                            :
-                            null,
-
-                        dados.responsavel_whatsapp ??
-                        null,
-
-                        dados.endereco ??
-                        null,
-
-                        dados.cidade ??
-                        null,
-
-                        dados.uf ??
-                        null,
-
-                        dados.latitude ??
-                        null,
-
-                        dados.longitude ??
-                        null,
-
-                        clienteId
-                    ]
-                );
-
-
-            if (
-                !resultado.rows.length
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Cliente não encontrado.'
-                    });
-            }
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-                cliente:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Atualizar cliente:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao atualizar cliente.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// COLABORADORES DO CLIENTE
-// ============================================================
-
-app.get(
-    '/api/jornada-clientes/:id/colaboradores',
-
-    async (req, res) => {
-
-        try {
-
-            const clienteId =
-                Number(
-                    req.params.id
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM
-                        clientes_rs_colaboradores
-
-                    WHERE
-                        cliente_id = $1
-
-                    AND
-                        ativo = TRUE
-
-                    ORDER BY
-                        colaborador_nome
-                    `,
-                    [
-                        clienteId
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-                colaboradores:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Colaboradores:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar colaboradores.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// VINCULAR COLABORADOR AO CLIENTE
-//
-// Exemplo:
-// Cliente: Gratidão
-// Colaboradora: Mayara
-// Função: Auxiliar de limpeza
-// ============================================================
-
-app.post(
-    '/api/jornada-clientes/:id/colaboradores',
-
-    async (req, res) => {
-
-        try {
-
-            const clienteId =
-                Number(
-                    req.params.id
-                );
-
-
-            const dados =
-                req.body || {};
-
-
-            const email =
-                normalizarEmail(
-                    dados.colaborador_email ||
-                    dados.email
-                );
-
-
-            let nome =
-                String(
-                    dados.colaborador_nome ||
-                    dados.nome ||
-                    ''
-                )
-                    .trim();
-
-
-            if (!email) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Informe o e-mail do colaborador.'
-                    });
-            }
-
-
-            // Se o nome não vier,
-            // tenta buscar no cadastro geral.
-            if (!nome) {
-
-                const usuarioRes =
-                    await pool.query(
-                        `
-                        SELECT nome
-                        FROM usuarios
-
-                        WHERE
-                            LOWER(TRIM(email))
-                            =
-                            LOWER(TRIM($1))
-
-                        LIMIT 1
-                        `,
-                        [
-                            email
-                        ]
-                    );
-
-
-                nome =
-                    usuarioRes.rows[0]?.nome ||
-                    '';
-            }
-
-
-            if (!nome) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Informe o nome do colaborador.'
-                    });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    INSERT INTO
-                        clientes_rs_colaboradores (
-                            cliente_id,
-                            colaborador_email,
-                            colaborador_nome,
-                            funcao,
-                            valor_tipo,
-                            valor_base,
-                            horario_previsto,
-                            ativo,
-                            criado_por
-                        )
-
-                    VALUES (
-                        $1,$2,$3,$4,
-                        $5,$6,$7,
-                        TRUE,$8
-                    )
-
-                    ON CONFLICT (
-                        cliente_id,
-                        colaborador_email
-                    )
-
-                    DO UPDATE SET
-
-                        colaborador_nome =
-                            EXCLUDED.colaborador_nome,
-
-                        funcao =
-                            EXCLUDED.funcao,
-
-                        valor_tipo =
-                            EXCLUDED.valor_tipo,
-
-                        valor_base =
-                            EXCLUDED.valor_base,
-
-                        horario_previsto =
-                            EXCLUDED.horario_previsto,
-
-                        ativo =
-                            TRUE,
-
-                        atualizado_em =
-                            CURRENT_TIMESTAMP
-
-                    RETURNING *
-                    `,
-                    [
-                        clienteId,
-
-                        email,
-
-                        nome,
-
-                        dados.funcao ||
-                        '',
-
-                        String(
-                            dados.valor_tipo ||
-                            'dia'
-                        )
-                            .toLowerCase(),
-
-                        numeroRS(
-                            dados.valor_base
-                        ),
-
-                        dados.horario_previsto ||
-                        '',
-
-                        normalizarEmail(
-                            dados.criado_por
-                        )
-                        ||
-                        'sistema'
-                    ]
-                );
-
-
-            // Gera jornada de hoje.
-            await garantirJornadasDiaCliente(
-                clienteId
-            );
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Colaborador vinculado.',
-
-                colaborador:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Vincular colaborador:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao vincular colaborador.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// REMOVER COLABORADOR
-//
-// NÃO APAGA O HISTÓRICO.
-// APENAS MARCA COMO INATIVO.
-// ============================================================
-
-app.delete(
-    '/api/jornada-clientes/:clienteId/colaboradores/:id',
-
-    async (req, res) => {
-
-        try {
-
-            const clienteId =
-                Number(
-                    req.params.clienteId
-                );
-
-
-            const vinculoId =
-                Number(
-                    req.params.id
-                );
-
-
-            await pool.query(
-                `
-                UPDATE
-                    clientes_rs_colaboradores
-
-                SET
-                    ativo =
-                        FALSE,
-
-                    atualizado_em =
-                        CURRENT_TIMESTAMP
-
-                WHERE
-                    id = $1
+                    LOWER($1)
 
                 AND
-                    cliente_id = $2
+                    lida =
+                    FALSE
                 `,
                 [
-                    vinculoId,
-                    clienteId
+                    req.usuario.email
                 ]
             );
 
 
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId
-                }
-            );
+        return res.json({
 
+            sucesso:
+                true,
 
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Colaborador removido. O histórico foi mantido.'
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Remover colaborador:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao remover colaborador.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// JORNADAS DO CLIENTE POR DATA
-// ============================================================
-
-app.get(
-    '/api/jornada-clientes/:id/jornadas',
-
-    async (req, res) => {
-
-        try {
-
-            const clienteId =
+            total:
                 Number(
-                    req.params.id
-                );
-
-
-            const data =
-                String(
-                    req.query?.data ||
-                    dataAtualRS()
-                )
-                    .slice(
-                        0,
-                        10
-                    );
-
-
-            await garantirJornadasDiaCliente(
-                clienteId,
-                data
-            );
-
-
-            const jornadas =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM jornadas_clientes
-
-                    WHERE
-                        cliente_id = $1
-
-                    AND
-                        data = $2::date
-
-                    ORDER BY
-                        colaborador_nome
-                    `,
-                    [
-                        clienteId,
-                        data
-                    ]
-                );
-
-
-            const fechamento =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM fechamentos_clientes
-
-                    WHERE
-                        cliente_id = $1
-
-                    AND
-                        data = $2::date
-
-                    LIMIT 1
-                    `,
-                    [
-                        clienteId,
-                        data
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                data,
-
-                jornadas:
-                    jornadas.rows,
-
-                fechamento:
-                    fechamento.rows[0]
-                    ||
-                    null
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Jornadas cliente:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar jornadas.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// HISTÓRICO DO CLIENTE
-//
-// Permite procurar daqui a meses:
-//
-// Mayara
-// → Gratidão
-// → todas as jornadas
-// ============================================================
-
-app.get(
-    '/api/jornada-clientes/:id/historico',
-
-    async (req, res) => {
-
-        try {
-
-            const clienteId =
-                Number(
-                    req.params.id
-                );
-
-
-            const email =
-                normalizarEmail(
-                    req.query?.colaborador_email
-                );
-
-
-            const limite =
-                Math.min(
-                    Math.max(
-                        Number(
-                            req.query?.limite ||
-                            180
-                        ),
-                        1
-                    ),
-                    500
-                );
-
-
-            let resultado;
-
-
-            if (email) {
-
-                resultado =
-                    await pool.query(
-                        `
-                        SELECT *
-                        FROM jornadas_clientes
-
-                        WHERE
-                            cliente_id = $1
-
-                        AND
-                            LOWER(
-                                colaborador_email
-                            )
-                            =
-                            LOWER($2)
-
-                        ORDER BY
-                            data DESC,
-                            id DESC
-
-                        LIMIT $3
-                        `,
-                        [
-                            clienteId,
-                            email,
-                            limite
-                        ]
-                    );
-
-
-            } else {
-
-                resultado =
-                    await pool.query(
-                        `
-                        SELECT *
-                        FROM jornadas_clientes
-
-                        WHERE
-                            cliente_id = $1
-
-                        ORDER BY
-                            data DESC,
-                            colaborador_nome
-
-                        LIMIT $2
-                        `,
-                        [
-                            clienteId,
-                            limite
-                        ]
-                    );
-            }
-
-
-            return res.json({
-                sucesso: true,
-                jornadas:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Histórico Jornada:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar histórico.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// JORNADA DO COLABORADOR — HOJE
-// ============================================================
-
-app.get(
-    '/api/jornada-colaborador/:email/hoje',
-
-    async (req, res) => {
-
-        try {
-
-            const email =
-                normalizarEmail(
-                    req.params.email
-                );
-
-
-            const data =
-                dataAtualRS();
-
-
-            const vinculos =
-                await pool.query(
-                    `
-                    SELECT cliente_id
-
-                    FROM
-                        clientes_rs_colaboradores
-
-                    WHERE
-                        LOWER(
-                            colaborador_email
-                        )
-                        =
-                        LOWER($1)
-
-                    AND
-                        ativo = TRUE
-                    `,
-                    [
-                        email
-                    ]
-                );
-
-
-            for (
-                const vinculo
-                of vinculos.rows
-            ) {
-
-                await garantirJornadasDiaCliente(
-                    vinculo.cliente_id,
-                    data
-                );
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT
-
-                        jornada.*,
-
-                        cliente.nome
-                            AS cliente_nome,
-
-                        cliente.endereco
-                            AS cliente_endereco,
-
-                        cliente.cidade
-                            AS cliente_cidade,
-
-                        cliente.uf
-                            AS cliente_uf,
-
-                        cliente.latitude
-                            AS cliente_latitude,
-
-                        cliente.longitude
-                            AS cliente_longitude,
-
-                        cliente.responsavel_nome,
-
-                        cliente.responsavel_email,
-
-                        cliente.responsavel_whatsapp
-
-                    FROM
-                        jornadas_clientes
-                        AS jornada
-
-                    JOIN
-                        clientes_rs
-                        AS cliente
-
-                    ON
-                        cliente.id =
-                        jornada.cliente_id
-
-                    WHERE
-                        LOWER(
-                            jornada.colaborador_email
-                        )
-                        =
-                        LOWER($1)
-
-                    AND
-                        jornada.data =
-                        $2::date
-
-                    ORDER BY
-                        jornada.id
-                    `,
-                    [
-                        email,
-                        data
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                data,
-
-                jornadas:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Jornada colaborador:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar jornada.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// CHECK-IN — CLIENTE FIXO
-//
-// FOTO + GPS + HORÁRIO AUTOMÁTICO
-// ============================================================
-
-app.post(
-    '/api/jornada-fixa/:id/checkin',
-
-    async (req, res) => {
-
-        try {
-
-            const jornadaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const email =
-                normalizarEmail(
-                    req.body?.colaborador_email ||
-                    req.body?.email
-                );
-
-
-            const jornada =
-                await buscarJornadaCliente(
-                    jornadaId
-                );
-
-
-            if (!jornada) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Jornada não encontrada.'
-                    });
-            }
-
-
-            if (
-                normalizarEmail(
-                    jornada.colaborador_email
-                )
-                !==
-                email
-            ) {
-
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Esta jornada pertence a outro colaborador.'
-                    });
-            }
-
-
-            if (
-                jornada.fechada
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Esta jornada já foi fechada.'
-                    });
-            }
-
-
-            if (
-                jornada.entrada_em
-            ) {
-
-                return res.json({
-                    sucesso: true,
-
-                    jaRealizado:
-                        true,
-
-                    mensagem:
-                        'A entrada já foi registrada.',
-
-                    jornada
-                });
-            }
-
-
-            const foto =
-                req.body?.foto ||
-                req.body?.selfie ||
-                '';
-
-
-            const latitude =
-                req.body?.latitude;
-
-
-            const longitude =
-                req.body?.longitude;
-
-
-            const precisao =
-                req.body?.precisao ??
-                '';
-
-
-            if (!foto) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'A foto de entrada é obrigatória.'
-                    });
-            }
-
-
-            if (
-                latitude === undefined ||
-                longitude === undefined ||
-                latitude === null ||
-                longitude === null
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'A localização GPS é obrigatória.'
-                    });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    UPDATE
-                        jornadas_clientes
-
-                    SET
-                        status =
-                            'PRESENTE',
-
-                        entrada_em =
-                            CURRENT_TIMESTAMP,
-
-                        entrada_foto =
-                            $1,
-
-                        entrada_latitude =
-                            $2,
-
-                        entrada_longitude =
-                            $3,
-
-                        entrada_precisao =
-                            $4,
-
-                        atualizado_em =
-                            CURRENT_TIMESTAMP
-
-                    WHERE
-                        id = $5
-
-                    RETURNING *
-                    `,
-                    [
-                        foto,
-
-                        String(
-                            latitude
-                        ),
-
-                        String(
-                            longitude
-                        ),
-
-                        String(
-                            precisao
-                        ),
-
-                        jornadaId
-                    ]
-                );
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId:
-                        jornada.cliente_id,
-
-                    jornadaId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Entrada registrada com foto e GPS.',
-
-                jornada:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Check-in cliente fixo:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao registrar entrada.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// INICIAR INTERVALO
-// ============================================================
-
-app.post(
-    '/api/jornada-fixa/:id/intervalo/iniciar',
-
-    async (req, res) => {
-
-        try {
-
-            const jornadaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const jornada =
-                await buscarJornadaCliente(
-                    jornadaId
-                );
-
-
-            if (!jornada) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Jornada não encontrada.'
-                    });
-            }
-
-
-            if (
-                !jornada.entrada_em
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Registre a entrada primeiro.'
-                    });
-            }
-
-
-            if (
-                jornada.saida_em
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'A jornada já terminou.'
-                    });
-            }
-
-
-            if (
-                jornada.intervalo_inicio_em
-            ) {
-
-                return res.json({
-                    sucesso: true,
-
-                    jaRealizado:
-                        true,
-
-                    mensagem:
-                        'O intervalo já foi iniciado.',
-
-                    jornada
-                });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    UPDATE
-                        jornadas_clientes
-
-                    SET
-                        status =
-                            'EM_INTERVALO',
-
-                        intervalo_inicio_em =
-                            CURRENT_TIMESTAMP,
-
-                        intervalo_retorno_em =
-                            NULL,
-
-                        atualizado_em =
-                            CURRENT_TIMESTAMP
-
-                    WHERE
-                        id = $1
-
-                    RETURNING *
-                    `,
-                    [
-                        jornadaId
-                    ]
-                );
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId:
-                        jornada.cliente_id,
-
-                    jornadaId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Intervalo iniciado.',
-
-                jornada:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Intervalo fixo:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao iniciar intervalo.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// RETORNO DO INTERVALO
-// ============================================================
-
-app.post(
-    '/api/jornada-fixa/:id/intervalo/retornar',
-
-    async (req, res) => {
-
-        try {
-
-            const jornadaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const jornada =
-                await buscarJornadaCliente(
-                    jornadaId
-                );
-
-
-            if (!jornada) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Jornada não encontrada.'
-                    });
-            }
-
-
-            if (
-                !jornada.intervalo_inicio_em
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'O intervalo ainda não foi iniciado.'
-                    });
-            }
-
-
-            if (
-                jornada.intervalo_retorno_em
-            ) {
-
-                return res.json({
-                    sucesso: true,
-
-                    jaRealizado:
-                        true,
-
-                    mensagem:
-                        'O retorno já foi registrado.',
-
-                    jornada
-                });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    UPDATE
-                        jornadas_clientes
-
-                    SET
-                        status =
-                            'PRESENTE',
-
-                        intervalo_retorno_em =
-                            CURRENT_TIMESTAMP,
-
-                        atualizado_em =
-                            CURRENT_TIMESTAMP
-
-                    WHERE
-                        id = $1
-
-                    RETURNING *
-                    `,
-                    [
-                        jornadaId
-                    ]
-                );
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId:
-                        jornada.cliente_id,
-
-                    jornadaId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Retorno do intervalo registrado.',
-
-                jornada:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Retorno intervalo fixo:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao registrar retorno.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// CHECK-OUT — CLIENTE FIXO
-//
-// FOTO + GPS
-// HORAS CALCULADAS AUTOMATICAMENTE
-// VALOR CALCULADO AUTOMATICAMENTE
-// ============================================================
-
-app.post(
-    '/api/jornada-fixa/:id/checkout',
-
-    async (req, res) => {
-
-        try {
-
-            const jornadaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const email =
-                normalizarEmail(
-                    req.body?.colaborador_email ||
-                    req.body?.email
-                );
-
-
-            const jornada =
-                await buscarJornadaCliente(
-                    jornadaId
-                );
-
-
-            if (!jornada) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Jornada não encontrada.'
-                    });
-            }
-
-
-            if (
-                normalizarEmail(
-                    jornada.colaborador_email
-                )
-                !==
-                email
-            ) {
-
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Esta jornada pertence a outro colaborador.'
-                    });
-            }
-
-
-            if (
-                !jornada.entrada_em
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Registre a entrada primeiro.'
-                    });
-            }
-
-
-            if (
-                jornada.saida_em
-            ) {
-
-                return res.json({
-                    sucesso: true,
-
-                    jaRealizado:
-                        true,
-
-                    mensagem:
-                        'A saída já foi registrada.',
-
-                    jornada
-                });
-            }
-
-
-            if (
-                jornada.intervalo_inicio_em &&
-                !jornada.intervalo_retorno_em
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Registre o retorno do intervalo antes da saída.'
-                    });
-            }
-
-
-            const foto =
-                req.body?.foto ||
-                req.body?.selfie ||
-                '';
-
-
-            const latitude =
-                req.body?.latitude;
-
-
-            const longitude =
-                req.body?.longitude;
-
-
-            if (!foto) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'A foto de saída é obrigatória.'
-                    });
-            }
-
-
-            if (
-                latitude === undefined ||
-                longitude === undefined ||
-                latitude === null ||
-                longitude === null
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'A localização GPS é obrigatória.'
-                    });
-            }
-
-
-            await pool.query(
-                `
-                UPDATE jornadas_clientes
-
-                SET
-                    status =
-                        'ENCERRADO',
-
-                    saida_em =
-                        CURRENT_TIMESTAMP,
-
-                    saida_foto =
-                        $1,
-
-                    saida_latitude =
-                        $2,
-
-                    saida_longitude =
-                        $3,
-
-                    saida_precisao =
-                        $4,
-
-                    atualizado_em =
-                        CURRENT_TIMESTAMP
-
-                WHERE
-                    id = $5
-                `,
-                [
-                    foto,
-
-                    String(
-                        latitude
-                    ),
-
-                    String(
-                        longitude
-                    ),
-
-                    String(
-                        req.body?.precisao ??
-                        ''
-                    ),
-
-                    jornadaId
-                ]
-            );
-
-
-            // Calcula horas e valor.
-            const atualizada =
-                await recalcularJornadaCliente(
-                    jornadaId
-                );
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId:
-                        jornada.cliente_id,
-
-                    jornadaId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Saída registrada. Horas e valor calculados.',
-
-                jornada:
-                    atualizada
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Checkout fixo:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao registrar saída.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// CLIENTE / RECEPCIONISTA VALIDA
-//
-// tipo:
-// entrada
-// ou
-// saida
-//
-// Exemplo:
-// Rosilene valida Mayara.
-// ============================================================
-
-app.post(
-    '/api/jornada-fixa/:id/validar',
-
-    async (req, res) => {
-
-        try {
-
-            const jornadaId =
-                Number(
-                    req.params.id
-                );
-
-
-            const tipo =
-                String(
-                    req.body?.tipo ||
-                    ''
-                )
-                    .toLowerCase();
-
-
-            const validador =
-                normalizarEmail(
-                    req.body?.validador_email ||
-                    req.body?.email
-                );
-
-
-            const jornada =
-                await buscarJornadaCliente(
-                    jornadaId
-                );
-
-
-            if (!jornada) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Jornada não encontrada.'
-                    });
-            }
-
-
-            // Se existir responsável cadastrado,
-            // somente ele valida.
-            if (
-                jornada.responsavel_email &&
-                normalizarEmail(
-                    jornada.responsavel_email
-                )
-                !==
-                validador
-            ) {
-
-                return res
-                    .status(403)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente o responsável do cliente pode validar.'
-                    });
-            }
-
-
-            if (
-                tipo !== 'entrada' &&
-                tipo !== 'saida'
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Tipo inválido.'
-                    });
-            }
-
-
-            if (
-                tipo ===
-                'entrada'
-            ) {
-
-                if (
-                    !jornada.entrada_em
-                ) {
-
-                    return res
-                        .status(409)
-                        .json({
-                            sucesso: false,
-                            erro:
-                                'Não existe entrada para validar.'
-                        });
-                }
-
-
-                await pool.query(
-                    `
-                    UPDATE jornadas_clientes
-
-                    SET
-                        entrada_validada =
-                            TRUE,
-
-                        entrada_validada_por =
-                            $1,
-
-                        entrada_validada_em =
-                            CURRENT_TIMESTAMP,
-
-                        atualizado_em =
-                            CURRENT_TIMESTAMP
-
-                    WHERE
-                        id = $2
-                    `,
-                    [
-                        validador,
-                        jornadaId
-                    ]
-                );
-
-
-            } else {
-
-                if (
-                    !jornada.saida_em
-                ) {
-
-                    return res
-                        .status(409)
-                        .json({
-                            sucesso: false,
-                            erro:
-                                'Não existe saída para validar.'
-                        });
-                }
-
-
-                await pool.query(
-                    `
-                    UPDATE jornadas_clientes
-
-                    SET
-                        saida_validada =
-                            TRUE,
-
-                        saida_validada_por =
-                            $1,
-
-                        saida_validada_em =
-                            CURRENT_TIMESTAMP,
-
-                        atualizado_em =
-                            CURRENT_TIMESTAMP
-
-                    WHERE
-                        id = $2
-                    `,
-                    [
-                        validador,
-                        jornadaId
-                    ]
-                );
-            }
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId:
-                        jornada.cliente_id,
-
-                    jornadaId
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    tipo ===
-                    'entrada'
-
-                        ?
-
-                        'Entrada validada.'
-
-                        :
-
-                        'Saída validada.'
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Validação Jornada:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao validar jornada.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// FECHAR DIA
-//
-// NÃO DEIXA FECHAR SE EXISTIR
-// COLABORADOR COM JORNADA ABERTA.
-// ============================================================
-
-app.post(
-    '/api/jornada-clientes/:id/fechar-dia',
-
-    async (req, res) => {
-
-        try {
-
-            const clienteId =
-                Number(
-                    req.params.id
-                );
-
-
-            const data =
-                String(
-                    req.body?.data ||
-                    dataAtualRS()
-                )
-                    .slice(
-                        0,
-                        10
-                    );
-
-
-            const usuario =
-                normalizarEmail(
-                    req.body?.confirmado_por ||
-                    req.body?.email
-                )
-                ||
-                'sistema';
-
-
-            const abertas =
-                await pool.query(
-                    `
-                    SELECT
-                        COUNT(*)::int
-                        AS total
-
-                    FROM jornadas_clientes
-
-                    WHERE
-                        cliente_id = $1
-
-                    AND
-                        data = $2::date
-
-                    AND
-                        entrada_em IS NOT NULL
-
-                    AND
-                        saida_em IS NULL
-                    `,
-                    [
-                        clienteId,
-                        data
-                    ]
-                );
-
-
-            if (
-                Number(
-                    abertas.rows[0]?.total ||
+                    resultado.rows[0]?.total ||
                     0
-                ) > 0
-            ) {
-
-                return res
-                    .status(409)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Existem colaboradores com jornada aberta.'
-                    });
-            }
+                )
+        });
 
 
-            const fechamento =
-                await pool.query(
-                    `
-                    INSERT INTO
-                        fechamentos_clientes (
-                            cliente_id,
-                            data,
-                            confirmado,
-                            confirmado_por,
-                            confirmado_em,
-                            observacoes
-                        )
+    } catch (err) {
 
-                    VALUES (
-                        $1,
-                        $2::date,
-                        TRUE,
-                        $3,
-                        CURRENT_TIMESTAMP,
-                        $4
-                    )
-
-                    ON CONFLICT (
-                        cliente_id,
-                        data
-                    )
-
-                    DO UPDATE SET
-
-                        confirmado =
-                            TRUE,
-
-                        confirmado_por =
-                            EXCLUDED.confirmado_por,
-
-                        confirmado_em =
-                            CURRENT_TIMESTAMP,
-
-                        observacoes =
-                            EXCLUDED.observacoes
-
-                    RETURNING *
-                    `,
-                    [
-                        clienteId,
-
-                        data,
-
-                        usuario,
-
-                        String(
-                            req.body?.observacoes ||
-                            ''
-                        )
-                    ]
-                );
+        console.error(
+            '❌ Não lidas:',
+            err
+        );
 
 
-            await pool.query(
-                `
-                UPDATE jornadas_clientes
+        return res
+            .status(500)
+            .json({
 
-                SET
-                    fechada =
-                        TRUE,
+                sucesso:
+                    false,
 
-                    fechada_por =
-                        $1,
-
-                    fechada_em =
-                        CURRENT_TIMESTAMP,
-
-                    atualizado_em =
-                        CURRENT_TIMESTAMP
-
-                WHERE
-                    cliente_id = $2
-
-                AND
-                    data = $3::date
-                `,
-                [
-                    usuario,
-                    clienteId,
-                    data
-                ]
-            );
-
-
-            io.emit(
-                'jornada_clientes_atualizada',
-                {
-                    clienteId,
-                    data
-                }
-            );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Jornada do dia fechada e arquivada.',
-
-                fechamento:
-                    fechamento.rows[0]
+                erro:
+                    'Erro ao consultar mensagens.'
             });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Fechar dia:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao fechar o dia.'
-                });
-        }
     }
-);
+}
 
-
-// ============================================================
-// LISTAR DOCUMENTOS DA JORNADA
-// ============================================================
 
 app.get(
-    '/api/jornada-fixa/:id/documentos',
-
-    async (req, res) => {
-
-        try {
-
-            const jornadaId =
-                Number(
-                    req.params.id
-                );
+    '/api/chat/nao-lidas',
+    autenticarUsuario,
+    contarMensagensNaoLidas
+);
 
 
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT
-                        id,
-                        jornada_id,
-                        tipo,
-                        nome,
-                        mime,
-                        assinatura_status,
-                        assinado_por,
-                        assinado_em,
-                        criado_por,
-                        criado_em
-
-                    FROM
-                        jornadas_clientes_documentos
-
-                    WHERE
-                        jornada_id = $1
-
-                    ORDER BY
-                        id DESC
-                    `,
-                    [
-                        jornadaId
-                    ]
-                );
-
-
-            return res.json({
-                sucesso: true,
-
-                documentos:
-                    resultado.rows
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Documentos Jornada:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao carregar documentos.'
-                });
-        }
-    }
+app.get(
+    '/api/chat/nao-lidas/:email',
+    autenticarUsuario,
+    contarMensagensNaoLidas
 );
 
 
 // ============================================================
-// ENVIAR PDF PARA A JORNADA
+// FIM DA PARTE 11
 //
-// CONTRATO
-// DOCUMENTO
-// TERMO
-// ETC.
+// PARTE 12:
+//
+// WEBSOCKET SEGURO COM TOKEN
+// SALAS PRIVADAS
+// STATUS DO SERVER
+// 404
+// INICIALIZAÇÃO DO RENDER
+// ENCERRAMENTO
+//
+// A PARTE 12 FECHA O NOVO SERVER.JS.
+// ============================================================
+// ============================================================
+// RS CONNECT — SERVER.JS
+// VERSÃO COM PRIVACIDADE POR EMPRESA
+//
+// PARTE 12 — FINAL
+//
+// WEBSOCKET SEGURO
+// STATUS
+// TRATAMENTO DE ERROS
+// FRONT-END
+// RENDER
+// ENCERRAMENTO
+//
+// ESTA PARTE FECHA O server.js
 // ============================================================
 
-app.post(
-    '/api/jornada-fixa/:id/documentos',
 
-    upload.single('arquivo'),
+// ============================================================
+// WEBSOCKET — AUTENTICAÇÃO POR TOKEN
+//
+// O SOCKET NÃO CONFIA MAIS EM:
+//
+// identificar_usuario({ email: '...' })
+//
+// PRIMEIRO CONFERE O TOKEN.
+// ============================================================
 
-    async (req, res) => {
+io.use(
+    async (
+        socket,
+        next
+    ) => {
 
         try {
 
-            const jornadaId =
-                Number(
-                    req.params.id
-                );
-
-
-            if (
-                !req.file?.buffer
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Selecione o arquivo PDF.'
-                    });
-            }
-
-
-            const nome =
-                req.file.originalname ||
-                `documento-${jornadaId}.pdf`;
-
-
-            const mime =
-                req.file.mimetype ||
-                'application/pdf';
-
-
-            if (
-                mime !==
-                'application/pdf'
-                &&
-                !String(
-                    nome
+            const token =
+                String(
+                    socket.handshake?.auth?.token
+                    ||
+                    socket.handshake?.headers?.['x-rs-token']
+                    ||
+                    ''
                 )
-                    .toLowerCase()
-                    .endsWith(
-                        '.pdf'
+                    .trim();
+
+
+            const payload =
+                validarTokenUsuario(
+                    token
+                );
+
+
+            if (!payload) {
+
+                return next(
+                    new Error(
+                        'Sessão inválida ou expirada.'
                     )
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Somente PDF é permitido.'
-                    });
-            }
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    INSERT INTO
-                        jornadas_clientes_documentos (
-                            jornada_id,
-                            tipo,
-                            nome,
-                            mime,
-                            arquivo,
-                            assinatura_status,
-                            criado_por
-                        )
-
-                    VALUES (
-                        $1,
-                        $2,
-                        $3,
-                        $4,
-                        $5,
-                        'NAO_ASSINADO',
-                        $6
-                    )
-
-                    RETURNING
-                        id,
-                        jornada_id,
-                        tipo,
-                        nome,
-                        assinatura_status,
-                        criado_em
-                    `,
-                    [
-                        jornadaId,
-
-                        req.body?.tipo ||
-                        'CONTRATO',
-
-                        nome,
-
-                        mime,
-
-                        req.file.buffer,
-
-                        normalizarEmail(
-                            req.body?.criado_por ||
-                            req.body?.email
-                        )
-                        ||
-                        'sistema'
-                    ]
                 );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Documento vinculado à jornada.',
-
-                documento:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ Documento Jornada:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao salvar documento.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// ARQUIVAR PDF ASSINADO
-//
-// O prestador pode assinar pelo serviço GOV.BR
-// e depois devolver o PDF assinado ao RS Connect.
-//
-// A integração automática com GOV.BR
-// será uma etapa separada.
-// ============================================================
-
-app.post(
-    '/api/jornada-documentos/:id/assinado',
-
-    upload.single('arquivo'),
-
-    async (req, res) => {
-
-        try {
-
-            const documentoId =
-                Number(
-                    req.params.id
-                );
-
-
-            if (
-                !req.file?.buffer
-            ) {
-
-                return res
-                    .status(400)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Selecione o PDF assinado.'
-                    });
-            }
-
-
-            const originalRes =
-                await pool.query(
-                    `
-                    SELECT *
-                    FROM
-                        jornadas_clientes_documentos
-
-                    WHERE
-                        id = $1
-
-                    LIMIT 1
-                    `,
-                    [
-                        documentoId
-                    ]
-                );
-
-
-            const original =
-                originalRes.rows[0];
-
-
-            if (!original) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Documento não encontrado.'
-                    });
             }
 
 
             const usuario =
-                normalizarEmail(
-                    req.body?.assinado_por ||
-                    req.body?.email
-                )
-                ||
-                'sistema';
+                await buscarUsuarioPorEmail(
+                    payload.email
+                );
 
 
-            const resultado =
-                await pool.query(
-                    `
-                    INSERT INTO
-                        jornadas_clientes_documentos (
-                            jornada_id,
-                            tipo,
-                            nome,
-                            mime,
-                            arquivo,
-                            assinatura_status,
-                            assinado_por,
-                            assinado_em,
-                            criado_por
-                        )
+            if (!usuario) {
 
-                    VALUES (
-                        $1,
-                        $2,
-                        $3,
-                        $4,
-                        $5,
-                        'ASSINADO',
-                        $6,
-                        CURRENT_TIMESTAMP,
-                        $6
+                return next(
+                    new Error(
+                        'Usuário não encontrado.'
                     )
-
-                    RETURNING
-                        id,
-                        jornada_id,
-                        tipo,
-                        nome,
-                        assinatura_status,
-                        assinado_em
-                    `,
-                    [
-                        original.jornada_id,
-
-                        `${
-                            original.tipo ||
-                            'DOCUMENTO'
-                        }_ASSINADO`,
-
-                        req.file.originalname ||
-                        `assinado-${original.nome}`,
-
-                        req.file.mimetype ||
-                        'application/pdf',
-
-                        req.file.buffer,
-
-                        usuario
-                    ]
                 );
-
-
-            return res.json({
-                sucesso: true,
-
-                mensagem:
-                    'Documento assinado arquivado.',
-
-                documento:
-                    resultado.rows[0]
-            });
-
-
-        } catch (err) {
-
-            console.error(
-                '❌ PDF assinado:',
-                err
-            );
-
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao arquivar PDF assinado.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// ABRIR / VISUALIZAR PDF
-// ============================================================
-
-app.get(
-    '/api/jornada-documentos/:id/arquivo',
-
-    async (req, res) => {
-
-        try {
-
-            const documentoId =
-                Number(
-                    req.params.id
-                );
-
-
-            const resultado =
-                await pool.query(
-                    `
-                    SELECT
-                        nome,
-                        mime,
-                        arquivo
-
-                    FROM
-                        jornadas_clientes_documentos
-
-                    WHERE
-                        id = $1
-
-                    LIMIT 1
-                    `,
-                    [
-                        documentoId
-                    ]
-                );
-
-
-            const documento =
-                resultado.rows[0];
-
-
-            if (
-                !documento?.arquivo
-            ) {
-
-                return res
-                    .status(404)
-                    .json({
-                        sucesso: false,
-                        erro:
-                            'Documento não encontrado.'
-                    });
             }
 
 
-            res.setHeader(
-                'Content-Type',
+            socket.data.usuario = {
 
-                documento.mime ||
-                'application/pdf'
-            );
+                id:
+                    Number(
+                        usuario.id
+                    ),
 
+                nome:
+                    usuario.nome,
 
-            res.setHeader(
-                'Content-Disposition',
+                email:
+                    normalizarEmail(
+                        usuario.email
+                    ),
 
-                `inline; filename*=UTF-8''${
-                    encodeURIComponent(
-                        documento.nome ||
-                        'documento.pdf'
+                tipo:
+                    String(
+                        usuario.tipo ||
+                        ''
                     )
-                }`
-            );
+                        .trim()
+                        .toLowerCase(),
+
+                gestorRS:
+                    usuarioEhGestorRS(
+                        usuario
+                    ),
+
+                prestador:
+                    usuarioEhPrestador(
+                        usuario
+                    )
+            };
 
 
-            return res.send(
-                documento.arquivo
-            );
+            return next();
 
 
         } catch (err) {
 
             console.error(
-                '❌ Abrir documento:',
+                '❌ Autenticação WebSocket:',
                 err
             );
 
 
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-                    erro:
-                        'Erro ao abrir documento.'
-                });
-        }
-    }
-);
-
-
-// ============================================================
-// FIM DA PARTE 7 CORRIGIDA
-// COLE A PARTE 8 IMEDIATAMENTE ABAIXO
-// ============================================================
-// ============================================================
-// RS CONNECT — SERVER.JS
-// PARTE 8 FINAL
-//
-// STATUS + WEBSOCKET + ERROS
-// 404 + FRONT-END + RENDER
-// INICIALIZAÇÃO + ENCERRAMENTO
-// ============================================================
-
-
-// ============================================================
-// STATUS DO SISTEMA
-// ============================================================
-
-app.get(
-    '/api/status',
-
-    async (req, res) => {
-
-        try {
-
-            await pool.query(
-                'SELECT 1'
+            return next(
+                new Error(
+                    'Não foi possível autenticar o WebSocket.'
+                )
             );
-
-
-            return res.json({
-                sucesso: true,
-
-                sistema:
-                    'RS Connect',
-
-                status:
-                    'online',
-
-                banco:
-                    'online',
-
-                websocket:
-                    'online',
-
-                horario:
-                    horaAtualRS()
-            });
-
-
-        } catch (err) {
-
-            return res
-                .status(500)
-                .json({
-                    sucesso: false,
-
-                    status:
-                        'erro',
-
-                    erro:
-                        err.message
-                });
         }
     }
 );
@@ -14310,13 +19265,6 @@ app.get(
 
 // ============================================================
 // WEBSOCKET
-//
-// ATUALIZAÇÕES EM TEMPO REAL:
-//
-// EMPRESA
-// PRESTADOR
-// JORNADA
-// CHAT
 // ============================================================
 
 io.on(
@@ -14324,88 +19272,184 @@ io.on(
 
     socket => {
 
+        const usuario =
+            socket.data.usuario;
+
+
+        if (!usuario) {
+
+            socket.disconnect(
+                true
+            );
+
+            return;
+        }
+
+
+        const email =
+            normalizarEmail(
+                usuario.email
+            );
+
+
         console.log(
-            'Novo cliente conectado via WebSocket:',
-            socket.id
+            `🔌 WebSocket conectado: ${email} (${socket.id})`
         );
 
 
         // ====================================================
+        // SALAS DO PRÓPRIO USUÁRIO
+        //
+        // Mantemos os dois formatos
+        // para compatibilidade com partes anteriores.
+        // ====================================================
+
+        socket.join(
+            `usuario_${email}`
+        );
+
+
+        socket.join(
+            `user:${email}`
+        );
+
+
+        // ====================================================
+        // SALA EXCLUSIVA DOS GESTORES RS
+        // ====================================================
+
+        if (
+            usuario.gestorRS
+        ) {
+
+            socket.join(
+                'gestores_rs'
+            );
+        }
+
+
+        // ====================================================
         // IDENTIFICAR USUÁRIO
+        //
+        // COMPATIBILIDADE COM INDEX ANTIGO.
+        //
+        // IMPORTANTE:
+        // IGNORAMOS QUALQUER E-MAIL ENVIADO PELO NAVEGADOR.
+        //
+        // O ÚNICO E-MAIL VÁLIDO É O DO TOKEN.
         // ====================================================
 
         socket.on(
             'identificar_usuario',
 
-            dados => {
-
-                const email =
-                    normalizarEmail(
-                        typeof dados ===
-                        'string'
-
-                            ?
-
-                            dados
-
-                            :
-
-                            dados?.email
-                    );
-
-
-                if (!email) {
-                    return;
-                }
-
+            () => {
 
                 socket.data.email =
                     email;
 
 
-                // Sala usada pelo server original.
-                socket.join(
-                    `usuario_${email}`
-                );
+                socket.emit(
+                    'usuario_identificado',
+                    {
+                        sucesso:
+                            true,
 
-
-                // Sala de compatibilidade com o chat.
-                socket.join(
-                    `user:${email}`
-                );
-
-
-                console.log(
-                    `Socket ${socket.id} identificado como ${email}`
+                        email
+                    }
                 );
             }
         );
 
 
         // ====================================================
-        // ENTRAR EM UMA CONVERSA
+        // ENTRAR EM CONVERSA
+        //
+        // ANTES DE ENTRAR NA SALA,
+        // VERIFICAMOS SE O USUÁRIO PARTICIPA.
         // ====================================================
 
         socket.on(
             'entrar_conversa',
 
-            dados => {
+            async dados => {
 
-                const conversaId =
-                    Number(
-                        dados?.conversaId ||
-                        dados?.conversa_id
+                try {
+
+                    const conversaId =
+                        Number(
+                            dados?.conversaId
+                            ||
+                            dados?.conversa_id
+                        );
+
+
+                    if (!conversaId) {
+
+                        return;
+                    }
+
+
+                    const conversa =
+                        await buscarConversa(
+                            conversaId
+                        );
+
+
+                    if (!conversa) {
+
+                        socket.emit(
+                            'erro_chat',
+                            {
+                                erro:
+                                    'Conversa não encontrada.'
+                            }
+                        );
+
+
+                        return;
+                    }
+
+
+                    if (
+                        !usuarioParticipaConversa(
+                            usuario,
+                            conversa
+                        )
+                    ) {
+
+                        socket.emit(
+                            'erro_chat',
+                            {
+                                erro:
+                                    'Você não participa desta conversa.'
+                            }
+                        );
+
+
+                        return;
+                    }
+
+
+                    socket.join(
+                        `conversa_${conversaId}`
                     );
 
 
-                if (!conversaId) {
-                    return;
+                    socket.emit(
+                        'conversa_conectada',
+                        {
+                            conversaId
+                        }
+                    );
+
+
+                } catch (err) {
+
+                    console.error(
+                        '❌ Entrar conversa WebSocket:',
+                        err
+                    );
                 }
-
-
-                socket.join(
-                    `conversa_${conversaId}`
-                );
             }
         );
 
@@ -14421,12 +19465,14 @@ io.on(
 
                 const conversaId =
                     Number(
-                        dados?.conversaId ||
+                        dados?.conversaId
+                        ||
                         dados?.conversa_id
                     );
 
 
                 if (!conversaId) {
+
                     return;
                 }
 
@@ -14439,17 +19485,37 @@ io.on(
 
 
         // ====================================================
-        // DESCONECTOU
+        // PING DO APLICATIVO
+        // ====================================================
+
+        socket.on(
+            'rs_ping',
+
+            () => {
+
+                socket.emit(
+                    'rs_pong',
+                    {
+                        horario:
+                            new Date()
+                                .toISOString()
+                    }
+                );
+            }
+        );
+
+
+        // ====================================================
+        // DESCONECTAR
         // ====================================================
 
         socket.on(
             'disconnect',
 
-            () => {
+            motivo => {
 
                 console.log(
-                    'Cliente desconectado:',
-                    socket.id
+                    `🔌 WebSocket desconectado: ${email} — ${motivo}`
                 );
             }
         );
@@ -14458,7 +19524,156 @@ io.on(
 
 
 // ============================================================
-// ERRO DE UPLOAD
+// STATUS GERAL
+// ============================================================
+
+app.get(
+    '/api/status',
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            await pool.query(
+                'SELECT 1'
+            );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                sistema:
+                    'RS Connect',
+
+                status:
+                    'online',
+
+                banco:
+                    'online',
+
+                websocket:
+                    'online',
+
+                autenticacao:
+                    'token',
+
+                privacidade_empresas:
+                    'ativa',
+
+                horario:
+                    horaAtualRS()
+            });
+
+
+        } catch (err) {
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    status:
+                        'erro',
+
+                    erro:
+                        err.message
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// INFORMAÇÕES DA CONTA LOGADA
+//
+// ÚTIL PARA O INDEX SABER:
+//
+// - quem está logado;
+// - tipo;
+// - se é gestor;
+// - cliente vinculado.
+// ============================================================
+
+app.get(
+    '/api/me',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        try {
+
+            const contexto =
+                await obterContextoPrivacidade(
+                    req.usuario
+                );
+
+
+            return res.json({
+
+                sucesso:
+                    true,
+
+                usuario:
+                    req.usuario,
+
+                privacidade: {
+
+                    gestorRS:
+                        contexto.gestorRS,
+
+                    empresaCliente:
+                        contexto.empresaCliente,
+
+                    prestador:
+                        contexto.prestador,
+
+                    clienteId:
+                        contexto.clienteId,
+
+                    clienteNome:
+                        contexto.cliente?.nome
+                        ||
+                        null
+                }
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ /api/me:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+
+                    sucesso:
+                        false,
+
+                    erro:
+                        'Erro ao carregar informações da conta.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
+// ERROS DO MULTER / UPLOAD
 // ============================================================
 
 app.use(
@@ -14482,7 +19697,9 @@ app.use(
                 return res
                     .status(413)
                     .json({
-                        sucesso: false,
+
+                        sucesso:
+                            false,
 
                         erro:
                             'Arquivo muito grande. Limite de 10 MB.'
@@ -14493,7 +19710,9 @@ app.use(
             return res
                 .status(400)
                 .json({
-                    sucesso: false,
+
+                    sucesso:
+                        false,
 
                     erro:
                         err.message
@@ -14511,23 +19730,23 @@ app.use(
 // ============================================================
 // 404 DA API
 //
-// IMPORTANTE:
-//
-// TODAS AS ROTAS /api DEVEM FICAR
-// ANTES DESTE BLOCO.
-//
-// NÃO COLE NOVAS ROTAS DEPOIS DELE.
+// PRECISA FICAR DEPOIS DE TODAS AS ROTAS /api.
 // ============================================================
 
 app.use(
     '/api',
 
-    (req, res) => {
+    (
+        req,
+        res
+    ) => {
 
         return res
             .status(404)
             .json({
-                sucesso: false,
+
+                sucesso:
+                    false,
 
                 erro:
                     'Rota da API não encontrada.',
@@ -14545,8 +19764,8 @@ app.use(
 // ============================================================
 // FRONT-END
 //
-// QUALQUER ROTA GET QUE NÃO FOR API
-// ABRE O INDEX.HTML.
+// QUALQUER GET QUE NÃO FOR /api
+// ENTREGA O index.html.
 // ============================================================
 
 app.use(
@@ -14606,7 +19825,9 @@ app.use(
         return res
             .status(500)
             .json({
-                sucesso: false,
+
+                sucesso:
+                    false,
 
                 erro:
                     'Erro interno do RS Connect.'
@@ -14635,7 +19856,8 @@ async function iniciarRSConnect() {
 
         console.log(
             `🌐 Ambiente: ${
-                process.env.NODE_ENV ||
+                process.env.NODE_ENV
+                ||
                 'development'
             }`
         );
@@ -14647,12 +19869,17 @@ async function iniciarRSConnect() {
 
 
         console.log(
+            '🔐 Privacidade por empresa: ATIVA'
+        );
+
+
+        console.log(
             '======================================'
         );
 
 
         // ====================================================
-        // DATABASE_URL É OBRIGATÓRIA
+        // DATABASE_URL
         // ====================================================
 
         if (
@@ -14661,6 +19888,30 @@ async function iniciarRSConnect() {
 
             throw new Error(
                 'DATABASE_URL não configurada.'
+            );
+        }
+
+
+        // ====================================================
+        // AVISO DA CHAVE DO TOKEN
+        //
+        // NÃO DERRUBAMOS O SERVIDOR,
+        // MAS É RECOMENDADO CONFIGURAR NO RENDER:
+        //
+        // AUTH_TOKEN_SECRET
+        // ====================================================
+
+        if (
+            !process.env.AUTH_TOKEN_SECRET
+        ) {
+
+            console.warn(
+                '⚠️ AUTH_TOKEN_SECRET ainda não foi configurada no Render.'
+            );
+
+
+            console.warn(
+                '⚠️ Configure uma chave grande e aleatória antes do uso definitivo.'
             );
         }
 
@@ -14680,55 +19931,50 @@ async function iniciarRSConnect() {
 
 
         // ====================================================
-        // PREPARAR TABELAS PRINCIPAIS
-        //
-        // usuarios
-        // prestadores
-        // servicos
-        // pagamentos
-        // documentos
-        // chat
-        // recuperação de senha
+        // CRIAR / ATUALIZAR BANCO
         // ====================================================
 
         await criarTabelas();
 
 
-        // ====================================================
-        // PREPARAR JORNADA DOS CLIENTES FIXOS
-        //
-        // clientes_rs
-        // clientes_rs_colaboradores
-        // jornadas_clientes
-        // jornadas_clientes_documentos
-        // fechamentos_clientes
-        // ====================================================
-
         await criarTabelasJornadaClientes();
 
 
         console.log(
-            '✅ Banco RS Connect preparado.'
+            '✅ Banco principal verificado.'
+        );
+
+
+        console.log(
+            '✅ Clientes sob demanda verificados.'
+        );
+
+
+        console.log(
+            '✅ Jornada verificada.'
+        );
+
+
+        console.log(
+            '✅ Privacidade preparada.'
         );
 
 
         // ====================================================
-        // PORTA DO RENDER
+        // PORTA RENDER
         // ====================================================
 
         const PORT =
             Number(
-                process.env.PORT ||
+                process.env.PORT
+                ||
                 10000
             );
 
 
-        // ====================================================
-        // ABRIR SERVIDOR
-        // ====================================================
-
         server.listen(
             PORT,
+
             '0.0.0.0',
 
             () => {
@@ -14749,27 +19995,27 @@ async function iniciarRSConnect() {
 
 
                 console.log(
-                    '✅ LOGIN ONLINE'
+                    '✅ LOGIN + TOKEN ONLINE'
                 );
 
 
                 console.log(
-                    '✅ SENHAS ANTIGAS COMPATÍVEIS'
+                    '✅ RECUPERAÇÃO DE SENHA ONLINE'
                 );
 
 
                 console.log(
-                    '✅ RECUPERAÇÃO DE SENHA POR E-MAIL ONLINE'
+                    '✅ WEBSOCKET PROTEGIDO ONLINE'
                 );
 
 
                 console.log(
-                    '✅ WEBSOCKET ONLINE'
+                    '✅ SERVIÇOS / VAGAS ONLINE'
                 );
 
 
                 console.log(
-                    '✅ SERVIÇOS ONLINE'
+                    '✅ CLIENTES SOB DEMANDA ONLINE'
                 );
 
 
@@ -14779,7 +20025,12 @@ async function iniciarRSConnect() {
 
 
                 console.log(
-                    '✅ CLIENTES FIXOS ONLINE'
+                    '✅ DOCUMENTOS ONLINE'
+                );
+
+
+                console.log(
+                    '✅ PAGAMENTOS ONLINE'
                 );
 
 
@@ -14789,7 +20040,7 @@ async function iniciarRSConnect() {
 
 
                 console.log(
-                    '✅ DOCUMENTOS ONLINE'
+                    '✅ PRIVACIDADE ENTRE EMPRESAS ATIVA'
                 );
 
 
@@ -14846,12 +20097,7 @@ process.on(
 
 
 // ============================================================
-// ENCERRAMENTO SEGURO
-//
-// O RENDER USA SIGTERM DURANTE
-// DEPLOYS E REINICIALIZAÇÕES.
-//
-// ESSA MENSAGEM NÃO SIGNIFICA ERRO.
+// ENCERRAMENTO CORRETO NO RENDER
 // ============================================================
 
 let encerrandoRS =
@@ -14908,13 +20154,6 @@ async function encerrarRSConnect(
     );
 
 
-    // ========================================================
-    // SEGURANÇA:
-    //
-    // SE ALGUMA CONEXÃO NÃO ENCERRAR
-    // EM 10 SEGUNDOS, FINALIZA.
-    // ========================================================
-
     setTimeout(
         () => {
 
@@ -14926,17 +20165,13 @@ async function encerrarRSConnect(
             process.exit(
                 1
             );
-
         },
+
         10000
     )
         .unref();
 }
 
-
-// ============================================================
-// SINAIS DO RENDER / TERMINAL
-// ============================================================
 
 process.on(
     'SIGTERM',
@@ -14963,12 +20198,12 @@ process.on(
 
 
 // ============================================================
-// EXECUTAR RS CONNECT
+// EXECUTAR
 // ============================================================
 
 iniciarRSConnect();
 
 
 // ============================================================
-// FIM DO SERVER.JS
+// FIM DO NOVO server.js
 // ============================================================
