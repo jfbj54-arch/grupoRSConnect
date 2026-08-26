@@ -9603,22 +9603,22 @@ app.post(
 //
 // EMPRESA X NÃO VÊ EMPRESA Y.
 // ============================================================
-GRUPO RS / ADMIN
-→ cadastra clientes
-→ vincula colaboradores
-→ vê todos
+// GRUPO RS / ADMIN
+// → cadastra clientes
+// → vincula colaboradores
+// → vê todos
+//
+// RESPONSÁVEL DO CLIENTE GRATIDÃO
+// → vê somente Gratidão
+// → vê somente colaboradores da Gratidão
+// → NÃO vê SMT, PortoX etc.
 
-RESPONSÁVEL DO CLIENTE GRATIDÃO
-→ vê somente Gratidão
-→ vê somente colaboradores da Gratidão
-→ NÃO vê SMT, PortoX etc.
+// RESPONSÁVEL DA SMT
+// → vê somente SMT
 
-RESPONSÁVEL DA SMT
-→ vê somente SMT
-
-COLABORADOR / PRESTADOR
-→ não vê cadastro/lista de clientes
-→ verá somente a própria Jornada
+// COLABORADOR / PRESTADOR
+// → não vê cadastro/lista de clientes
+// → verá somente a própria Jornada
 // ============================================================
 // RS CONNECT — SERVER.JS
 // VERSÃO COM PRIVACIDADE POR EMPRESA
