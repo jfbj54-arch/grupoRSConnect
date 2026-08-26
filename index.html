@@ -5598,27 +5598,7 @@ function htmlServico(
 
 
   let acoes =
-    `
-
-      <div
-        class="jc-help-note"
-        style="
-          width:100%;
-          margin-bottom:10px;
-          line-height:1.55;
-        "
-      >
-        <strong>
-          ${escapeHtml(
-            passoAtual.titulo
-          )}
-        </strong>
-        <br>
-        ${escapeHtml(
-          passoAtual.texto
-        )}
-      </div>
-    `;
+    '';
 
 
   // ==========================================================
@@ -11271,7 +11251,7 @@ async function marcarConversaComoLida(
   try {
 
     await apiFetch(
-      `/api/chat/conversas/${conversaId}/lida`,
+      `/api/chat/conversas/${conversaId}/lidas`,
       {
         method:
           'POST',
@@ -11308,9 +11288,15 @@ async function marcarConversaComoLida(
 
 async function atualizarNaoLidas() {
 
-  if (
-    !emailUsuario()
-  ) {
+  const email =
+    emailUsuario();
+
+
+  if (!email) {
+
+    atualizarBadgeMensagens(
+      0
+    );
 
     return;
   }
@@ -11320,19 +11306,42 @@ async function atualizarNaoLidas() {
 
     const data =
       await apiFetch(
-        `/api/chat/nao-lidas/${
+        `/api/chat/conversas/${
           encodeURIComponent(
-            emailUsuario()
+            email
           )
         }`
       );
 
 
-    atualizarBadgeMensagens(
-      Number(
-        data?.total ||
-        0
+    const conversas =
+      Array.isArray(
+        data?.conversas
       )
+        ?
+        data.conversas
+        :
+        [];
+
+
+    const total =
+      conversas.reduce(
+        (
+          soma,
+          conversa
+        ) =>
+          soma
+          +
+          Number(
+            conversa?.nao_lidas ||
+            0
+          ),
+        0
+      );
+
+
+    atualizarBadgeMensagens(
+      total
     );
 
   } catch (
@@ -11342,6 +11351,11 @@ async function atualizarNaoLidas() {
     console.warn(
       'Não lidas:',
       erro.message
+    );
+
+
+    atualizarBadgeMensagens(
+      0
     );
   }
 }
@@ -16819,6 +16833,29 @@ function jcHtmlMinhaJornada(
 
     </div>
   `;
+}
+
+
+
+function jcFazerCheckin(
+  jornadaId
+) {
+
+  jcAbrirCamera(
+    'checkin',
+    jornadaId
+  );
+}
+
+
+function jcFazerCheckout(
+  jornadaId
+) {
+
+  jcAbrirCamera(
+    'checkout',
+    jornadaId
+  );
 }
 
 
