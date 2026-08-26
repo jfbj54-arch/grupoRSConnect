@@ -6436,6 +6436,18 @@ function renderizarMeusServicos() {
           }
 
 
+          // Serviço finalizado sai automaticamente da área ativa
+          // e continua disponível no Histórico.
+          if (
+            servicoFinalizadoPrestador(
+              servico
+            )
+          ) {
+
+            return false;
+          }
+
+
           if (
             servicoEstaOculto(
               servico.id
@@ -6470,7 +6482,7 @@ function renderizarMeusServicos() {
           ${
             ehPrestador()
               ?
-              'Os serviços aceitos aparecerão aqui.'
+              'Somente serviços em andamento aparecem aqui. Quando finalizar, o serviço vai automaticamente para o Histórico.'
               :
               'Publique um serviço para começar.'
           }
@@ -12294,6 +12306,34 @@ function renderizarHistorico() {
   }
 
 
+  if (
+    ehPrestador()
+  ) {
+
+    lista =
+      lista.filter(
+        servico => {
+
+          const status =
+            statusServico(
+              servico
+            );
+
+
+          return (
+            servicoFinalizadoPrestador(
+              servico
+            )
+            ||
+            status.includes(
+              'cancel'
+            )
+          );
+        }
+      );
+  }
+
+
   lista =
     [...lista]
       .sort(
@@ -12475,22 +12515,28 @@ function renderizarHistorico() {
 
 
                   ${
-                    oculto
+                    servicoFinalizadoPrestador(
+                      servico
+                    )
                       ?
                       `
-                        <div style="margin-top:8px;">
-
+                        <div
+                          style="
+                            margin-top:8px;
+                            display:flex;
+                            gap:6px;
+                            justify-content:flex-end;
+                            flex-wrap:wrap;
+                          "
+                        >
                           <button
-                            class="btn btn-dark"
-                            onclick="
-                              reexibirServicoPrestador(
-                                ${servico.id}
-                              )
-                            "
+                            class="btn btn-primary"
+                            onclick="abrirRelatorioServicoPDF(
+                              ${servico.id}
+                            )"
                           >
-                            Restaurar na lista
+                            📄 Relatório PDF
                           </button>
-
                         </div>
                       `
                       :
@@ -12506,6 +12552,336 @@ function renderizarHistorico() {
         }
       )
       .join('');
+}
+
+
+
+// ============================================================
+// RELATÓRIO DO SERVIÇO FINALIZADO
+//
+// Abre um relatório limpo para impressão.
+// No celular/PC, basta escolher "Salvar como PDF".
+// ============================================================
+
+function abrirRelatorioServicoPDF(
+  servicoId
+) {
+
+  const servico =
+    servicosCache.find(
+      item =>
+        Number(
+          item?.id
+        )
+        ===
+        Number(
+          servicoId
+        )
+    );
+
+
+  if (!servico) {
+
+    toast(
+      'Serviço não encontrado no histórico.',
+      'error'
+    );
+
+    return;
+  }
+
+
+  const janela =
+    window.open(
+      '',
+      '_blank'
+    );
+
+
+  if (!janela) {
+
+    toast(
+      'Permita pop-ups para gerar o relatório.',
+      'warning'
+    );
+
+    return;
+  }
+
+
+  const titulo =
+    escapeHtml(
+      servico?.titulo ||
+      servico?.categoria ||
+      `Serviço #${servico.id}`
+    );
+
+
+  const empresa =
+    escapeHtml(
+      servico?.empresa_nome ||
+      servico?.empresa_email ||
+      '-'
+    );
+
+
+  const prestador =
+    escapeHtml(
+      servico?.prestador_nome ||
+      servico?.prestador_email ||
+      '-'
+    );
+
+
+  const local =
+    escapeHtml(
+      servico?.endereco ||
+      servico?.local ||
+      servico?.cidade ||
+      '-'
+    );
+
+
+  const entrada =
+    escapeHtml(
+      servico?.checkin_hora ||
+      '-'
+    );
+
+
+  const intervalo =
+    escapeHtml(
+      servico?.intervalo_inicio ||
+      '-'
+    );
+
+
+  const retorno =
+    escapeHtml(
+      servico?.intervalo_retorno ||
+      servico?.intervalo_fim ||
+      '-'
+    );
+
+
+  const saida =
+    escapeHtml(
+      servico?.checkout_hora ||
+      '-'
+    );
+
+
+  const valor =
+    moeda(
+      servico?.valor_liquido ||
+      servico?.valor_diaria ||
+      servico?.valor ||
+      0
+    );
+
+
+  janela.document.write(`
+    <!doctype html>
+    <html lang="pt-BR">
+    <head>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      <title>RS Connect - Relatório ${titulo}</title>
+
+      <style>
+        body{
+          font-family:Arial,Helvetica,sans-serif;
+          margin:0;
+          padding:28px;
+          color:#111;
+          background:#fff;
+        }
+
+        .box{
+          max-width:850px;
+          margin:0 auto;
+        }
+
+        h1{
+          margin:0 0 4px;
+          font-size:25px;
+        }
+
+        .muted{
+          color:#666;
+          font-size:13px;
+        }
+
+        .status{
+          display:inline-block;
+          margin-top:14px;
+          padding:7px 11px;
+          border:1px solid #bbb;
+          border-radius:999px;
+          font-weight:bold;
+        }
+
+        table{
+          width:100%;
+          border-collapse:collapse;
+          margin-top:22px;
+        }
+
+        td{
+          border:1px solid #ddd;
+          padding:10px;
+          vertical-align:top;
+        }
+
+        td:first-child{
+          width:35%;
+          font-weight:bold;
+          background:#f7f7f7;
+        }
+
+        .rodape{
+          margin-top:25px;
+          padding-top:14px;
+          border-top:1px solid #ddd;
+          font-size:12px;
+          color:#555;
+        }
+
+        .acoes{
+          margin:0 auto 20px;
+          max-width:850px;
+        }
+
+        .acoes button{
+          border:0;
+          border-radius:8px;
+          padding:10px 15px;
+          cursor:pointer;
+          font-weight:bold;
+        }
+
+        @media print{
+          .acoes{
+            display:none;
+          }
+
+          body{
+            padding:0;
+          }
+        }
+      </style>
+    </head>
+
+    <body>
+
+      <div class="acoes">
+        <button onclick="window.print()">
+          📄 Salvar / imprimir PDF
+        </button>
+      </div>
+
+      <div class="box">
+
+        <h1>RS Connect</h1>
+
+        <div class="muted">
+          Relatório de serviço finalizado
+        </div>
+
+        <div class="status">
+          ${escapeHtml(
+            rotuloStatus(
+              statusServico(
+                servico
+              ),
+              servico
+            )
+          )}
+        </div>
+
+        <table>
+          <tr>
+            <td>Serviço</td>
+            <td>${titulo}</td>
+          </tr>
+
+          <tr>
+            <td>Empresa</td>
+            <td>${empresa}</td>
+          </tr>
+
+          <tr>
+            <td>Prestador</td>
+            <td>${prestador}</td>
+          </tr>
+
+          <tr>
+            <td>Local</td>
+            <td>${local}</td>
+          </tr>
+
+          <tr>
+            <td>Data</td>
+            <td>${escapeHtml(
+              formatarData(
+                servico?.data
+              )
+            )}</td>
+          </tr>
+
+          <tr>
+            <td>Entrada</td>
+            <td>${entrada}</td>
+          </tr>
+
+          <tr>
+            <td>Intervalo</td>
+            <td>${intervalo}</td>
+          </tr>
+
+          <tr>
+            <td>Retorno</td>
+            <td>${retorno}</td>
+          </tr>
+
+          <tr>
+            <td>Saída</td>
+            <td>${saida}</td>
+          </tr>
+
+          <tr>
+            <td>Valor</td>
+            <td>${valor}</td>
+          </tr>
+
+          <tr>
+            <td>ID do serviço</td>
+            <td>#${Number(
+              servico.id
+            )}</td>
+          </tr>
+        </table>
+
+        <div class="rodape">
+          Documento gerado pelo RS Connect.
+          O registro original permanece salvo no sistema e no banco de dados.
+        </div>
+
+      </div>
+
+      <script>
+        setTimeout(
+          () => window.print(),
+          350
+        );
+      <\/script>
+
+    </body>
+    </html>
+  `);
+
+
+  janela.document.close();
 }
 
 
