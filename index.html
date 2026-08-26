@@ -916,6 +916,83 @@
       }
     }
 
+
+    /* ========================================================
+       JORNADA PRO — VISUAL DE ACOMPANHAMENTO POR CLIENTE
+       ======================================================== */
+
+    .jc-flow {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 12px;
+    }
+
+    .jc-flow-step {
+      padding: 7px 9px;
+      border-radius: 999px;
+      border: 1px solid #194663;
+      background: #071827;
+      color: #9cb8cc;
+      font-size: 9px;
+      font-weight: 700;
+    }
+
+    .jc-flow-step strong { color: #fff; }
+
+    .jc-date-block {
+      border: 1px solid #173e5b;
+      border-radius: 13px;
+      overflow: hidden;
+      background: #071827;
+    }
+
+    .jc-date-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      background: #08233b;
+      border-bottom: 1px solid #1b4a6a;
+    }
+
+    .jc-date-head strong { font-size: 12px; }
+    .jc-date-head span { color: #8fb0c9; font-size: 10px; }
+
+    .jc-row-present { background: rgba(20, 164, 91, .055); }
+    .jc-row-interval { background: rgba(224, 166, 41, .055); }
+    .jc-row-ended { background: rgba(85, 126, 158, .045); }
+    .jc-row-absent { background: rgba(216, 62, 77, .045); }
+
+    .jc-validation-box {
+      margin-top: 12px;
+      padding: 14px;
+      border-radius: 12px;
+      border: 1px solid #1b4664;
+      background: #081d30;
+    }
+
+    .jc-validation-box.confirmed {
+      border-color: rgba(48, 190, 111, .45);
+      background: rgba(22, 126, 74, .12);
+    }
+
+    .jc-help-note {
+      border-left: 3px solid #1788e7;
+      padding: 10px 12px;
+      background: rgba(20, 127, 224, .08);
+      color: #a7c5dc;
+      border-radius: 0 9px 9px 0;
+      font-size: 10px;
+      line-height: 1.6;
+    }
+
+    @media (max-width: 980px) {
+      .jc-flow { flex-wrap: nowrap; overflow-x: auto; padding-bottom: 3px; }
+      .jc-flow-step { flex: 0 0 auto; }
+    }
+
 </style>
 
 </head>
@@ -1016,10 +1093,10 @@
       <button
         class="btn btn-dark"
         type="button"
-        onclick="abrirRecuperacaoAcesso()"
         style="margin-left:6px;"
+        onclick="abrirRecuperacaoUsuario()"
       >
-        🔐 Recuperar acesso
+        🔐 Esqueci minha senha
       </button>
 
     </div>
@@ -1178,6 +1255,15 @@
         <span id="sidebarTipo">
           Conta
         </span>
+
+        <button
+          id="btnSuporteSenha"
+          class="btn btn-dark btn-block hidden"
+          style="margin-top:10px;"
+          onclick="abrirSuporteSenha()"
+        >
+          🔐 Recuperar acesso
+        </button>
 
         <button
           class="btn btn-danger btn-block"
@@ -1578,6 +1664,19 @@
                   Clientes fixos • colaboradores • ponto • validação • horas • valores • documentos • histórico
                 </div>
 
+                <div class="jc-flow">
+                  <span class="jc-flow-step"><strong>1</strong> Cliente</span>
+                  <span class="jc-flow-step"><strong>2</strong> Colaborador</span>
+                  <span class="jc-flow-step"><strong>3</strong> Foto + GPS + Entrada</span>
+                  <span class="jc-flow-step"><strong>4</strong> Cliente valida</span>
+                  <span class="jc-flow-step"><strong>5</strong> Intervalo</span>
+                  <span class="jc-flow-step"><strong>6</strong> Retorno</span>
+                  <span class="jc-flow-step"><strong>7</strong> Saída</span>
+                  <span class="jc-flow-step"><strong>8</strong> Horas + Valor</span>
+                  <span class="jc-flow-step"><strong>9</strong> Documentos / Assinatura</span>
+                  <span class="jc-flow-step"><strong>10</strong> Arquivo</span>
+                </div>
+
               </div>
 
               <div class="service-actions">
@@ -1601,25 +1700,6 @@
 
               </div>
 
-            </div>
-
-
-            <div
-              class="card"
-              style="margin-top:12px; background:#071827;"
-            >
-              <strong>🎯 Controle completo dos clientes fixos do Grupo RS</strong>
-
-              <div
-                class="small muted"
-                style="margin-top:8px; line-height:1.75;"
-              >
-                Cadastre clientes como <strong>Gratidão</strong>, <strong>SMT</strong>, <strong>PortoX</strong> e os demais contratos fixos; vincule os colaboradores e acompanhe toda a jornada no mesmo lugar.
-                <br><br>
-                <strong>Fluxo:</strong> Grupo RS cadastra cliente → vincula colaborador → colaborador chega → foto + GPS + entrada → responsável do cliente valida → intervalo → retorno → saída → total de horas → valor do dia → documentação/assinatura → arquivamento.
-                <br><br>
-                O histórico preserva empresa, colaborador, função, entrada, intervalo, retorno, saída, horas, valores, fotos, localização, validações e documentos para consulta futura.
-              </div>
             </div>
 
 
@@ -1710,6 +1790,24 @@
                       onchange="jcCarregarAcompanhamento()"
                     >
 
+                  </div>
+
+                  <div class="form-group">
+                    <label>Status</label>
+                    <select id="jcFiltroStatus" onchange="jcAplicarFiltrosAcompanhamento()">
+                      <option value="">Todos os status</option>
+                      <option value="PRESENTE">Presente</option>
+                      <option value="EM_INTERVALO">Em intervalo</option>
+                      <option value="ENCERRADO">Encerrado</option>
+                      <option value="AUSENTE">Ausente</option>
+                    </select>
+                  </div>
+
+                  <div class="form-group">
+                    <label>Função / operação</label>
+                    <select id="jcFiltroFuncao" onchange="jcAplicarFiltrosAcompanhamento()">
+                      <option value="">Todas as funções</option>
+                    </select>
                   </div>
 
 
@@ -2354,6 +2452,89 @@
 </section>
 
 
+
+<!-- =========================================================
+     RECUPERAÇÃO DE ACESSO — SEM EXPOR ADMIN_RESET_KEY
+========================================================= -->
+<div id="modalRecuperacaoUsuario" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3 style="margin:0;">🔐 Recuperar acesso</h3>
+        <div class="small muted" style="margin-top:4px;">
+          A chave administrativa nunca é exibida ao cliente.
+        </div>
+      </div>
+      <button class="modal-close" onclick="fecharRecuperacaoUsuario()">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label>E-mail da conta</label>
+      <input id="recUsuarioEmail" type="email" autocomplete="email" placeholder="seuemail@exemplo.com">
+    </div>
+
+    <div class="jc-help-note">
+      Por segurança, a redefinição é concluída pelo suporte do Grupo RS. Informe seu e-mail e envie a solicitação.
+      Nenhuma chave interna do sistema precisa ser digitada por você.
+    </div>
+
+    <button class="btn btn-primary btn-block" style="margin-top:12px;" onclick="prepararSolicitacaoRecuperacao()">
+      Solicitar recuperação
+    </button>
+
+    <div id="recUsuarioResultado" class="small muted" style="margin-top:10px;"></div>
+  </div>
+</div>
+
+<!-- =========================================================
+     SUPORTE ADMINISTRATIVO — REDEFINIÇÃO SEGURA
+     Requer a pequena rota adicional do server fornecida junto.
+========================================================= -->
+<div id="modalSuporteSenha" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3 style="margin:0;">🛠 Suporte • Redefinir senha</h3>
+        <div class="small muted" style="margin-top:4px;">Somente o administrador autorizado.</div>
+      </div>
+      <button class="modal-close" onclick="$('modalSuporteSenha').classList.add('hidden')">✕</button>
+    </div>
+
+    <div class="form-group">
+      <label>Seu e-mail de administrador</label>
+      <input id="supAdminEmail" type="email" autocomplete="username">
+    </div>
+
+    <div class="form-group">
+      <label>Sua senha atual</label>
+      <input id="supAdminSenha" type="password" autocomplete="current-password">
+    </div>
+
+    <hr style="border:0;border-top:1px solid #163b57;margin:15px 0;">
+
+    <div class="form-group">
+      <label>E-mail da conta a recuperar</label>
+      <input id="supAlvoEmail" type="email">
+    </div>
+
+    <div class="form-group">
+      <label>Nova senha</label>
+      <input id="supNovaSenha" type="password" minlength="6" autocomplete="new-password">
+    </div>
+
+    <div class="form-group">
+      <label>Confirmar nova senha</label>
+      <input id="supConfirmarSenha" type="password" minlength="6" autocomplete="new-password">
+    </div>
+
+    <button id="btnSupReset" class="btn btn-success btn-block" onclick="suporteRedefinirSenha()">
+      ✅ Redefinir acesso
+    </button>
+
+    <div id="supResetResultado" class="small muted" style="margin-top:10px;"></div>
+  </div>
+</div>
+
 <!-- =========================================================
      MODAL CHAT
 ========================================================= -->
@@ -2503,104 +2684,6 @@
     >
       📷 Capturar e registrar
     </button>
-
-  </div>
-
-</div>
-
-
-<!-- =========================================================
-     RECUPERAÇÃO DE ACESSO — SUPORTE RS
-========================================================= -->
-
-<div
-  id="modalRecuperarAcesso"
-  class="modal hidden"
->
-
-  <div class="modal-box">
-
-    <div class="modal-header">
-
-      <div>
-        <h3 style="margin:0;">🔐 Recuperar acesso</h3>
-        <div class="small muted" style="margin-top:5px;">
-          Redefinição administrativa de senha
-        </div>
-      </div>
-
-      <button
-        class="modal-close"
-        type="button"
-        onclick="fecharRecuperacaoAcesso()"
-      >
-        ✕
-      </button>
-
-    </div>
-
-    <div class="card" style="margin-bottom:12px;">
-      <div class="small muted" style="line-height:1.6;">
-        Esta ferramenta é destinada ao suporte do Grupo RS. A chave administrativa fica somente no Render e não é salva no navegador.
-      </div>
-    </div>
-
-    <div class="form-group">
-      <label>E-mail da conta</label>
-      <input
-        id="recuperarEmail"
-        type="email"
-        autocomplete="off"
-        placeholder="cliente@email.com"
-      >
-    </div>
-
-    <div class="form-group">
-      <label>Nova senha</label>
-      <input
-        id="recuperarNovaSenha"
-        type="password"
-        autocomplete="new-password"
-        minlength="6"
-        placeholder="Mínimo 6 caracteres"
-      >
-    </div>
-
-    <div class="form-group">
-      <label>Confirmar nova senha</label>
-      <input
-        id="recuperarConfirmarSenha"
-        type="password"
-        autocomplete="new-password"
-        minlength="6"
-        placeholder="Digite a senha novamente"
-      >
-    </div>
-
-    <div class="form-group">
-      <label>Chave administrativa do Render</label>
-      <input
-        id="recuperarChaveAdmin"
-        type="password"
-        autocomplete="off"
-        placeholder="ADMIN_RESET_KEY"
-      >
-    </div>
-
-    <button
-      id="btnExecutarRecuperacao"
-      class="btn btn-primary btn-block"
-      type="button"
-      onclick="executarRecuperacaoAcesso()"
-    >
-      Redefinir senha
-    </button>
-
-    <div
-      id="resultadoRecuperacao"
-      class="small"
-      style="display:none; margin-top:12px; padding:11px; border-radius:9px; line-height:1.5;"
-    ></div>
 
   </div>
 
@@ -3418,294 +3501,6 @@ async function fazerLogin(
 
 
 // ============================================================
-// RECUPERAÇÃO DE ACESSO — SUPORTE RS
-// ============================================================
-
-function abrirRecuperacaoAcesso() {
-
-  const modal =
-    $('modalRecuperarAcesso');
-
-
-  if (!modal) {
-    return;
-  }
-
-
-  const emailLogin =
-    $('loginEmail')?.value ||
-    '';
-
-
-  if ($('recuperarEmail')) {
-    $('recuperarEmail').value =
-      emailLogin;
-  }
-
-
-  if ($('recuperarNovaSenha')) {
-    $('recuperarNovaSenha').value =
-      '';
-  }
-
-
-  if ($('recuperarConfirmarSenha')) {
-    $('recuperarConfirmarSenha').value =
-      '';
-  }
-
-
-  if ($('recuperarChaveAdmin')) {
-    $('recuperarChaveAdmin').value =
-      '';
-  }
-
-
-  if ($('resultadoRecuperacao')) {
-    $('resultadoRecuperacao').style.display =
-      'none';
-  }
-
-
-  modal.classList.remove(
-    'hidden'
-  );
-}
-
-
-function fecharRecuperacaoAcesso() {
-
-  $('modalRecuperarAcesso')
-    ?.classList.add(
-      'hidden'
-    );
-
-
-  if ($('recuperarChaveAdmin')) {
-    $('recuperarChaveAdmin').value =
-      '';
-  }
-}
-
-
-function mostrarResultadoRecuperacao(
-  mensagem,
-  sucesso = false
-) {
-
-  const resultado =
-    $('resultadoRecuperacao');
-
-
-  if (!resultado) {
-    return;
-  }
-
-
-  resultado.style.display =
-    'block';
-
-
-  resultado.style.background =
-    sucesso
-      ?
-      'rgba(19,185,104,.15)'
-      :
-      'rgba(201,59,73,.16)';
-
-
-  resultado.style.border =
-    sucesso
-      ?
-      '1px solid rgba(76,226,146,.28)'
-      :
-      '1px solid rgba(255,119,132,.28)';
-
-
-  resultado.style.color =
-    sucesso
-      ?
-      '#65eca0'
-      :
-      '#ff8994';
-
-
-  resultado.textContent =
-    mensagem;
-}
-
-
-async function executarRecuperacaoAcesso() {
-
-  const email =
-    String(
-      $('recuperarEmail')?.value ||
-      ''
-    )
-      .trim()
-      .toLowerCase();
-
-
-  const novaSenha =
-    String(
-      $('recuperarNovaSenha')?.value ||
-      ''
-    );
-
-
-  const confirmar =
-    String(
-      $('recuperarConfirmarSenha')?.value ||
-      ''
-    );
-
-
-  const chaveAdmin =
-    String(
-      $('recuperarChaveAdmin')?.value ||
-      ''
-    );
-
-
-  const botao =
-    $('btnExecutarRecuperacao');
-
-
-  if (!email) {
-    mostrarResultadoRecuperacao(
-      'Informe o e-mail da conta.'
-    );
-    return;
-  }
-
-
-  if (novaSenha.length < 6) {
-    mostrarResultadoRecuperacao(
-      'A nova senha precisa ter pelo menos 6 caracteres.'
-    );
-    return;
-  }
-
-
-  if (novaSenha !== confirmar) {
-    mostrarResultadoRecuperacao(
-      'As duas senhas não são iguais.'
-    );
-    return;
-  }
-
-
-  if (!chaveAdmin) {
-    mostrarResultadoRecuperacao(
-      'Informe a chave administrativa.'
-    );
-    return;
-  }
-
-
-  loadingBotao(
-    botao,
-    true,
-    'Redefinindo...'
-  );
-
-
-  try {
-
-    const resposta =
-      await fetch(
-        `${API_URL}/api/admin/redefinir-senha`,
-        {
-          method:
-            'POST',
-
-          headers: {
-            'Content-Type':
-              'application/json',
-
-            'x-admin-reset-key':
-              chaveAdmin
-          },
-
-          body:
-            JSON.stringify({
-              email,
-              novaSenha
-            })
-        }
-      );
-
-
-    let dados =
-      {};
-
-
-    try {
-      dados =
-        await resposta.json();
-    } catch {
-      dados =
-        {};
-    }
-
-
-    if (
-      !resposta.ok ||
-      !dados?.sucesso
-    ) {
-      throw new Error(
-        dados?.erro ||
-        dados?.mensagem ||
-        `Não foi possível redefinir a senha (HTTP ${resposta.status}).`
-      );
-    }
-
-
-    mostrarResultadoRecuperacao(
-      '✅ Senha redefinida com sucesso. A conta já pode entrar com a nova senha.',
-      true
-    );
-
-
-    if ($('loginEmail')) {
-      $('loginEmail').value =
-        email;
-    }
-
-
-    if ($('loginSenha')) {
-      $('loginSenha').value =
-        novaSenha;
-    }
-
-
-    $('recuperarChaveAdmin').value =
-      '';
-
-
-    toast(
-      'Acesso recuperado com sucesso.',
-      'success'
-    );
-
-  } catch (erro) {
-
-    mostrarResultadoRecuperacao(
-      erro.message ||
-      'Erro ao recuperar acesso.'
-    );
-
-  } finally {
-
-    loadingBotao(
-      botao,
-      false
-    );
-  }
-}
-
-
-// ============================================================
 // CADASTRO
 // ============================================================
 
@@ -3895,8 +3690,9 @@ function configurarMenuPorTipo() {
       );
 
 
+    // Jornada também fica disponível para a empresa/Grupo RS.
     $('navJornada')
-      ?.classList.add(
+      ?.classList.remove(
         'hidden'
       );
 
@@ -3908,6 +3704,11 @@ function configurarMenuPorTipo() {
 
 
     $('navArquivo')
+      ?.classList.remove(
+        'hidden'
+      );
+
+    $('btnSuporteSenha')
       ?.classList.remove(
         'hidden'
       );
@@ -3933,6 +3734,11 @@ function configurarMenuPorTipo() {
 
 
     $('navArquivo')
+      ?.classList.add(
+        'hidden'
+      );
+
+    $('btnSuporteSenha')
       ?.classList.add(
         'hidden'
       );
@@ -14929,6 +14735,23 @@ function jcRenderizarKpis(
 }
 
 
+function jcAplicarFiltrosAcompanhamento() {
+  jcRenderizarAcompanhamento(
+    jcJornadasHojeCache || []
+  );
+}
+
+
+function jcClasseLinhaStatus(status) {
+  const s = texto(status).toUpperCase();
+  if (s === 'PRESENTE') return 'jc-row-present';
+  if (s === 'EM_INTERVALO') return 'jc-row-interval';
+  if (s === 'ENCERRADO') return 'jc-row-ended';
+  if (s === 'AUSENTE') return 'jc-row-absent';
+  return '';
+}
+
+
 function jcRenderizarAcompanhamento(
   jornadas
 ) {
@@ -14936,236 +14759,175 @@ function jcRenderizarAcompanhamento(
   const container =
     $('jcAcompanhamento');
 
+  if (!container) return;
 
-  if (
-    !jornadas.length
-  ) {
+  // Alimenta o filtro de função com as funções existentes no cliente.
+  const filtroFuncao = $('jcFiltroFuncao');
+  if (filtroFuncao) {
+    const atual = filtroFuncao.value;
+    const funcoes = [...new Set(
+      (jornadas || [])
+        .map(item => texto(item.funcao))
+        .filter(Boolean)
+    )].sort((a,b) => a.localeCompare(b, 'pt-BR'));
 
+    filtroFuncao.innerHTML = `
+      <option value="">Todas as funções</option>
+      ${funcoes.map(f => `<option value="${escapeHtml(f)}">${escapeHtml(f)}</option>`).join('')}
+    `;
+    if (funcoes.includes(atual)) filtroFuncao.value = atual;
+  }
+
+  const statusFiltro = texto($('jcFiltroStatus')?.value).toUpperCase();
+  const funcaoFiltro = texto($('jcFiltroFuncao')?.value).toLowerCase();
+
+  const lista = (jornadas || []).filter(jornada => {
+    const statusOk = !statusFiltro || texto(jornada.status).toUpperCase() === statusFiltro;
+    const funcaoOk = !funcaoFiltro || texto(jornada.funcao).toLowerCase() === funcaoFiltro;
+    return statusOk && funcaoOk;
+  });
+
+  if (!jornadas?.length) {
     container.innerHTML = `
-
       <div class="empty">
         Nenhum colaborador cadastrado neste cliente.
       </div>
     `;
-
-
     return;
   }
 
+  const clienteNome =
+    jcClienteSelecionado?.nome ||
+    'Cliente';
+
+  const dataSelecionada =
+    $('jcDataHoje')?.value ||
+    jcDataLocalHoje();
 
   container.innerHTML = `
+    <div class="jc-date-block">
 
-    <div class="jc-table-wrap">
+      <div class="jc-date-head">
+        <strong>📅 ${escapeHtml(formatarData(dataSelecionada))}</strong>
+        <span>${lista.length} de ${jornadas.length} colaboradores • ${escapeHtml(clienteNome)}</span>
+      </div>
 
-      <table class="jc-table">
-
-        <thead>
-
-          <tr>
-
-            <th>Status</th>
-            <th>Colaborador</th>
-            <th>Função</th>
-            <th>H. Inicial</th>
-            <th>Entrada</th>
-            <th>Intervalo</th>
-            <th>Retorno</th>
-            <th>Saída</th>
-            <th>H. Trab.</th>
-            <th>Valor</th>
-            <th>Validação</th>
-            <th>Ações</th>
-
-          </tr>
-
-        </thead>
-
-        <tbody>
-
-          ${
-            jornadas
-              .map(
-                jornada => `
-
+      ${
+        lista.length
+          ? `
+            <div class="jc-table-wrap" style="border:0;border-radius:0;">
+              <table class="jc-table">
+                <thead>
                   <tr>
-
-                    <td>
-
-                      <span
-                        class="badge ${jcStatusBadge(
-                          jornada.status
-                        )}"
-                      >
-                        ${escapeHtml(
-                          jcStatusTexto(
-                            jornada.status
-                          )
-                        )}
-                      </span>
-
-                    </td>
-
-                    <td>
-                      <strong>
-                        ${escapeHtml(
-                          jornada.colaborador_nome
-                        )}
-                      </strong>
-
-                      <div class="small muted">
-                        ${escapeHtml(
-                          jornada.colaborador_email
-                        )}
-                      </div>
-                    </td>
-
-                    <td>
-                      ${escapeHtml(
-                        jornada.funcao ||
-                        '-'
-                      )}
-                    </td>
-
-                    <td>
-                      ${escapeHtml(
-                        jornada.horario_previsto ||
-                        '-'
-                      )}
-                    </td>
-
-                    <td>
-                      ${jcHora(
-                        jornada.entrada_em
-                      )}
-                      ${
-                        jornada.entrada_foto
-                          ?
-                          '<br>📸'
-                          :
-                          ''
-                      }
-                    </td>
-
-                    <td>
-                      ${jcHora(
-                        jornada.intervalo_inicio_em
-                      )}
-                    </td>
-
-                    <td>
-                      ${jcHora(
-                        jornada.intervalo_retorno_em
-                      )}
-                    </td>
-
-                    <td>
-                      ${jcHora(
-                        jornada.saida_em
-                      )}
-                      ${
-                        jornada.saida_foto
-                          ?
-                          '<br>📸'
-                          :
-                          ''
-                      }
-                    </td>
-
-                    <td>
-                      ${
-                        Number(
-                          jornada.total_horas ||
-                          0
-                        )
-                          .toFixed(
-                            2
-                          )
-                      }h
-                    </td>
-
-                    <td>
-                      ${moeda(
-                        jornada.valor_gerado ||
-                        0
-                      )}
-                    </td>
-
-                    <td>
-
-                      ${
-                        jornada.entrada_em
-                          ?
-                          (
-                            jornada.entrada_validada
-                              ?
-                              '✅ Entrada'
-                              :
-                              `
-                                <button
-                                  class="btn btn-success"
-                                  onclick="jcValidarJornada(
-                                    ${jornada.id},
-                                    'entrada'
-                                  )"
-                                >
-                                  Validar entrada
-                                </button>
-                              `
-                          )
-                          :
-                          '-'
-                      }
-
-                      ${
-                        jornada.saida_em
-                          ?
-                          (
-                            jornada.saida_validada
-                              ?
-                              '<br>✅ Saída'
-                              :
-                              `
-                                <br>
-                                <button
-                                  class="btn btn-success"
-                                  onclick="jcValidarJornada(
-                                    ${jornada.id},
-                                    'saida'
-                                  )"
-                                >
-                                  Validar saída
-                                </button>
-                              `
-                          )
-                          :
-                          ''
-                      }
-
-                    </td>
-
-                    <td>
-
-                      <button
-                        class="btn btn-dark"
-                        onclick="jcAbrirDetalhesJornada(
-                          ${jornada.id}
-                        )"
-                      >
-                        Abrir
-                      </button>
-
-                    </td>
-
+                    <th>Ações</th>
+                    <th>Status</th>
+                    <th>Colaborador</th>
+                    <th>Empresa</th>
+                    <th>Função</th>
+                    <th>H. Inicial</th>
+                    <th>Entrada</th>
+                    <th>Int.</th>
+                    <th>Retorno</th>
+                    <th>Saída</th>
+                    <th>H. Trab.</th>
+                    <th>Valor</th>
+                    <th>Validação</th>
                   </tr>
-                `
-              )
-              .join('')
-          }
+                </thead>
 
-        </tbody>
+                <tbody>
+                  ${lista.map(jornada => `
+                    <tr class="${jcClasseLinhaStatus(jornada.status)}">
 
-      </table>
+                      <td>
+                        <button
+                          class="btn btn-dark"
+                          onclick="jcAbrirDetalhesJornada(${jornada.id})"
+                        >
+                          Abrir
+                        </button>
+                      </td>
 
+                      <td>
+                        <span class="badge ${jcStatusBadge(jornada.status)}">
+                          ${escapeHtml(jcStatusTexto(jornada.status))}
+                        </span>
+                      </td>
+
+                      <td>
+                        <strong>${escapeHtml(jornada.colaborador_nome)}</strong>
+                        <div class="small muted">${escapeHtml(jornada.colaborador_email)}</div>
+                      </td>
+
+                      <td>${escapeHtml(clienteNome)}</td>
+
+                      <td>${escapeHtml(jornada.funcao || '-')}</td>
+
+                      <td><strong style="color:#61b5ff;">${escapeHtml(jornada.horario_previsto || '-')}</strong></td>
+
+                      <td>
+                        ${jcHora(jornada.entrada_em)}
+                        ${jornada.entrada_foto ? '<br><span title="Foto registrada">📸</span>' : ''}
+                        ${jornada.entrada_latitude ? '<span title="GPS registrado"> 📍</span>' : ''}
+                      </td>
+
+                      <td>${jcHora(jornada.intervalo_inicio_em)}</td>
+                      <td>${jcHora(jornada.intervalo_retorno_em)}</td>
+
+                      <td>
+                        ${jcHora(jornada.saida_em)}
+                        ${jornada.saida_foto ? '<br><span title="Foto registrada">📸</span>' : ''}
+                        ${jornada.saida_latitude ? '<span title="GPS registrado"> 📍</span>' : ''}
+                      </td>
+
+                      <td>
+                        <strong>${Number(jornada.total_horas || 0).toFixed(2)}h</strong>
+                      </td>
+
+                      <td>${moeda(jornada.valor_gerado || 0)}</td>
+
+                      <td>
+                        ${
+                          jornada.entrada_em
+                            ? (
+                                jornada.entrada_validada
+                                  ? '<span class="badge badge-green">✅ Entrada</span>'
+                                  : `
+                                      <button class="btn btn-success" onclick="jcValidarJornada(${jornada.id},'entrada')">
+                                        Validar entrada
+                                      </button>
+                                    `
+                              )
+                            : '-'
+                        }
+
+                        ${
+                          jornada.saida_em
+                            ? (
+                                jornada.saida_validada
+                                  ? '<br><span class="badge badge-green" style="margin-top:4px;">✅ Saída</span>'
+                                  : `
+                                      <br>
+                                      <button class="btn btn-success" style="margin-top:4px;" onclick="jcValidarJornada(${jornada.id},'saida')">
+                                        Validar saída
+                                      </button>
+                                    `
+                              )
+                            : ''
+                        }
+                      </td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+          `
+          : `
+            <div class="empty" style="padding:18px;">
+              Nenhum colaborador corresponde aos filtros selecionados.
+            </div>
+          `
+      }
     </div>
   `;
 }
@@ -15175,81 +14937,53 @@ function jcRenderizarFechamento(
   fechamento
 ) {
 
-  const container =
-    $('jcFechamento');
+  const container = $('jcFechamento');
+  if (!container) return;
 
-
-  if (
-    !container
-  ) {
-
-    return;
-  }
-
-
-  if (
-    fechamento?.confirmado
-  ) {
-
+  if (fechamento?.confirmado) {
     container.innerHTML = `
-
-      <span class="badge badge-green">
-        ✅ DIA CONFIRMADO
-      </span>
-
-      <div
-        class="small muted"
-        style="margin-top:8px;"
-      >
-        Confirmado por
-        ${escapeHtml(
-          fechamento.confirmado_por ||
-          'RS'
-        )}
-        em
-        ${escapeHtml(
-          formatarDataHora(
-            fechamento.confirmado_em
-          )
-        )}
+      <div class="jc-validation-box confirmed">
+        <strong>✅ Dia confirmado</strong>
+        <div class="small muted" style="margin-top:6px;">
+          Confirmado por ${escapeHtml(fechamento.confirmado_por || 'RS')}
+          em ${escapeHtml(formatarDataHora(fechamento.confirmado_em))}
+        </div>
       </div>
     `;
-
-
     return;
   }
 
-
   container.innerHTML = `
+    <div class="jc-validation-box">
+      <strong>✅ Validação do Fechamento Diário</strong>
 
-    <strong>
-      ✅ Validação do Fechamento Diário
-    </strong>
+      <div class="small muted" style="margin-top:7px;line-height:1.65;">
+        Ao confirmar este dia, o Grupo RS declara que colaboradores, horários, intervalos,
+        horas trabalhadas e valores foram conferidos. O fechamento arquiva a jornada do dia
+        e preserva os registros para consulta futura.
+      </div>
 
-    <div
-      class="small muted"
-      style="
-        margin-top:6px;
-        line-height:1.6;
-      "
-    >
-      Confira colaboradores, horários e valores antes de confirmar.
-      Depois do fechamento, a jornada fica arquivada.
+      <div class="jc-help-note" style="margin-top:10px;">
+        Antes de confirmar, confira entrada, GPS/foto, intervalo, retorno, saída e as validações do cliente.
+      </div>
+
+      <textarea
+        id="jcObservacaoFechamento"
+        placeholder="Observações ou inconsistências a registrar (opcional)..."
+        style="margin-top:10px;"
+      ></textarea>
+
+      <div class="service-actions" style="align-items:center;">
+        <button
+          class="btn btn-warning"
+          onclick="jcFecharDia()"
+        >
+          ✅ Confirmar Dia
+        </button>
+
+        <span class="small muted">⚠ Após confirmar, o dia fica arquivado.</span>
+      </div>
     </div>
-
-    <textarea
-      id="jcObservacaoFechamento"
-      placeholder="Observações ou inconsistências..."
-      style="margin-top:10px;"
-    ></textarea>
-
-    <button
-      class="btn btn-warning"
-      style="margin-top:10px;"
-      onclick="jcFecharDia()"
-    >
-      ✅ Confirmar Dia
-    </button>
   `;
 }
 
@@ -17199,6 +16933,105 @@ setTimeout(
   1200
 );
 
+
+
+
+// ============================================================
+// RECUPERAÇÃO DE ACESSO — CLIENTE NÃO VÊ CHAVE ADMINISTRATIVA
+// ============================================================
+
+function abrirRecuperacaoUsuario() {
+  const modal = $('modalRecuperacaoUsuario');
+  if (!modal) return;
+  $('recUsuarioEmail').value = $('loginEmail')?.value || '';
+  $('recUsuarioResultado').textContent = '';
+  modal.classList.remove('hidden');
+}
+
+function fecharRecuperacaoUsuario() {
+  $('modalRecuperacaoUsuario')?.classList.add('hidden');
+}
+
+async function prepararSolicitacaoRecuperacao() {
+  const email = emailNormalizado($('recUsuarioEmail')?.value);
+  const out = $('recUsuarioResultado');
+  if (!email) {
+    out.textContent = 'Informe o e-mail cadastrado.';
+    return;
+  }
+
+  try {
+    const resposta = await apiFetch('/api/conta/existe', {
+      method: 'POST',
+      body: JSON.stringify({ email })
+    });
+
+    // Não revelamos detalhes desnecessários da conta.
+    out.innerHTML = resposta?.existe
+      ? '✅ Solicitação preparada. Informe ao suporte do Grupo RS este e-mail: <strong>' + escapeHtml(email) + '</strong>.'
+      : 'Se este e-mail estiver cadastrado, o suporte do Grupo RS poderá redefinir o acesso.';
+  } catch (erro) {
+    out.textContent = erro.message || 'Não foi possível verificar o acesso agora.';
+  }
+}
+
+function abrirSuporteSenha() {
+  $('supAdminEmail').value = emailUsuario();
+  $('supAdminSenha').value = '';
+  $('supAlvoEmail').value = '';
+  $('supNovaSenha').value = '';
+  $('supConfirmarSenha').value = '';
+  $('supResetResultado').textContent = '';
+  $('modalSuporteSenha')?.classList.remove('hidden');
+}
+
+async function suporteRedefinirSenha() {
+  const adminEmail = emailNormalizado($('supAdminEmail')?.value);
+  const adminSenha = texto($('supAdminSenha')?.value);
+  const email = emailNormalizado($('supAlvoEmail')?.value);
+  const novaSenha = texto($('supNovaSenha')?.value);
+  const confirmar = texto($('supConfirmarSenha')?.value);
+  const out = $('supResetResultado');
+  const botao = $('btnSupReset');
+
+  if (!adminEmail || !adminSenha || !email) {
+    out.textContent = 'Preencha o administrador, a senha atual e o e-mail da conta.';
+    return;
+  }
+
+  if (novaSenha.length < 6) {
+    out.textContent = 'A nova senha precisa ter no mínimo 6 caracteres.';
+    return;
+  }
+
+  if (novaSenha !== confirmar) {
+    out.textContent = 'As duas novas senhas não são iguais.';
+    return;
+  }
+
+  try {
+    loadingBotao(botao, true, 'Redefinindo...');
+
+    const data = await apiFetch('/api/admin/redefinir-senha-segura', {
+      method: 'POST',
+      body: JSON.stringify({
+        adminEmail,
+        adminSenha,
+        email,
+        novaSenha
+      })
+    });
+
+    out.innerHTML = '✅ ' + escapeHtml(data.mensagem || 'Senha redefinida com sucesso.');
+    $('supAdminSenha').value = '';
+    $('supNovaSenha').value = '';
+    $('supConfirmarSenha').value = '';
+  } catch (erro) {
+    out.textContent = erro.message || 'Não foi possível redefinir a senha.';
+  } finally {
+    loadingBotao(botao, false);
+  }
+}
 
 </script>
 
