@@ -9032,6 +9032,251 @@ function htmlServico(
 
 
   // ==========================================================
+  // PAINEL DA JORNADA PARA A EMPRESA
+  // ==========================================================
+
+  let painelJornadaEmpresa =
+    '';
+
+
+  if (
+    contexto ===
+    'meus'
+    &&
+    ehEmpresa()
+    &&
+    prestadorEmailServico(
+      servico
+    )
+  ) {
+
+    const presencaConfirmada =
+      Boolean(
+        servico?.presenca_confirmada
+      );
+
+
+    const presencaHora =
+      texto(
+        servico?.presenca_hora
+      );
+
+
+    const temGpsPresenca =
+      Boolean(
+        texto(
+          servico?.presenca_latitude
+        )
+        &&
+        texto(
+          servico?.presenca_longitude
+        )
+      );
+
+
+    const temFotoPresenca =
+      Boolean(
+        servico?.selfie_confirmacao
+        ||
+        servico?.presenca_foto
+      );
+
+
+    const checkinHora =
+      texto(
+        servico?.checkin_hora
+      );
+
+
+    const intervaloInicio =
+      texto(
+        servico?.intervalo_inicio
+      );
+
+
+    const intervaloRetorno =
+      texto(
+        servico?.intervalo_retorno
+        ||
+        servico?.intervalo_fim
+      );
+
+
+    const checkoutHora =
+      texto(
+        servico?.checkout_hora
+      );
+
+
+    painelJornadaEmpresa = `
+
+      <div
+        style="
+          margin-top:14px;
+          padding:14px;
+          border:1px solid #1e5f8c;
+          background:#08243b;
+          border-radius:12px;
+        "
+      >
+
+        <div
+          style="
+            display:flex;
+            justify-content:space-between;
+            gap:10px;
+            flex-wrap:wrap;
+            align-items:center;
+          "
+        >
+
+          <strong>
+            👷 Jornada do colaborador
+          </strong>
+
+          ${
+            presencaConfirmada
+              ?
+              `
+                <span class="badge badge-green">
+                  ✅ PRESENÇA CONFIRMADA
+                </span>
+              `
+              :
+              `
+                <span class="badge badge-yellow">
+                  ⏳ Aguardando presença
+                </span>
+              `
+          }
+
+        </div>
+
+
+        <div
+          class="small"
+          style="
+            margin-top:10px;
+            line-height:1.9;
+          "
+        >
+
+          👤
+          <strong>
+            ${escapeHtml(
+              servico?.prestador_nome
+              ||
+              servico?.prestador_email
+              ||
+              'Colaborador'
+            )}
+          </strong>
+
+          ${
+            presencaConfirmada
+              ?
+              `
+                <br>
+                ✅ Presença:
+                <strong>
+                  confirmada
+                  ${
+                    presencaHora
+                      ?
+                      ` às ${escapeHtml(presencaHora)}`
+                      :
+                      ''
+                  }
+                </strong>
+
+                <br>
+                📍 GPS:
+                <strong>
+                  ${
+                    temGpsPresenca
+                      ?
+                      'registrado'
+                      :
+                      'não informado'
+                  }
+                </strong>
+
+                <br>
+                📸 Foto:
+                <strong>
+                  ${
+                    temFotoPresenca
+                      ?
+                      'registrada'
+                      :
+                      'não informada'
+                  }
+                </strong>
+              `
+              :
+              `
+                <br>
+                ⏳ Aguardando o colaborador confirmar presença.
+              `
+          }
+
+          ${
+            checkinHora
+              ?
+              `
+                <br>
+                🟢 Entrada:
+                <strong>
+                  ${escapeHtml(checkinHora)}
+                </strong>
+              `
+              :
+              ''
+          }
+
+          ${
+            intervaloInicio
+              ?
+              `
+                <br>
+                ☕ Intervalo:
+                <strong>
+                  ${escapeHtml(intervaloInicio)}
+                  ${
+                    intervaloRetorno
+                      ?
+                      ` → ${escapeHtml(intervaloRetorno)}`
+                      :
+                      ' → em andamento'
+                  }
+                </strong>
+              `
+              :
+              ''
+          }
+
+          ${
+            checkoutHora
+              ?
+              `
+                <br>
+                🏁 Saída:
+                <strong>
+                  ${escapeHtml(checkoutHora)}
+                </strong>
+              `
+              :
+              ''
+          }
+
+        </div>
+
+      </div>
+    `;
+  }
+
+
+  // ==========================================================
   // PAINEL DA JORNADA DO TITULAR
   // ==========================================================
 
@@ -9376,6 +9621,9 @@ function htmlServico(
         </div>
 
       </div>
+
+
+      ${painelJornadaEmpresa}
 
 
       ${painelJornadaTitular}
@@ -16743,7 +16991,23 @@ function configurarSocketFinal() {
 
     'servicos_atualizados',
 
-    'servico_atualizado'
+    'servico_atualizado',
+
+    'presenca_confirmada',
+
+    'checkin_realizado',
+
+    'intervalo_iniciado',
+
+    'intervalo_finalizado',
+
+    'intervalo_retorno',
+
+    'checkout_realizado',
+
+    'saida_registrada',
+
+    'jornada_atualizada'
   ];
 
 
@@ -16757,6 +17021,18 @@ function configurarSocketFinal() {
           await carregarServicos(
             false
           );
+
+
+          if (
+            $('pageServicos')
+              ?.classList
+              .contains(
+                'active'
+              )
+          ) {
+
+            renderizarMeusServicos();
+          }
 
 
           if (
