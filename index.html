@@ -11190,28 +11190,142 @@ async function cancelarServico(
 
   try {
 
-    const data =
-      await apiFetch(
-        `/api/servicos/${id}/cancelar`,
-        {
-          method:
-            'PATCH',
+    const payload = {
 
-          body:
-            JSON.stringify({
-              empresa_email:
-                emailUsuario(),
+      empresa_email:
+        emailUsuario(),
 
-              motivo:
-                motivo ||
-                'Cancelado pela empresa'
-            })
-        }
+      empresaEmail:
+        emailUsuario(),
+
+      email:
+        emailUsuario(),
+
+      motivo:
+        motivo ||
+        'Cancelado pela empresa'
+    };
+
+
+    let data =
+      null;
+
+
+    let ultimoErro =
+      null;
+
+
+    // ========================================================
+    // ROTA ATUAL DO SERVER NOVO
+    // PATCH /api/servicos/:id/cancelar
+    // ========================================================
+
+    try {
+
+      data =
+        await apiFetch(
+          `/api/servicos/${id}/cancelar`,
+          {
+            method:
+              'PATCH',
+
+            body:
+              JSON.stringify(
+                payload
+              )
+          }
+        );
+
+    } catch (
+      erroPatch
+    ) {
+
+      ultimoErro =
+        erroPatch;
+
+
+      const mensagem =
+        texto(
+          erroPatch?.message
+        )
+          .toLowerCase();
+
+
+      const rotaAusente =
+        mensagem.includes(
+          'rota da api não encontrada'
+        )
+        ||
+        mensagem.includes(
+          'rota da api nao encontrada'
+        )
+        ||
+        mensagem.includes(
+          '404'
+        )
+        ||
+        mensagem.includes(
+          'not found'
+        );
+
+
+      if (
+        !rotaAusente
+      ) {
+
+        throw erroPatch;
+      }
+    }
+
+
+    // ========================================================
+    // COMPATIBILIDADE COM SERVER ANTIGO
+    // DELETE /api/servicos/:id
+    // ========================================================
+
+    if (!data) {
+
+      try {
+
+        data =
+          await apiFetch(
+            `/api/servicos/${id}`,
+            {
+              method:
+                'DELETE',
+
+              body:
+                JSON.stringify(
+                  payload
+                )
+            }
+          );
+
+      } catch (
+        erroDelete
+      ) {
+
+        ultimoErro =
+          erroDelete;
+      }
+    }
+
+
+    if (!data) {
+
+      throw (
+        ultimoErro
+        ||
+        new Error(
+          'Não foi possível cancelar o serviço.'
+        )
       );
+    }
 
 
     toast(
-      data.mensagem ||
+      data.mensagem
+      ||
       'Serviço cancelado.',
       'success'
     );
@@ -11221,14 +11335,37 @@ async function cancelarServico(
       false
     );
 
+
+    renderizarMeusServicos();
+
+
+    if (
+      ehEmpresa()
+    ) {
+
+      await carregarArquivoEmpresa(
+        false
+      );
+    }
+
+
   } catch (
     erro
   ) {
 
+    console.error(
+      'Cancelar serviço:',
+      erro
+    );
+
+
     toast(
-      erro.message,
+      erro?.message
+      ||
+      'Não foi possível cancelar o serviço.',
       'error'
     );
+
 
   } finally {
 
