@@ -8663,6 +8663,531 @@ function confirmarPresencaServico(
 }
 
 
+
+// ============================================================
+// FOTO DA JORNADA — VISUALIZAÇÃO PELA EMPRESA
+// ============================================================
+
+function abrirFotoJornada(
+  origem,
+  titulo =
+    'Foto da Jornada'
+) {
+
+  const foto =
+    texto(
+      origem
+    );
+
+
+  if (!foto) {
+
+    toast(
+      'Esta foto ainda não foi registrada.',
+      'warning'
+    );
+
+
+    return;
+  }
+
+
+  let modal =
+    $('modalFotoJornada');
+
+
+  if (!modal) {
+
+    modal =
+      document.createElement(
+        'div'
+      );
+
+
+    modal.id =
+      'modalFotoJornada';
+
+
+    modal.className =
+      'modal';
+
+
+    document.body.appendChild(
+      modal
+    );
+  }
+
+
+  modal.classList.remove(
+    'hidden'
+  );
+
+
+  modal.innerHTML = `
+
+    <div
+      class="modal-box"
+      style="
+        max-width:760px;
+      "
+    >
+
+      <div class="modal-header">
+
+        <h3>
+          📸 ${escapeHtml(titulo)}
+        </h3>
+
+        <button
+          class="modal-close"
+          onclick="$('modalFotoJornada').classList.add('hidden')"
+        >
+          ✕
+        </button>
+
+      </div>
+
+
+      <div
+        style="
+          display:flex;
+          justify-content:center;
+          align-items:center;
+          padding:10px;
+        "
+      >
+
+        <img
+          src="${escapeHtml(foto)}"
+          alt="${escapeHtml(titulo)}"
+          style="
+            display:block;
+            max-width:100%;
+            max-height:70vh;
+            object-fit:contain;
+            border-radius:12px;
+            border:1px solid #29485f;
+          "
+        >
+
+      </div>
+
+    </div>
+  `;
+}
+
+
+// ============================================================
+// CONTRATO / ASSINATURA DO PRESTADOR
+//
+// O SERVER JÁ ACEITA:
+// POST /api/servicos/:id/contrato-assinado
+// multipart/form-data campo "arquivo"
+// ============================================================
+
+function gerarTermoPrestadorServico(
+  servicoId
+) {
+
+  const servico =
+    buscarServicoCache(
+      servicoId
+    );
+
+
+  if (!servico) {
+
+    toast(
+      'Serviço não encontrado.',
+      'error'
+    );
+
+
+    return;
+  }
+
+
+  if (
+    !ehPrestador()
+    ||
+    !usuarioEhTitular(
+      servico
+    )
+  ) {
+
+    toast(
+      'Somente o Titular pode gerar o termo deste serviço.',
+      'warning'
+    );
+
+
+    return;
+  }
+
+
+  const janela =
+    window.open(
+      '',
+      '_blank'
+    );
+
+
+  if (!janela) {
+
+    toast(
+      'O navegador bloqueou a abertura do termo.',
+      'warning'
+    );
+
+
+    return;
+  }
+
+
+  const nomePrestador =
+    usuarioAtual?.nome
+    ||
+    servico?.prestador_nome
+    ||
+    emailUsuario();
+
+
+  const documentoPrestador =
+    usuarioAtual?.doc
+    ||
+    usuarioAtual?.cpf
+    ||
+    usuarioAtual?.documento
+    ||
+    'não informado';
+
+
+  janela.document.write(`
+
+    <!DOCTYPE html>
+
+    <html lang="pt-BR">
+
+    <head>
+
+      <meta charset="UTF-8">
+
+      <title>
+        Termo de Prestação de Serviço - RS Connect
+      </title>
+
+      <style>
+
+        body {
+          font-family: Arial, sans-serif;
+          padding: 40px;
+          color: #222;
+          line-height: 1.6;
+        }
+
+        h2 {
+          border-bottom: 2px solid #2563eb;
+          padding-bottom: 10px;
+        }
+
+        .box {
+          background: #f8fafc;
+          border: 1px solid #cbd5e1;
+          padding: 20px;
+          border-radius: 8px;
+          margin-top: 20px;
+        }
+
+        .assinatura {
+          margin-top: 70px;
+          text-align: center;
+        }
+
+        .linha {
+          width: 320px;
+          margin: 0 auto;
+          border-top: 1px solid #222;
+          padding-top: 6px;
+        }
+
+      </style>
+
+    </head>
+
+    <body>
+
+      <h2>
+        RS CONNECT — TERMO DE PRESTAÇÃO DE SERVIÇO
+      </h2>
+
+      <p>
+        <strong>Prestador:</strong>
+        ${escapeHtml(nomePrestador)}
+      </p>
+
+      <p>
+        <strong>Documento:</strong>
+        ${escapeHtml(documentoPrestador)}
+      </p>
+
+      <p>
+        <strong>Serviço:</strong>
+        ${escapeHtml(
+          servico?.titulo
+          ||
+          servico?.categoria
+          ||
+          `Serviço #${servicoId}`
+        )}
+      </p>
+
+      <p>
+        <strong>Empresa:</strong>
+        ${escapeHtml(
+          empresaNomeServico(
+            servico
+          )
+        )}
+      </p>
+
+      <p>
+        <strong>Local:</strong>
+        ${escapeHtml(
+          enderecoCompletoServico(
+            servico
+          )
+          ||
+          servico?.local
+          ||
+          '-'
+        )}
+      </p>
+
+      <p>
+        <strong>Valor:</strong>
+        ${escapeHtml(
+          moeda(
+            valorServico(
+              servico
+            )
+          )
+        )}
+      </p>
+
+      <div class="box">
+
+        <p>
+          Declaro que li e estou de acordo com as condições do serviço
+          disponibilizado por meio do RS Connect.
+        </p>
+
+        <p>
+          O prestador compromete-se a executar o serviço conforme as
+          condições, horários, local, função e valor apresentados no aplicativo.
+        </p>
+
+        <p>
+          Este documento pode ser salvo em PDF e assinado eletronicamente.
+          Após a assinatura, o PDF deve ser enviado novamente pelo RS Connect
+          para permanecer arquivado junto ao serviço.
+        </p>
+
+      </div>
+
+
+      <div class="assinatura">
+
+        <div class="linha">
+
+          ${escapeHtml(nomePrestador)}
+
+          <br>
+
+          Assinatura do Prestador
+
+        </div>
+
+      </div>
+
+    </body>
+
+    </html>
+  `);
+
+
+  janela.document.close();
+
+
+  setTimeout(
+    () => {
+
+      janela.focus();
+      janela.print();
+
+    },
+    500
+  );
+}
+
+
+function selecionarContratoAssinadoPrestador(
+  servicoId
+) {
+
+  const servico =
+    buscarServicoCache(
+      servicoId
+    );
+
+
+  if (
+    !servico
+    ||
+    !ehPrestador()
+    ||
+    !usuarioEhTitular(
+      servico
+    )
+  ) {
+
+    toast(
+      'Somente o Titular pode enviar o contrato assinado.',
+      'warning'
+    );
+
+
+    return;
+  }
+
+
+  const input =
+    document.createElement(
+      'input'
+    );
+
+
+  input.type =
+    'file';
+
+
+  input.accept =
+    'application/pdf,.pdf';
+
+
+  input.className =
+    'hidden';
+
+
+  input.onchange =
+    async event => {
+
+      const arquivo =
+        event.target.files?.[0];
+
+
+      if (!arquivo) {
+        return;
+      }
+
+
+      const form =
+        new FormData();
+
+
+      form.append(
+        'arquivo',
+        arquivo
+      );
+
+
+      try {
+
+        toast(
+          'Enviando contrato assinado...',
+          'info'
+        );
+
+
+        const resposta =
+          await fetch(
+            `${API_URL}/api/servicos/${servicoId}/contrato-assinado`,
+            {
+              method:
+                'POST',
+
+              headers: {
+                Authorization:
+                  `Bearer ${tokenUsuario()}`
+              },
+
+              body:
+                form
+            }
+          );
+
+
+        const data =
+          await resposta
+            .json()
+            .catch(
+              () => ({})
+            );
+
+
+        if (!resposta.ok) {
+
+          throw new Error(
+            data?.erro
+            ||
+            data?.mensagem
+            ||
+            `Erro HTTP ${resposta.status}`
+          );
+        }
+
+
+        toast(
+          data?.mensagem
+          ||
+          'Contrato assinado arquivado.',
+          'success'
+        );
+
+
+        await carregarServicos(
+          false
+        );
+
+
+        renderizarMeusServicos();
+
+      } catch (
+        erro
+      ) {
+
+        toast(
+          erro.message
+          ||
+          'Erro ao enviar contrato assinado.',
+          'error'
+        );
+
+      } finally {
+
+        input.remove();
+      }
+    };
+
+
+  document.body.appendChild(
+    input
+  );
+
+
+  input.click();
+}
+
+
 // ============================================================
 // CARD DE SERVIÇO
 // ============================================================
@@ -8770,6 +9295,64 @@ function htmlServico(
         Abrir
       </button>
     `;
+
+
+    if (
+      usuarioEhTitular(
+        servico
+      )
+    ) {
+
+      if (
+        servico?.contrato_assinado
+      ) {
+
+        acoes += `
+          <span
+            class="badge badge-green"
+            style="
+              display:inline-flex;
+              align-items:center;
+            "
+          >
+            ✍️ Contrato assinado
+          </span>
+        `;
+
+      } else {
+
+        acoes += `
+          <button
+            class="btn btn-dark"
+            onclick="gerarTermoPrestadorServico(
+              ${id}
+            )"
+          >
+            📄 Gerar termo
+          </button>
+
+          <button
+            class="btn btn-dark"
+            onclick="window.open(
+              'https://www.gov.br/pt-br/servicos/assinatura-eletronica',
+              '_blank',
+              'noopener,noreferrer'
+            )"
+          >
+            🇧🇷 Assinar no GOV.BR
+          </button>
+
+          <button
+            class="btn btn-success"
+            onclick="selecionarContratoAssinadoPrestador(
+              ${id}
+            )"
+          >
+            ✍️ Enviar contrato assinado
+          </button>
+        `;
+      }
+    }
 
 
     if (
@@ -9074,11 +9657,31 @@ function htmlServico(
       );
 
 
+    const fotoPessoa =
+      servico?.selfie_confirmacao
+      ||
+      servico?.presenca_foto
+      ||
+      '';
+
+
+    const fotoEntrada =
+      servico?.checkin_foto
+      ||
+      '';
+
+
+    const fotoServicoFeito =
+      servico?.checkout_foto
+      ||
+      servico?.foto_checkout
+      ||
+      '';
+
+
     const temFotoPresenca =
       Boolean(
-        servico?.selfie_confirmacao
-        ||
-        servico?.presenca_foto
+        fotoPessoa
       );
 
 
@@ -9270,6 +9873,203 @@ function htmlServico(
           }
 
         </div>
+
+
+        ${
+          (
+            fotoPessoa
+            ||
+            fotoEntrada
+            ||
+            fotoServicoFeito
+          )
+            ?
+            `
+              <div
+                style="
+                  margin-top:14px;
+                  display:grid;
+                  grid-template-columns:
+                    repeat(
+                      auto-fit,
+                      minmax(150px, 1fr)
+                    );
+                  gap:10px;
+                "
+              >
+
+                ${
+                  fotoPessoa
+                    ?
+                    `
+                      <button
+                        type="button"
+                        class="btn btn-dark"
+                        style="
+                          height:auto;
+                          padding:10px;
+                          display:block;
+                          text-align:left;
+                        "
+                        onclick="abrirFotoJornada(
+                          ${JSON.stringify(fotoPessoa)},
+                          'Foto da pessoa / presença'
+                        )"
+                      >
+
+                        <div
+                          class="small"
+                          style="margin-bottom:7px;"
+                        >
+                          👤 Foto da pessoa
+                        </div>
+
+                        <img
+                          src="${escapeHtml(fotoPessoa)}"
+                          alt="Foto da pessoa"
+                          style="
+                            width:100%;
+                            height:130px;
+                            object-fit:cover;
+                            border-radius:9px;
+                          "
+                        >
+
+                      </button>
+                    `
+                    :
+                    ''
+                }
+
+
+                ${
+                  fotoEntrada
+                    ?
+                    `
+                      <button
+                        type="button"
+                        class="btn btn-dark"
+                        style="
+                          height:auto;
+                          padding:10px;
+                          display:block;
+                          text-align:left;
+                        "
+                        onclick="abrirFotoJornada(
+                          ${JSON.stringify(fotoEntrada)},
+                          'Foto da entrada'
+                        )"
+                      >
+
+                        <div
+                          class="small"
+                          style="margin-bottom:7px;"
+                        >
+                          🟢 Foto da entrada
+                        </div>
+
+                        <img
+                          src="${escapeHtml(fotoEntrada)}"
+                          alt="Foto da entrada"
+                          style="
+                            width:100%;
+                            height:130px;
+                            object-fit:cover;
+                            border-radius:9px;
+                          "
+                        >
+
+                      </button>
+                    `
+                    :
+                    ''
+                }
+
+
+                ${
+                  fotoServicoFeito
+                    ?
+                    `
+                      <button
+                        type="button"
+                        class="btn btn-dark"
+                        style="
+                          height:auto;
+                          padding:10px;
+                          display:block;
+                          text-align:left;
+                        "
+                        onclick="abrirFotoJornada(
+                          ${JSON.stringify(fotoServicoFeito)},
+                          'Foto do serviço finalizado'
+                        )"
+                      >
+
+                        <div
+                          class="small"
+                          style="margin-bottom:7px;"
+                        >
+                          ✅ Foto do serviço feito
+                        </div>
+
+                        <img
+                          src="${escapeHtml(fotoServicoFeito)}"
+                          alt="Foto do serviço feito"
+                          style="
+                            width:100%;
+                            height:130px;
+                            object-fit:cover;
+                            border-radius:9px;
+                          "
+                        >
+
+                      </button>
+                    `
+                    :
+                    ''
+                }
+
+              </div>
+            `
+            :
+            ''
+        }
+
+
+        ${
+          servico?.contrato_assinado
+            ?
+            `
+              <div
+                style="
+                  margin-top:12px;
+                  padding:10px;
+                  border-radius:9px;
+                  background:#0b3328;
+                  border:1px solid #237a5a;
+                "
+              >
+                ✅ Contrato/assinatura do prestador arquivado
+                ${
+                  servico?.contrato_assinado_em
+                    ?
+                    `
+                      <div class="small muted">
+                        ${escapeHtml(
+                          formatarDataHora(
+                            servico.contrato_assinado_em
+                          )
+                        )}
+                      </div>
+                    `
+                    :
+                    ''
+                }
+              </div>
+            `
+            :
+            ''
+        }
 
       </div>
     `;
@@ -17007,7 +17807,9 @@ function configurarSocketFinal() {
 
     'saida_registrada',
 
-    'jornada_atualizada'
+    'jornada_atualizada',
+
+    'contrato_assinado'
   ];
 
 
