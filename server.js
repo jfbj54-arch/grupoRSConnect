@@ -9589,6 +9589,258 @@ app.post(
 );
 
 
+
+
+// ============================================================
+// CANCELAR / EXCLUIR SERVIÇO ATIVO
+//
+// IMPORTANTE:
+// - NÃO apaga fisicamente do PostgreSQL.
+// - muda o status para "cancelado";
+// - preserva histórico, auditoria e documentos;
+// - somente Grupo RS ou a empresa dona pode cancelar;
+// - serviço com check-out não pode ser cancelado.
+//
+// ROTAS:
+// PATCH  /api/servicos/:id/cancelar
+// DELETE /api/servicos/:id   (compatibilidade com INDEX antigo)
+// ============================================================
+
+async function cancelarServicoRS(
+    req,
+    res
+) {
+
+    const servicoId =
+        Number(
+            req.params.id
+        );
+
+
+    if (
+        !Number.isInteger(
+            servicoId
+        )
+        ||
+        servicoId <= 0
+    ) {
+
+        return res
+            .status(400)
+            .json({
+                sucesso: false,
+                erro:
+                    'ID do serviço inválido.'
+            });
+    }
+
+
+    try {
+
+        const servico =
+            await buscarServico(
+                servicoId
+            );
+
+
+        if (!servico) {
+
+            return res
+                .status(404)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Serviço não encontrado.'
+                });
+        }
+
+
+        // ====================================================
+        // PRIVACIDADE
+        // Grupo RS pode cancelar qualquer serviço.
+        // Empresa só pode cancelar o próprio serviço.
+        // ====================================================
+
+        if (
+            !req.usuario?.gestorRS
+            &&
+            !empresaEhResponsavel(
+                servico,
+                req.usuario?.email
+            )
+        ) {
+
+            return responderAcessoNegado(
+                res,
+                'Somente a empresa responsável por este serviço pode cancelar.'
+            );
+        }
+
+
+        // Serviço finalizado deve permanecer no histórico.
+        if (
+            servico.checkout_hora
+        ) {
+
+            return res
+                .status(409)
+                .json({
+                    sucesso: false,
+                    erro:
+                        'Este serviço já foi finalizado e permanece no histórico. Ele não pode ser excluído.'
+                });
+        }
+
+
+        if (
+            String(
+                servico.status ||
+                ''
+            )
+                .trim()
+                .toLowerCase()
+            ===
+            'cancelado'
+        ) {
+
+            return res.json({
+                sucesso: true,
+                mensagem:
+                    'Este serviço já está cancelado.',
+                servico
+            });
+        }
+
+
+        const motivo =
+            String(
+                req.body?.motivo
+                ||
+                'Cancelado pela empresa'
+            )
+                .trim()
+            ||
+            'Cancelado pela empresa';
+
+
+        const resultado =
+            await pool.query(
+                `
+                UPDATE
+                    servicos
+
+                SET
+                    status =
+                        'cancelado',
+
+                    motivo_cancelamento =
+                        $1,
+
+                    atualizado_em =
+                        CURRENT_TIMESTAMP
+
+                WHERE
+                    id =
+                        $2
+
+                RETURNING
+                    *
+                `,
+                [
+                    motivo,
+                    servicoId
+                ]
+            );
+
+
+        const servicoAtualizado =
+            resultado.rows[0];
+
+
+        await registrarAuditoria(
+            req.usuario.email,
+            'CANCELAR_SERVICO',
+            `Serviço #${servicoId} cancelado. Motivo: ${motivo}`
+        );
+
+
+        emitirAtualizacaoEmpresa(
+            servico.empresa_email,
+            'servico_cancelado',
+            {
+                servicoId,
+                motivo
+            }
+        );
+
+
+        if (
+            servico.prestador_email
+        ) {
+
+            emitirAtualizacaoPrestador(
+                servico.prestador_email,
+                'servico_cancelado',
+                {
+                    servicoId,
+                    motivo
+                }
+            );
+        }
+
+
+        emitirAtualizacao(
+            servicoId
+        );
+
+
+        return res.json({
+            sucesso: true,
+            mensagem:
+                'Serviço cancelado e retirado da área ativa.',
+            servico:
+                servicoAtualizado
+        });
+
+
+    } catch (err) {
+
+        console.error(
+            '❌ Cancelar serviço:',
+            err
+        );
+
+
+        return res
+            .status(500)
+            .json({
+                sucesso: false,
+                erro:
+                    'Erro ao cancelar o serviço.'
+            });
+    }
+}
+
+
+app.patch(
+    '/api/servicos/:id/cancelar',
+    autenticarUsuario,
+    cancelarServicoRS
+);
+
+
+// Compatibilidade com INDEX que ainda chama DELETE.
+app.delete(
+    '/api/servicos/:id',
+    autenticarUsuario,
+    cancelarServicoRS
+);
+
+
+// ============================================================
+// FIM — CANCELAR / EXCLUIR SERVIÇO
+// ============================================================
+
 // ============================================================
 // FIM DA PARTE 5
 //
