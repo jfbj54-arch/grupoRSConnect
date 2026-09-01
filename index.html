@@ -1192,6 +1192,61 @@
   display:none !important;
 }
 
+/* =========================================================
+   RS CONNECT — ORGANIZAÇÃO VISUAL 2026
+========================================================= */
+:root{
+  --rs-fundo:#06131f;
+  --rs-painel:#0a2033;
+  --rs-painel-2:#0d2940;
+  --rs-borda:#173e5b;
+  --rs-azul:#268cff;
+  --rs-ciano:#34d5e8;
+  --rs-texto:#f4f8fb;
+  --rs-muted:#8faabd;
+}
+
+body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
+.sidebar{background:linear-gradient(180deg,#061522 0%,#081d2d 100%);box-shadow:10px 0 35px rgba(0,0,0,.13)}
+.brand{margin:0 2px 12px;padding:14px;border:1px solid rgba(79,170,255,.16);border-radius:16px;background:linear-gradient(135deg,rgba(38,140,255,.14),rgba(52,213,232,.05))}
+.brand strong{display:block;color:#fff;letter-spacing:-.4px}.brand div{color:#8eb7d1}
+.nav-section-label{padding:13px 12px 5px;color:#5f8299;font-size:9px;font-weight:900;letter-spacing:1.2px}
+.nav-btn{min-height:43px;margin:1px 0;border:1px solid transparent!important;border-radius:11px!important;font-weight:700!important;transition:.18s ease!important}
+.nav-btn:hover{border-color:rgba(78,160,219,.18)!important;transform:translateX(2px)}
+.nav-btn.active{background:linear-gradient(90deg,rgba(38,140,255,.24),rgba(52,213,232,.07))!important;border-color:rgba(58,161,235,.25)!important;box-shadow:inset 3px 0 0 var(--rs-azul)}
+.main{max-width:1500px;width:100%;margin:0 auto;padding:28px 30px 42px}
+.topbar{padding-bottom:15px;border-bottom:1px solid rgba(113,169,204,.12)}
+.topbar h2{font-size:24px;letter-spacing:-.5px}.topbar-user{padding:8px 11px;border:1px solid rgba(95,154,190,.14);border-radius:11px;background:rgba(8,29,46,.6)}
+.card{background:linear-gradient(145deg,rgba(10,32,51,.96),rgba(8,27,43,.96));border-color:rgba(65,137,181,.23);box-shadow:0 10px 30px rgba(0,0,0,.09)}
+.section-title{letter-spacing:-.2px}
+
+.inicio-hero{display:flex;align-items:center;justify-content:space-between;gap:20px;margin-bottom:16px;padding:25px 27px;border:1px solid rgba(63,159,230,.24);border-radius:20px;background:radial-gradient(circle at right top,rgba(52,213,232,.16),transparent 40%),linear-gradient(135deg,rgba(38,140,255,.17),rgba(8,30,48,.96));box-shadow:0 20px 45px rgba(0,0,0,.13)}
+.inicio-perfil{display:inline-block;margin-bottom:8px;padding:5px 9px;border-radius:99px;background:rgba(38,140,255,.16);color:#78baff;font-size:9px;font-weight:900;letter-spacing:1.1px}
+.inicio-hero h3{margin:0 0 7px;color:#fff;font-size:clamp(21px,3vw,29px);letter-spacing:-.6px}.inicio-hero p{margin:0;color:#9eb7c9}
+.inicio-online{flex:none;display:flex;align-items:center;gap:8px;padding:9px 12px;border:1px solid rgba(27,201,122,.2);border-radius:99px;background:rgba(20,174,103,.09);color:#8de6b7;font-size:11px;font-weight:800}
+.inicio-online span{width:8px;height:8px;border-radius:50%;background:#25d17f;box-shadow:0 0 0 5px rgba(37,209,127,.11)}
+.inicio-atalhos{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:22px}
+.inicio-atalho{display:flex;align-items:center;gap:11px;min-height:68px;padding:12px 14px;border:1px solid rgba(69,143,188,.22);border-radius:14px;background:rgba(8,29,47,.88);color:#eaf5fb;text-align:left;cursor:pointer;transition:.18s ease}
+.inicio-atalho:hover{border-color:rgba(54,156,229,.48);background:#0c2940;transform:translateY(-2px)}
+.inicio-atalho-icone{display:grid;place-items:center;flex:0 0 38px;height:38px;border-radius:11px;background:linear-gradient(135deg,rgba(38,140,255,.22),rgba(52,213,232,.13));font-size:18px}.inicio-atalho strong{display:block;font-size:12px}.inicio-atalho small{display:block;margin-top:3px;color:#7898ad;font-size:9px}
+.inicio-titulo-resumo{margin:0 0 11px}
+#cardsResumoInicio .card{position:relative;overflow:hidden;min-height:95px;padding:18px}
+#cardsResumoInicio .card::after{content:'';position:absolute;right:-20px;bottom:-28px;width:75px;height:75px;border-radius:50%;background:rgba(38,140,255,.06)}
+
+@media(max-width:980px){
+  .main{padding:16px 13px 90px}.topbar{margin-bottom:14px}.topbar h2{font-size:19px}.topbar-user{display:none}
+  .nav-section-label{display:none}
+  .nav:not(.expandido) .nav-secundario{display:none!important}
+  .nav:not(.expandido) .nav-btn{flex:1 1 20%;min-width:0!important;width:auto!important}
+  .nav.expandido{position:fixed;left:10px;right:10px;bottom:calc(8px + env(safe-area-inset-bottom));height:auto;max-height:70vh;padding:12px;display:grid;grid-template-columns:repeat(3,1fr);gap:7px;overflow-y:auto;border:1px solid #24516e;border-radius:18px;background:#071b2a;box-shadow:0 -20px 60px rgba(0,0,0,.48)}
+  .nav.expandido .nav-btn{width:100%;min-width:0;height:57px;text-align:center;font-size:10px;background:#0b2a41}
+  .nav-btn:hover{transform:none}
+  .inicio-hero{align-items:flex-start;padding:20px 17px}.inicio-online{display:none}
+  .inicio-atalhos{grid-template-columns:repeat(2,minmax(0,1fr))}.inicio-atalho{min-height:65px;padding:10px}.inicio-atalho small{display:none}
+}
+
+@media(max-width:420px){.inicio-hero{padding:18px 15px}.inicio-atalhos{gap:8px}.inicio-atalho{gap:8px}.inicio-atalho-icone{flex-basis:34px;height:34px}}
+
 /* TELA DE ATUALIZAÇÃO / RECONEXÃO DO RENDER */
 #rsAtualizandoServidor{position:fixed;inset:0;z-index:999999;display:none;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at top,rgba(37,99,235,.20),transparent 45%),linear-gradient(145deg,#07142d 0%,#0b1f45 55%,#102a5e 100%);color:#fff}
 #rsAtualizandoServidor.ativo{display:flex}
@@ -1374,7 +1429,10 @@
 
       <nav class="nav">
 
+        <div class="nav-section-label">VISÃO GERAL</div>
+
         <button
+          id="navInicio"
           class="nav-btn active"
           data-page="inicio"
           onclick="abrirPagina('inicio')"
@@ -1394,7 +1452,8 @@
 
 
         <button
-          class="nav-btn"
+          id="navServicos"
+          class="nav-btn nav-secundario"
           data-page="servicos"
           onclick="abrirPagina('servicos')"
         >
@@ -1404,7 +1463,7 @@
 
         <button
           id="navPublicar"
-          class="nav-btn"
+          class="nav-btn nav-secundario"
           data-page="publicar"
           onclick="abrirPagina('publicar')"
         >
@@ -1421,8 +1480,11 @@
           ⏱ Jornada
         </button>
 
+        <div class="nav-section-label">GESTÃO</div>
+
 
         <button
+          id="navMensagens"
           class="nav-btn"
           data-page="mensagens"
           onclick="abrirPagina('mensagens')"
@@ -1437,7 +1499,8 @@
 
 
         <button
-          class="nav-btn"
+          id="navFinanceiro"
+          class="nav-btn nav-secundario"
           data-page="financeiro"
           onclick="abrirPagina('financeiro')"
         >
@@ -1446,7 +1509,8 @@
 
 
         <button
-          class="nav-btn"
+          id="navHistorico"
+          class="nav-btn nav-secundario"
           data-page="historico"
           onclick="abrirPagina('historico')"
         >
@@ -1456,7 +1520,7 @@
 
         <button
           id="navArquivo"
-          class="nav-btn"
+          class="nav-btn nav-secundario"
           data-page="arquivo"
           onclick="abrirPagina('arquivo')"
         >
@@ -1471,11 +1535,20 @@
 
         <button
           id="navSairMobile"
-          class="nav-btn mobile-only"
+          class="nav-btn mobile-only nav-secundario"
           type="button"
           onclick="sairSistema()"
         >
           🚪 Sair
+        </button>
+
+        <button
+          id="navMaisMobile"
+          class="nav-btn mobile-only"
+          type="button"
+          onclick="alternarMenuMobile()"
+        >
+          ☰ Mais
         </button>
 
       </nav>
@@ -1549,6 +1622,19 @@
         id="pageInicio"
         class="page active"
       >
+
+        <div id="inicioBoasVindas" class="inicio-hero">
+          <div>
+            <span id="inicioPerfil" class="inicio-perfil">RS CONNECT</span>
+            <h3 id="inicioSaudacao">Olá! Seja bem-vindo.</h3>
+            <p id="inicioOrientacao">Acompanhe suas atividades em um só lugar.</p>
+          </div>
+          <div id="inicioStatusSistema" class="inicio-online"><span></span> Sistema conectado</div>
+        </div>
+
+        <div id="atalhosInicio" class="inicio-atalhos"></div>
+
+        <h3 class="section-title inicio-titulo-resumo">Resumo de hoje</h3>
 
         <div
           id="cardsResumoInicio"
@@ -3326,20 +3412,24 @@ let rsTimerAvisoSocket = null;
 function rsMostrarAtualizacaoServidor(texto = 'Reconectando ao servidor...') {
   const tela = document.getElementById('rsAtualizandoServidor');
   const status = document.getElementById('rsAtualizandoTexto');
+  const statusInicio = document.getElementById('inicioStatusSistema');
   rsServidorIndisponivel = true;
   if (status) status.textContent = texto;
+  if (statusInicio) statusInicio.innerHTML = '<span style="background:#fbbf24"></span> Reconectando';
   if (tela) { tela.classList.add('ativo'); tela.setAttribute('aria-hidden', 'false'); }
   rsAgendarTesteServidor();
 }
 
 function rsOcultarAtualizacaoServidor() {
   const tela = document.getElementById('rsAtualizandoServidor');
+  const statusInicio = document.getElementById('inicioStatusSistema');
   rsServidorIndisponivel = false;
   clearTimeout(rsTimerReconexao);
   clearTimeout(rsTimerAvisoSocket);
   rsTimerReconexao = null;
   rsTimerAvisoSocket = null;
   if (tela) { tela.classList.remove('ativo'); tela.setAttribute('aria-hidden', 'true'); }
+  if (statusInicio) statusInicio.innerHTML = '<span></span> Sistema conectado';
 }
 
 function rsAgendarTesteServidor() {
@@ -7111,6 +7201,8 @@ async function entrarNoSistema() {
 
   configurarMenuPorTipo();
 
+  configurarExperienciaPorPerfil();
+
 
   conectarSocket();
 
@@ -7138,6 +7230,9 @@ function configurarMenuPorTipo() {
   if (
     ehEmpresa()
   ) {
+
+    // No celular, Serviços fica entre os cinco acessos principais da empresa.
+    $('navServicos')?.classList.remove('nav-secundario');
 
     $('navRadar')
       ?.classList.add(
@@ -7170,6 +7265,9 @@ function configurarMenuPorTipo() {
 
   } else {
 
+    // Para o prestador, o Radar ocupa o acesso principal e Serviços fica em Mais.
+    $('navServicos')?.classList.add('nav-secundario');
+
     $('navRadar')
       ?.classList.remove(
         'hidden'
@@ -7197,6 +7295,52 @@ function configurarMenuPorTipo() {
       ?.classList.add(
         'hidden'
       );
+  }
+}
+
+
+// ============================================================
+// EXPERIÊNCIA ORGANIZADA POR PERFIL
+// ============================================================
+
+function alternarMenuMobile() {
+  document.querySelector('.nav')?.classList.toggle('expandido');
+}
+
+function configurarExperienciaPorPerfil() {
+  const primeiroNome = texto(usuarioAtual?.nome || 'Usuário').trim().split(/\s+/)[0];
+  const saudacao = $('inicioSaudacao');
+  const perfil = $('inicioPerfil');
+  const orientacao = $('inicioOrientacao');
+  const atalhos = $('atalhosInicio');
+
+  if (saudacao) saudacao.textContent = `Olá, ${primeiroNome}!`;
+
+  const itensEmpresa = [
+    ['➕', 'Publicar serviço', 'Criar uma nova oportunidade', 'publicar'],
+    ['🧰', 'Acompanhar serviços', 'Ver equipes e andamento', 'servicos'],
+    ['⏱', 'Gestão da Jornada', 'Presença e horários', 'jornada'],
+    ['💰', 'Pagamentos', 'Autorizações e comprovantes', 'financeiro']
+  ];
+
+  const itensPrestador = [
+    ['📡', 'Encontrar vagas', 'Oportunidades disponíveis', 'radar'],
+    ['⏱', 'Minha Jornada', 'Entrada, intervalo e saída', 'jornada'],
+    ['🧰', 'Meus serviços', 'Acompanhar trabalhos aceitos', 'servicos'],
+    ['💰', 'Meus pagamentos', 'Valores e comprovantes', 'financeiro']
+  ];
+
+  const empresa = ehEmpresa();
+  if (perfil) perfil.textContent = empresa ? (ehGrupoRS() ? 'PAINEL DO GRUPO RS' : 'PAINEL DA EMPRESA') : 'PAINEL DO PRESTADOR';
+  if (orientacao) orientacao.textContent = empresa ? 'Acompanhe serviços, equipes e pagamentos em um só lugar.' : 'Encontre vagas e acompanhe sua Jornada com facilidade.';
+
+  if (atalhos) {
+    atalhos.innerHTML = (empresa ? itensEmpresa : itensPrestador).map(item => `
+      <button class="inicio-atalho" type="button" onclick="abrirPagina('${item[3]}')">
+        <span class="inicio-atalho-icone">${item[0]}</span>
+        <span><strong>${item[1]}</strong><small>${item[2]}</small></span>
+      </button>
+    `).join('');
   }
 }
 
@@ -7315,6 +7459,8 @@ function sairSistema() {
 async function abrirPagina(
   pagina
 ) {
+
+  document.querySelector('.nav')?.classList.remove('expandido');
 
   document
     .querySelectorAll(
