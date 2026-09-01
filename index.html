@@ -1233,6 +1233,20 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 #cardsResumoInicio .card{position:relative;overflow:hidden;min-height:95px;padding:18px}
 #cardsResumoInicio .card::after{content:'';position:absolute;right:-20px;bottom:-28px;width:75px;height:75px;border-radius:50%;background:rgba(38,140,255,.06)}
 
+/* Cartões de serviço resumidos: detalhes somente quando solicitados */
+.service-card{padding:17px!important;border-radius:16px!important;margin-bottom:11px!important}
+.service-card h3{margin-bottom:8px!important;font-size:16px!important}.service-meta{line-height:1.65!important;color:#8faabd!important}
+.service-value{font-size:17px!important;white-space:nowrap}
+.servico-equipe-detalhes,.servico-acoes-detalhes{margin-top:12px;border:1px solid rgba(64,139,184,.2);border-radius:11px;background:rgba(4,19,31,.28)}
+.servico-equipe-detalhes summary,.servico-acoes-detalhes summary{padding:11px 12px;color:#9ec8e2;font-size:11px;font-weight:800;cursor:pointer;list-style:none;user-select:none}
+.servico-equipe-detalhes summary::-webkit-details-marker,.servico-acoes-detalhes summary::-webkit-details-marker{display:none}
+.servico-equipe-detalhes summary::after,.servico-acoes-detalhes summary::after{content:'＋';float:right;color:#5fb0e8;font-size:15px;line-height:12px}
+.servico-equipe-detalhes[open] summary::after,.servico-acoes-detalhes[open] summary::after{content:'−'}
+.servico-equipe-conteudo{padding:0 12px 12px}.servico-acoes-detalhes>div:not(.service-actions){margin-left:11px!important;margin-right:11px!important}.servico-acoes-detalhes .service-actions{margin-top:0!important;padding:12px;border-top:1px solid rgba(67,139,183,.14)}
+.jornada-proxima-acao{padding:15px!important;border-color:rgba(38,140,255,.34)!important;background:linear-gradient(135deg,rgba(38,140,255,.13),rgba(8,31,49,.95))!important}
+.jornada-proxima-acao::before{content:'PRÓXIMA AÇÃO';display:block;margin-bottom:9px;color:#6fb6e8;font-size:9px;font-weight:900;letter-spacing:1px}
+.jornada-proxima-acao .service-actions{margin-top:0!important}.jornada-proxima-acao .btn:not(.hidden){min-height:44px}
+
 @media(max-width:980px){
   .main{padding:16px 13px 90px}.topbar{margin-bottom:14px}.topbar h2{font-size:19px}.topbar-user{display:none}
   .nav-section-label{display:none}
@@ -1243,6 +1257,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
   .nav-btn:hover{transform:none}
   .inicio-hero{align-items:flex-start;padding:20px 17px}.inicio-online{display:none}
   .inicio-atalhos{grid-template-columns:repeat(2,minmax(0,1fr))}.inicio-atalho{min-height:65px;padding:10px}.inicio-atalho small{display:none}
+  .service-card>div:first-child{gap:7px!important}.service-card h3{font-size:14px!important}.service-value{font-size:14px!important}.servico-acoes-detalhes .service-actions{display:grid;grid-template-columns:1fr}.servico-acoes-detalhes .btn{width:100%}
 }
 
 @media(max-width:420px){.inicio-hero{padding:18px 15px}.inicio-atalhos{gap:8px}.inicio-atalho{gap:8px}.inicio-atalho-icone{flex-basis:34px;height:34px}}
@@ -2590,7 +2605,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
 
           <div
-            class="card"
+            class="card jornada-proxima-acao"
             style="margin-top:10px;"
           >
 
@@ -10532,8 +10547,10 @@ function htmlServico(
             'meus'
               ?
               `
-                <div
-                  class="small muted"
+                <details class="servico-equipe-detalhes">
+                  <summary>👥 Ver titular e reservas</summary>
+                  <div
+                  class="small muted servico-equipe-conteudo"
                   style="
                     margin-top:9px;
                     line-height:1.7;
@@ -10581,7 +10598,8 @@ function htmlServico(
                       'Disponível'
                   }
 
-                </div>
+                  </div>
+                </details>
               `
               :
               ''
@@ -10651,22 +10669,19 @@ function htmlServico(
       </div>
 
 
-      ${painelJornadaEmpresa}
-
-
-      ${painelJornadaTitular}
-
-
       ${
-        acoes
+        contexto === 'radar'
           ?
-          `
-            <div class="service-actions">
-              ${acoes}
-            </div>
-          `
+          (acoes ? `<div class="service-actions">${acoes}</div>` : '')
           :
-          ''
+          `
+            <details class="servico-acoes-detalhes">
+              <summary>Ver informações e ações</summary>
+              ${painelJornadaEmpresa}
+              ${painelJornadaTitular}
+              ${acoes ? `<div class="service-actions">${acoes}</div>` : '<div class="small muted" style="padding:12px 0 2px;">Nenhuma ação necessária no momento.</div>'}
+            </details>
+          `
       }
 
     </div>
@@ -13348,6 +13363,61 @@ function renderizarBotoesJornada(
 
   const btnCheckout =
     $('btnJornadaCheckout');
+
+
+  // Interface simplificada: mostra apenas a etapa atual da Jornada.
+  const botoesJornada = [
+    btnPresenca,
+    btnCheckin,
+    btnIntervalo,
+    btnRetorno,
+    btnCheckout
+  ].filter(Boolean);
+
+  botoesJornada.forEach(botao => {
+    botao.classList.add('hidden');
+    botao.disabled = false;
+  });
+
+  if (servico?.checkout_hora) {
+    btnPresenca.classList.remove('hidden');
+    btnPresenca.disabled = true;
+    btnPresenca.innerHTML = '✅ Jornada finalizada';
+    return;
+  }
+
+  if (!servico?.presenca_confirmada) {
+    btnPresenca.classList.remove('hidden');
+    btnPresenca.innerHTML = '🤳 Confirmar presença';
+    btnPresenca.disabled = Boolean(servico?.confirmacao_expirada);
+    return;
+  }
+
+  if (!servico?.checkin_hora) {
+    btnCheckin.classList.remove('hidden');
+    btnCheckin.innerHTML = '📍 Registrar entrada';
+    return;
+  }
+
+  if (servico?.em_intervalo) {
+    btnRetorno.classList.remove('hidden');
+    btnRetorno.innerHTML = '↩ Voltar do intervalo';
+    return;
+  }
+
+  if (!servico?.intervalo_fim && !servico?.intervalo_retorno) {
+    btnIntervalo.classList.remove('hidden');
+    btnIntervalo.innerHTML = '☕ Iniciar intervalo';
+
+    // Mantém a possibilidade de encerrar serviços que não possuem intervalo.
+    btnCheckout.classList.remove('hidden');
+    btnCheckout.innerHTML = '📷 Encerrar jornada';
+    return;
+  }
+
+  btnCheckout.classList.remove('hidden');
+  btnCheckout.innerHTML = '📷 Registrar saída';
+  return;
 
 
   // ==========================================================
