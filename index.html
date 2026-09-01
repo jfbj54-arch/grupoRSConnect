@@ -1192,6 +1192,20 @@
   display:none !important;
 }
 
+/* TELA DE ATUALIZAÇÃO / RECONEXÃO DO RENDER */
+#rsAtualizandoServidor{position:fixed;inset:0;z-index:999999;display:none;align-items:center;justify-content:center;padding:24px;background:radial-gradient(circle at top,rgba(37,99,235,.20),transparent 45%),linear-gradient(145deg,#07142d 0%,#0b1f45 55%,#102a5e 100%);color:#fff}
+#rsAtualizandoServidor.ativo{display:flex}
+.rs-atualizando-card{width:min(460px,100%);padding:34px 26px;border:1px solid rgba(255,255,255,.16);border-radius:24px;background:rgba(255,255,255,.09);box-shadow:0 24px 70px rgba(0,0,0,.38);backdrop-filter:blur(14px);text-align:center}
+.rs-atualizando-logo{width:76px;height:76px;margin:0 auto 20px;display:grid;place-items:center;border-radius:22px;background:linear-gradient(135deg,#2563eb,#38bdf8);box-shadow:0 14px 34px rgba(56,189,248,.28);font-size:25px;font-weight:900;letter-spacing:-1px}
+.rs-atualizando-card h2{margin:0 0 10px;color:#fff;font-size:clamp(22px,5vw,30px)}
+.rs-atualizando-card p{margin:0;color:#dbeafe;line-height:1.55}
+.rs-atualizando-barra{height:7px;margin:25px 0 18px;overflow:hidden;border-radius:999px;background:rgba(255,255,255,.14)}
+.rs-atualizando-barra::after{content:'';display:block;width:42%;height:100%;border-radius:inherit;background:linear-gradient(90deg,#60a5fa,#67e8f9);animation:rsAtualizandoBarra 1.25s ease-in-out infinite}
+.rs-atualizando-status{display:flex;align-items:center;justify-content:center;gap:9px;color:#bfdbfe;font-size:14px;font-weight:700}
+.rs-atualizando-ponto{width:9px;height:9px;border-radius:50%;background:#fbbf24;box-shadow:0 0 0 5px rgba(251,191,36,.13);animation:rsAtualizandoPulso 1.2s ease-in-out infinite}
+@keyframes rsAtualizandoBarra{from{transform:translateX(-110%)}to{transform:translateX(350%)}}
+@keyframes rsAtualizandoPulso{50%{opacity:.45;transform:scale(.82)}}
+
 @media (max-width:600px){
   .jc-colaborador-topo,
   .jc-colaborador-horarios{
@@ -1209,6 +1223,17 @@
 
 
 <body>
+
+<!-- Aparece automaticamente quando o Render estiver reiniciando. -->
+<div id="rsAtualizandoServidor" role="status" aria-live="polite" aria-hidden="true">
+  <div class="rs-atualizando-card">
+    <div class="rs-atualizando-logo">RS</div>
+    <h2>RS Connect sendo atualizado</h2>
+    <p>Estamos aplicando melhorias no aplicativo. Aguarde um momento; a conexão voltará automaticamente.</p>
+    <div class="rs-atualizando-barra"></div>
+    <div class="rs-atualizando-status"><span class="rs-atualizando-ponto"></span><span id="rsAtualizandoTexto">Reconectando ao servidor...</span></div>
+  </div>
+</div>
 
 
 <!-- =========================================================
@@ -3292,6 +3317,48 @@ let servicoSelecionado =
 
 let socket =
   null;
+
+// ATUALIZAÇÃO / RECONEXÃO AUTOMÁTICA DO SERVIDOR
+let rsServidorIndisponivel = false;
+let rsTimerReconexao = null;
+let rsTimerAvisoSocket = null;
+
+function rsMostrarAtualizacaoServidor(texto = 'Reconectando ao servidor...') {
+  const tela = document.getElementById('rsAtualizandoServidor');
+  const status = document.getElementById('rsAtualizandoTexto');
+  rsServidorIndisponivel = true;
+  if (status) status.textContent = texto;
+  if (tela) { tela.classList.add('ativo'); tela.setAttribute('aria-hidden', 'false'); }
+  rsAgendarTesteServidor();
+}
+
+function rsOcultarAtualizacaoServidor() {
+  const tela = document.getElementById('rsAtualizandoServidor');
+  rsServidorIndisponivel = false;
+  clearTimeout(rsTimerReconexao);
+  clearTimeout(rsTimerAvisoSocket);
+  rsTimerReconexao = null;
+  rsTimerAvisoSocket = null;
+  if (tela) { tela.classList.remove('ativo'); tela.setAttribute('aria-hidden', 'true'); }
+}
+
+function rsAgendarTesteServidor() {
+  if (rsTimerReconexao) return;
+  rsTimerReconexao = setTimeout(async () => {
+    rsTimerReconexao = null;
+    try {
+      // Qualquer resposta HTTP confirma que o Render voltou.
+      await fetch(`${API_URL}/api/auth/sessao`, { method:'GET', cache:'no-store', headers:{'X-RS-Health-Check':'1'} });
+      rsOcultarAtualizacaoServidor();
+      if (localStorage.getItem('rsconnect_token')) await restaurarSessao();
+    } catch (erro) {
+      rsMostrarAtualizacaoServidor('O Render ainda está atualizando. Tentando novamente...');
+    }
+  }, 3500);
+}
+
+window.addEventListener('offline', () => rsMostrarAtualizacaoServidor('Sem internet. Aguardando a conexão voltar...'));
+window.addEventListener('online', () => rsMostrarAtualizacaoServidor('Internet restabelecida. Reconectando...'));
 
 
 let cameraStream =
@@ -6543,14 +6610,16 @@ async function apiFetch(
   }
 
 
-  const resposta =
-    await fetch(
-      `${API_URL}${caminho}`,
-      {
-        ...opcoes,
-        headers
-      }
-    );
+  let resposta;
+  try {
+    resposta = await fetch(`${API_URL}${caminho}`, { ...opcoes, headers });
+  } catch (erroRede) {
+    rsMostrarAtualizacaoServidor(navigator.onLine ? 'O servidor está sendo atualizado. Reconectando...' : 'Sem internet. Aguardando a conexão voltar...');
+    const erroServidor = new Error('Servidor temporariamente indisponível.');
+    erroServidor.code = 'RS_SERVIDOR_INDISPONIVEL';
+    erroServidor.cause = erroRede;
+    throw erroServidor;
+  }
 
 
   let data =
@@ -7433,6 +7502,8 @@ function conectarSocket() {
       'connect',
       () => {
 
+        rsOcultarAtualizacaoServidor();
+
         console.log(
           '✅ WebSocket conectado:',
           socket.id
@@ -7457,6 +7528,11 @@ function conectarSocket() {
           'WebSocket desconectado:',
           motivo
         );
+
+        clearTimeout(rsTimerAvisoSocket);
+        rsTimerAvisoSocket = setTimeout(() => {
+          if (socket && !socket.connected) rsMostrarAtualizacaoServidor('RS Connect sendo atualizado. Reconectando...');
+        }, 1400);
       }
     );
 
@@ -7620,6 +7696,12 @@ async function restaurarSessao() {
       'Restaurar sessão:',
       erro
     );
+
+    // Durante a atualização do Render, não apaga o login salvo.
+    if (erro?.code === 'RS_SERVIDOR_INDISPONIVEL') {
+      rsMostrarAtualizacaoServidor('RS Connect sendo atualizado. Aguarde um momento...');
+      return;
+    }
 
 
     localStorage.removeItem(
