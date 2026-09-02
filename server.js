@@ -4323,6 +4323,16 @@ async function cadastrarUsuarioRS(
     }
 
 
+    if (tipo === 'empresa' && (!String(dados.doc||'').trim() || !String(dados.responsavel||'').trim() || !String(dados.endereco||'').trim())) {
+        return res.status(400).json({sucesso:false, erro:'Informe CNPJ, responsável e endereço da empresa.'});
+    }
+
+
+    if ((tipo === 'prestador' || tipo === 'colaborador') && (!String(dados.doc||'').trim() || !String(dados.profissao||'').trim())) {
+        return res.status(400).json({sucesso:false, erro:'Informe CPF e profissão principal.'});
+    }
+
+
     try {
 
         const existente =
@@ -20322,6 +20332,46 @@ app.post(
         }
     }
 );
+
+
+app.get('/api/admin/central', autenticarUsuario, async (req,res) => {
+    if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Central exclusiva do Grupo RS.');
+    try{
+        const [usuarios,servicos,jornadas,pagamentos,avaliacoes,auditoria]=await Promise.all([
+            pool.query(`SELECT id,nome,email,tipo,doc,responsavel,whatsapp,profissao,cadastro_status,perfil_verificado,documentos_verificados,criado_em,atualizado_em FROM usuarios ORDER BY id DESC LIMIT 200`),
+            pool.query(`SELECT id,titulo,categoria,empresa_nome,empresa_email,prestador_nome,prestador_email,status,valor_liquido,data_horario,criado_em FROM servicos ORDER BY id DESC LIMIT 200`),
+            pool.query(`SELECT id,titulo,empresa_nome,prestador_nome,prestador_email,checkin_hora,intervalo_inicio,intervalo_retorno,intervalo_fim,checkout_hora,jornada_aprovacao_status,validado_empresa,data_horario FROM servicos WHERE checkin_hora IS NOT NULL OR checkout_hora IS NOT NULL ORDER BY id DESC LIMIT 200`),
+            pool.query(`SELECT id,servico_id,empresa_email,prestador_email,valor,forma_pagamento,status,autorizado_em,pago_em,criado_em FROM pagamentos ORDER BY id DESC LIMIT 200`),
+            pool.query(`SELECT id,servico_id,avaliador_email,avaliado_email,avaliador_tipo,nota,comentario,criado_em FROM avaliacoes ORDER BY id DESC LIMIT 200`),
+            pool.query(`SELECT id,usuario_email,acao,detalhes,criado_em FROM auditoria_sistema ORDER BY id DESC LIMIT 250`)
+        ]);
+        return res.json({sucesso:true,usuarios:usuarios.rows,servicos:servicos.rows,jornadas:jornadas.rows,pagamentos:pagamentos.rows,avaliacoes:avaliacoes.rows,auditoria:auditoria.rows});
+    }catch(err){console.error('❌ Central administrativa:',err);return res.status(500).json({sucesso:false,erro:'Erro ao carregar a Central Administrativa.'});}
+});
+
+
+app.post('/api/admin/usuarios/:id/situacao', autenticarUsuario, async (req,res) => {
+    if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Área exclusiva do Grupo RS.');
+    const situacao=String(req.body?.situacao||'').toLowerCase();
+    if(!['aprovado','bloqueado','rejeitado'].includes(situacao)) return res.status(400).json({sucesso:false,erro:'Situação inválida.'});
+    try{
+        const resultado=await pool.query(`UPDATE usuarios SET cadastro_status=$1,atualizado_em=CURRENT_TIMESTAMP WHERE id=$2 RETURNING id,nome,email,cadastro_status`,[situacao,Number(req.params.id)]);
+        if(!resultado.rows.length)return res.status(404).json({sucesso:false,erro:'Usuário não encontrado.'});
+        await registrarAuditoria(req.usuario.email,'ADMIN_SITUACAO_USUARIO',`Conta ${resultado.rows[0].email} alterada para ${situacao}.`);
+        return res.json({sucesso:true,mensagem:`Conta marcada como ${situacao}.`,usuario:resultado.rows[0]});
+    }catch(err){console.error('❌ Situação usuário:',err);return res.status(500).json({sucesso:false,erro:'Erro ao atualizar usuário.'});}
+});
+
+
+app.delete('/api/admin/avaliacoes/:id', autenticarUsuario, async (req,res) => {
+    if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Área exclusiva do Grupo RS.');
+    try{
+        const resultado=await pool.query('DELETE FROM avaliacoes WHERE id=$1 RETURNING id,servico_id',[Number(req.params.id)]);
+        if(!resultado.rows.length)return res.status(404).json({sucesso:false,erro:'Avaliação não encontrada.'});
+        await registrarAuditoria(req.usuario.email,'ADMIN_REMOVER_AVALIACAO',`Avaliação #${req.params.id} removida.`);
+        return res.json({sucesso:true,mensagem:'Avaliação removida.'});
+    }catch(err){console.error('❌ Remover avaliação:',err);return res.status(500).json({sucesso:false,erro:'Erro ao remover avaliação.'});}
+});
 
 app.get(
     '/api/admin/resumo',
