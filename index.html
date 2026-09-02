@@ -1414,6 +1414,29 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 /* =========================================================
    LOGIN FUTURISTA RS CONNECT
 ========================================================= */
+.rs-page-head{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}
+.rs-page-head .section-title{margin-bottom:4px}
+.rs-page-head p{margin:0}
+.rs-notificacoes-lista{display:grid;gap:9px}
+.rs-notificacao{display:flex;align-items:flex-start;gap:13px;padding:15px;border:1px solid #1b405d;border-radius:13px;background:#081d30;cursor:pointer;transition:.18s}
+.rs-notificacao:hover{transform:translateY(-1px);border-color:#2985bd}
+.rs-notificacao.nao-lida{border-left:4px solid #28b9dc;background:linear-gradient(90deg,rgba(38,160,211,.12),#081d30 30%)}
+.rs-notificacao-icone{display:grid;place-items:center;flex:0 0 39px;height:39px;border-radius:11px;background:#0d304b;font-size:18px}
+.rs-notificacao-corpo{flex:1;min-width:0}.rs-notificacao-corpo strong{display:block;font-size:13px}.rs-notificacao-corpo p{margin:4px 0;color:#91aabc;font-size:11px;line-height:1.5}.rs-notificacao-corpo time{color:#657f91;font-size:9px}
+.rs-notificacao-ponto{flex:0 0 8px;width:8px;height:8px;margin-top:6px;border-radius:50%;background:#24c3df;box-shadow:0 0 0 4px rgba(36,195,223,.12)}
+.rs-vazio{padding:35px 20px;border:1px dashed #31536a;border-radius:14px;color:#7995a7;text-align:center}
+.rs-admin-cards{margin-bottom:14px}
+.rs-admin-card{position:relative;overflow:hidden;min-height:112px;padding:18px}.rs-admin-card span{display:block;color:#87a2b4;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.rs-admin-card strong{display:block;margin-top:9px;color:#fff;font-size:27px}.rs-admin-card small{color:#688699}
+.rs-admin-card::after{content:'';position:absolute;right:-20px;bottom:-28px;width:90px;height:90px;border-radius:50%;background:rgba(45,171,221,.08)}
+.rs-admin-colunas{margin-top:14px}.rs-admin-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(106,151,178,.14)}.rs-admin-linha:last-child{border-bottom:0}.rs-admin-linha strong{display:block;font-size:11px}.rs-admin-linha small{color:#7894a6;font-size:9px}.rs-admin-status{padding:4px 7px;border-radius:99px;background:#0d304b;color:#83d9f0;font-size:8px;font-weight:800;text-transform:uppercase}
+@media(min-width:981px){
+  .rs-notificacao{border-color:#d6e1e7;background:#fff;color:#1b3442;box-shadow:0 4px 15px rgba(26,67,88,.05)}
+  .rs-notificacao.nao-lida{background:linear-gradient(90deg,#e8f8fc,#fff 34%)}
+  .rs-notificacao-icone{background:#e4f5fa}.rs-notificacao-corpo p{color:#536c7a}.rs-notificacao-corpo time{color:#718693}
+  .rs-admin-card strong{color:#153344}.rs-admin-card span{color:#557080}.rs-admin-linha strong{color:#203845}.rs-admin-linha small{color:#617986}.rs-admin-status{background:#e3f4f9;color:#126c90}
+}
+@media(max-width:760px){.rs-page-head{flex-direction:column}.rs-page-head .service-actions{width:100%}.rs-page-head .service-actions .btn{flex:1}.rs-admin-colunas{grid-template-columns:1fr}.rs-admin-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
 #loginScreen{
   position:relative;
   isolation:isolate;
@@ -1792,6 +1815,21 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
 
         <button
+          id="navNotificacoes"
+          class="nav-btn nav-secundario"
+          data-page="notificacoes"
+          onclick="abrirPagina('notificacoes')"
+        >
+          🔔 Avisos
+
+          <span
+            id="badgeNotificacoes"
+            class="nav-badge hidden"
+          ></span>
+        </button>
+
+
+        <button
           id="navMensagens"
           class="nav-btn"
           data-page="mensagens"
@@ -1833,6 +1871,16 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
           onclick="abrirPagina('arquivo')"
         >
           🗂 Arquivo
+        </button>
+
+
+        <button
+          id="navAdmin"
+          class="nav-btn nav-secundario hidden"
+          data-page="admin"
+          onclick="abrirPagina('admin')"
+        >
+          🛡️ Administração
         </button>
 
 
@@ -3234,6 +3282,54 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
         </div>
 
+      </section>
+
+
+      <!-- ===================================================
+           CENTRAL DE NOTIFICAÇÕES
+      ==================================================== -->
+
+      <section id="pageNotificacoes" class="page">
+        <div class="rs-page-head">
+          <div>
+            <h3 class="section-title">🔔 Central de Notificações</h3>
+            <p class="muted small">Acompanhe todas as movimentações importantes da sua conta.</p>
+          </div>
+          <div class="service-actions">
+            <button class="btn btn-dark" onclick="carregarNotificacoes(true)">↻ Atualizar</button>
+            <button class="btn btn-primary" onclick="marcarTodasNotificacoesLidas()">✓ Marcar todas como lidas</button>
+          </div>
+        </div>
+        <div id="listaNotificacoes" class="rs-notificacoes-lista"></div>
+      </section>
+
+
+      <!-- ===================================================
+           PAINEL ADMINISTRATIVO — GRUPO RS
+      ==================================================== -->
+
+      <section id="pageAdmin" class="page">
+        <div class="rs-page-head">
+          <div>
+            <span class="inicio-perfil">ACESSO RESTRITO</span>
+            <h3 class="section-title" style="margin-top:8px;">🛡️ Painel Administrativo</h3>
+            <p class="muted small">Visão geral da operação do RS CONNECT.</p>
+          </div>
+          <button class="btn btn-dark" onclick="carregarPainelAdmin(true)">↻ Atualizar painel</button>
+        </div>
+
+        <div id="adminCardsResumo" class="grid grid-3 rs-admin-cards"></div>
+
+        <div class="grid grid-2 rs-admin-colunas">
+          <div class="card">
+            <h3 class="section-title">Contas recentes</h3>
+            <div id="adminUsuariosRecentes"></div>
+          </div>
+          <div class="card">
+            <h3 class="section-title">Serviços recentes</h3>
+            <div id="adminServicosRecentes"></div>
+          </div>
+        </div>
       </section>
 
 
@@ -7570,6 +7666,8 @@ async function entrarNoSistema() {
 
   atualizarNaoLidas();
 
+  carregarNotificacoes(false);
+
 
   abrirPagina(
     'inicio'
@@ -7582,6 +7680,8 @@ async function entrarNoSistema() {
 // ============================================================
 
 function configurarMenuPorTipo() {
+
+  $('navAdmin')?.classList.toggle('hidden', !ehGrupoRS());
 
   if (
     ehEmpresa()
@@ -7680,7 +7780,8 @@ function configurarExperienciaPorPerfil() {
     ['💬', 'Comunicação', 'Mensagens com os colaboradores', 'mensagens'],
     ['💰', 'Gestão financeira', 'Pagamentos e comprovantes', 'financeiro'],
     ['📋', 'Histórico e relatórios', 'Consulte atividades anteriores', 'historico'],
-    ['🗂️', 'Arquivo da empresa', 'Documentos e registros organizados', 'arquivo']
+    ['🗂️', 'Arquivo da empresa', 'Documentos e registros organizados', 'arquivo'],
+    ['🔔', 'Notificações', 'Avisos e movimentações importantes', 'notificacoes']
   ];
 
   const itensPrestador = [
@@ -7690,10 +7791,14 @@ function configurarExperienciaPorPerfil() {
     ['⌛', 'Minhas horas extras', 'Confira o tempo registrado', 'jornada'],
     ['💬', 'Mensagens', 'Converse com a empresa', 'mensagens'],
     ['💰', 'Meus pagamentos', 'Valores e comprovantes recebidos', 'financeiro'],
-    ['📋', 'Meu histórico', 'Consulte trabalhos anteriores', 'historico']
+    ['📋', 'Meu histórico', 'Consulte trabalhos anteriores', 'historico'],
+    ['🔔', 'Notificações', 'Avisos e movimentações importantes', 'notificacoes']
   ];
 
   const empresa = ehEmpresa();
+  if (ehGrupoRS()) {
+    itensEmpresa.unshift(['🛡️', 'Painel administrativo', 'Controle geral do RS CONNECT', 'admin']);
+  }
   if (perfil) perfil.textContent = empresa ? (ehGrupoRS() ? 'PAINEL DO GRUPO RS' : 'PAINEL DA EMPRESA') : 'PAINEL DO PRESTADOR';
   if (orientacao) orientacao.textContent = empresa ? 'Acompanhe serviços, equipes e pagamentos em um só lugar.' : 'Encontre vagas e acompanhe sua Jornada com facilidade.';
 
@@ -7705,6 +7810,138 @@ function configurarExperienciaPorPerfil() {
         <span><strong>${item[1]}</strong><small>${item[2]}</small></span>
       </button>
     `).join('');
+  }
+}
+
+
+// ============================================================
+// CENTRAL DE NOTIFICAÇÕES
+// ============================================================
+
+let notificacoesCache = [];
+
+function iconeNotificacao(tipo) {
+  const valor = texto(tipo).toLowerCase();
+  if (valor.includes('pagamento') || valor.includes('comprovante')) return '💰';
+  if (valor.includes('mensagem')) return '💬';
+  if (valor.includes('correcao')) return '⚠️';
+  if (valor.includes('validado')) return '✅';
+  if (valor.includes('servico')) return '🧰';
+  if (valor.includes('check') || valor.includes('intervalo') || valor.includes('presenca')) return '⏱️';
+  return '🔔';
+}
+
+async function carregarNotificacoes(mostrarAviso = false) {
+  const lista = $('listaNotificacoes');
+
+  try {
+    if (lista && !notificacoesCache.length) lista.innerHTML = '<div class="rs-vazio">Carregando notificações...</div>';
+
+    const data = await apiFetch('/api/notificacoes?limite=60');
+    notificacoesCache = Array.isArray(data?.notificacoes) ? data.notificacoes : [];
+
+    const total = Number(data?.naoLidas || 0);
+    const badge = $('badgeNotificacoes');
+    if (badge) {
+      badge.textContent = total > 99 ? '99+' : String(total);
+      badge.classList.toggle('hidden', total <= 0);
+    }
+
+    if (lista) {
+      if (!notificacoesCache.length) {
+        lista.innerHTML = '<div class="rs-vazio"><div style="font-size:28px;margin-bottom:8px;">🔔</div>Nenhuma notificação por enquanto.</div>';
+      } else {
+        lista.innerHTML = notificacoesCache.map(item => `
+          <article class="rs-notificacao ${item?.lida ? '' : 'nao-lida'}" onclick="abrirNotificacao(${Number(item.id)}, '${escapeHtml(item?.pagina || 'inicio')}')">
+            <div class="rs-notificacao-icone">${iconeNotificacao(item?.tipo)}</div>
+            <div class="rs-notificacao-corpo">
+              <strong>${escapeHtml(item?.titulo || 'Atualização')}</strong>
+              <p>${escapeHtml(item?.mensagem || '')}</p>
+              <time>${escapeHtml(formatarDataHora(item?.criado_em) || '')}</time>
+            </div>
+            ${item?.lida ? '' : '<span class="rs-notificacao-ponto" title="Não lida"></span>'}
+          </article>
+        `).join('');
+      }
+    }
+
+    if (mostrarAviso) toast('Notificações atualizadas.', 'success');
+  } catch (erro) {
+    if (lista) lista.innerHTML = `<div class="rs-vazio">${escapeHtml(erro.message || 'Não foi possível carregar as notificações.')}</div>`;
+    if (mostrarAviso) toast(erro.message, 'error');
+  }
+}
+
+async function abrirNotificacao(id, pagina) {
+  try {
+    await apiFetch(`/api/notificacoes/${Number(id)}/lida`, {method: 'POST'});
+  } catch {}
+  await carregarNotificacoes(false);
+  abrirPagina(texto(pagina) || 'inicio');
+}
+
+async function marcarTodasNotificacoesLidas() {
+  try {
+    await apiFetch('/api/notificacoes/ler-todas', {method: 'POST'});
+    await carregarNotificacoes(false);
+    toast('Todas as notificações foram marcadas como lidas.', 'success');
+  } catch (erro) {
+    toast(erro.message, 'error');
+  }
+}
+
+
+// ============================================================
+// PAINEL ADMINISTRATIVO
+// ============================================================
+
+async function carregarPainelAdmin(mostrarAviso = false) {
+  if (!ehGrupoRS()) {
+    toast('Área exclusiva do Grupo RS.', 'error');
+    abrirPagina('inicio');
+    return;
+  }
+
+  try {
+    const data = await apiFetch('/api/admin/resumo');
+    const resumo = data?.resumo || {};
+    const cards = [
+      ['👥', 'Usuários cadastrados', resumo.usuarios || 0],
+      ['🏢', 'Empresas', resumo.empresas || 0],
+      ['🧑‍🔧', 'Prestadores', resumo.prestadores || 0],
+      ['🧰', 'Serviços ativos', resumo.servicos_ativos || 0],
+      ['⏱️', 'Jornadas pendentes', resumo.jornadas_pendentes || 0],
+      ['💰', 'Pagamentos pendentes', resumo.pagamentos_pendentes || 0]
+    ];
+
+    $('adminCardsResumo').innerHTML = cards.map(item => `
+      <div class="card rs-admin-card">
+        <span>${item[0]} ${escapeHtml(item[1])}</span>
+        <strong>${Number(item[2]) || 0}</strong>
+        <small>Atualizado agora</small>
+      </div>
+    `).join('');
+
+    const usuarios = Array.isArray(data?.usuariosRecentes) ? data.usuariosRecentes : [];
+    $('adminUsuariosRecentes').innerHTML = usuarios.length ? usuarios.map(item => `
+      <div class="rs-admin-linha">
+        <div><strong>${escapeHtml(item?.nome || 'Sem nome')}</strong><small>${escapeHtml(item?.email || '')}</small></div>
+        <span class="rs-admin-status">${escapeHtml(item?.tipo || 'conta')}</span>
+      </div>
+    `).join('') : '<div class="rs-vazio">Nenhuma conta encontrada.</div>';
+
+    const servicos = Array.isArray(data?.servicosRecentes) ? data.servicosRecentes : [];
+    $('adminServicosRecentes').innerHTML = servicos.length ? servicos.map(item => `
+      <div class="rs-admin-linha">
+        <div><strong>#${Number(item?.id) || 0} · ${escapeHtml(item?.titulo || 'Serviço')}</strong><small>${escapeHtml(item?.empresa_nome || 'Empresa não informada')}</small></div>
+        <span class="rs-admin-status">${escapeHtml(item?.status || 'ativo')}</span>
+      </div>
+    `).join('') : '<div class="rs-vazio">Nenhum serviço encontrado.</div>';
+
+    if (mostrarAviso) toast('Painel administrativo atualizado.', 'success');
+  } catch (erro) {
+    $('adminCardsResumo').innerHTML = `<div class="rs-vazio">${escapeHtml(erro.message || 'Não foi possível carregar o painel.')}</div>`;
+    toast(erro.message, 'error');
   }
 }
 
@@ -7901,6 +8138,12 @@ async function abrirPagina(
     mensagens:
       'Mensagens',
 
+    notificacoes:
+      'Notificações',
+
+    admin:
+      'Administração',
+
     financeiro:
       'Financeiro',
 
@@ -7933,6 +8176,16 @@ async function abrirPagina(
   ) {
 
     renderizarMensagens();
+  }
+
+
+  if (pagina === 'notificacoes') {
+    carregarNotificacoes();
+  }
+
+
+  if (pagina === 'admin') {
+    carregarPainelAdmin();
   }
 
 
@@ -8057,6 +8310,14 @@ function conectarSocket() {
         );
       }
     );
+
+
+    socket.on('nova_notificacao', dados => {
+      carregarNotificacoes(false);
+      if (!$('pageNotificacoes')?.classList.contains('active')) {
+        toast(dados?.titulo || 'Você recebeu uma nova notificação.', 'success');
+      }
+    });
 
   } catch (
     erro
