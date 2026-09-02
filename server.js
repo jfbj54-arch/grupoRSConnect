@@ -2164,6 +2164,15 @@ function emitirAtualizacaoEmpresa(
     }
 
 
+    registrarNotificacaoUsuario(
+        empresaEmail,
+        evento,
+        dados
+    ).catch(
+        erro => console.warn('Notificação empresa:', erro.message)
+    );
+
+
     io.to(
         `usuario_${empresaEmail}`
     )
@@ -2204,6 +2213,15 @@ function emitirAtualizacaoPrestador(
     }
 
 
+    registrarNotificacaoUsuario(
+        prestadorEmail,
+        evento,
+        dados
+    ).catch(
+        erro => console.warn('Notificação prestador:', erro.message)
+    );
+
+
     io.to(
         `usuario_${prestadorEmail}`
     )
@@ -2220,6 +2238,94 @@ function emitirAtualizacaoPrestador(
             evento,
             dados
         );
+}
+
+
+// ============================================================
+// NOTIFICAÇÕES PERSISTENTES
+// ============================================================
+
+function dadosNotificacaoEvento(
+    evento,
+    dados = {}
+) {
+
+    const nomes = {
+        novo_servico: ['Nova oportunidade', 'Um novo serviço foi publicado.', 'radar'],
+        servico_aceito: ['Serviço aceito', 'Um profissional aceitou o serviço.', 'servicos'],
+        presenca_confirmada: ['Presença confirmada', 'A presença foi registrada com foto e localização.', 'jornada'],
+        checkin_realizado: ['Entrada registrada', 'O check-in do serviço foi realizado.', 'jornada'],
+        intervalo_iniciado: ['Intervalo iniciado', 'O intervalo da jornada foi registrado.', 'jornada'],
+        intervalo_finalizado: ['Retorno registrado', 'O profissional retornou do intervalo.', 'jornada'],
+        servico_finalizado: ['Jornada finalizada', 'O check-out está disponível para conferência.', 'jornada'],
+        servico_validado: ['Jornada aprovada', 'A empresa aprovou a jornada de trabalho.', 'jornada'],
+        correcao_jornada_solicitada: ['Correção solicitada', 'A empresa solicitou a conferência da jornada.', 'jornada'],
+        pagamento_autorizado: ['Pagamento autorizado', 'O pagamento do serviço foi autorizado.', 'financeiro'],
+        pagamento_realizado: ['Pagamento realizado', 'O pagamento do serviço foi registrado.', 'financeiro'],
+        comprovante_pagamento: ['Comprovante disponível', 'Um comprovante de pagamento foi anexado.', 'financeiro'],
+        nova_mensagem: ['Nova mensagem', 'Você recebeu uma nova mensagem.', 'mensagens']
+    };
+
+
+    const padrao =
+        nomes[evento] ||
+        ['Atualização no RS Connect', 'Há uma nova atualização na sua conta.', 'inicio'];
+
+
+    return {
+        titulo: padrao[0],
+        mensagem: String(dados?.mensagem || padrao[1]),
+        pagina: padrao[2]
+    };
+}
+
+
+async function registrarNotificacaoUsuario(
+    email,
+    evento,
+    dados = {}
+) {
+
+    const usuarioEmail =
+        normalizarEmail(email);
+
+
+    if (!usuarioEmail) return;
+
+
+    const info =
+        dadosNotificacaoEvento(evento, dados);
+
+
+    await pool.query(
+        `
+        INSERT INTO notificacoes (
+            usuario_email,
+            titulo,
+            mensagem,
+            tipo,
+            pagina,
+            servico_id
+        )
+        VALUES ($1, $2, $3, $4, $5, $6)
+        `,
+        [
+            usuarioEmail,
+            info.titulo,
+            info.mensagem,
+            String(evento || 'atualizacao'),
+            info.pagina,
+            Number(dados?.servicoId) || null
+        ]
+    );
+
+
+    io.to(`usuario_${usuarioEmail}`)
+        .emit('nova_notificacao', {titulo: info.titulo});
+
+
+    io.to(`user:${usuarioEmail}`)
+        .emit('nova_notificacao', {titulo: info.titulo});
 }
 
 
@@ -2721,6 +2827,27 @@ async function criarTabelas() {
                 sql
             );
         }
+
+
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS notificacoes (
+                id SERIAL PRIMARY KEY,
+                usuario_email TEXT NOT NULL,
+                titulo TEXT NOT NULL,
+                mensagem TEXT NOT NULL,
+                tipo TEXT DEFAULT 'atualizacao',
+                pagina TEXT DEFAULT 'inicio',
+                servico_id INTEGER,
+                lida BOOLEAN DEFAULT FALSE,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario_data
+            ON notificacoes (usuario_email, criado_em DESC);
+
+            CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario_lida
+            ON notificacoes (usuario_email, lida);
+        `);
 
 
         // ====================================================
@@ -19737,6 +19864,150 @@ app.get(
     '/api/chat/nao-lidas/:email',
     autenticarUsuario,
     contarMensagensNaoLidas
+);
+
+
+// ============================================================
+// CENTRAL DE NOTIFICAÇÕES
+// ============================================================
+
+app.get(
+    '/api/notificacoes',
+    autenticarUsuario,
+    async (req, res) => {
+
+        try {
+            const limite = Math.min(Math.max(Number(req.query?.limite) || 50, 1), 100);
+
+            const [lista, naoLidas] = await Promise.all([
+                pool.query(
+                    `SELECT id, titulo, mensagem, tipo, pagina, servico_id, lida, criado_em
+                     FROM notificacoes
+                     WHERE LOWER(usuario_email) = LOWER($1)
+                     ORDER BY criado_em DESC
+                     LIMIT $2`,
+                    [req.usuario.email, limite]
+                ),
+                pool.query(
+                    `SELECT COUNT(*)::int AS total
+                     FROM notificacoes
+                     WHERE LOWER(usuario_email) = LOWER($1) AND lida = FALSE`,
+                    [req.usuario.email]
+                )
+            ]);
+
+            return res.json({
+                sucesso: true,
+                notificacoes: lista.rows,
+                naoLidas: Number(naoLidas.rows[0]?.total || 0)
+            });
+        } catch (err) {
+            console.error('❌ Consultar notificações:', err);
+            return res.status(500).json({sucesso: false, erro: 'Erro ao consultar notificações.'});
+        }
+    }
+);
+
+
+app.post(
+    '/api/notificacoes/ler-todas',
+    autenticarUsuario,
+    async (req, res) => {
+        try {
+            await pool.query(
+                `UPDATE notificacoes SET lida = TRUE
+                 WHERE LOWER(usuario_email) = LOWER($1) AND lida = FALSE`,
+                [req.usuario.email]
+            );
+            return res.json({sucesso: true, mensagem: 'Notificações marcadas como lidas.'});
+        } catch (err) {
+            console.error('❌ Ler notificações:', err);
+            return res.status(500).json({sucesso: false, erro: 'Erro ao atualizar notificações.'});
+        }
+    }
+);
+
+
+app.post(
+    '/api/notificacoes/:id/lida',
+    autenticarUsuario,
+    async (req, res) => {
+        try {
+            const resultado = await pool.query(
+                `UPDATE notificacoes SET lida = TRUE
+                 WHERE id = $1 AND LOWER(usuario_email) = LOWER($2)
+                 RETURNING id`,
+                [Number(req.params.id), req.usuario.email]
+            );
+
+            if (!resultado.rows.length) {
+                return res.status(404).json({sucesso: false, erro: 'Notificação não encontrada.'});
+            }
+
+            return res.json({sucesso: true});
+        } catch (err) {
+            console.error('❌ Atualizar notificação:', err);
+            return res.status(500).json({sucesso: false, erro: 'Erro ao atualizar notificação.'});
+        }
+    }
+);
+
+
+// ============================================================
+// PAINEL ADMINISTRATIVO — SOMENTE GRUPO RS
+// ============================================================
+
+app.get(
+    '/api/admin/resumo',
+    autenticarUsuario,
+    async (req, res) => {
+
+        if (!req.usuario?.gestorRS) {
+            return responderAcessoNegado(res, 'Painel exclusivo do Grupo RS.');
+        }
+
+        try {
+            const resultado = await pool.query(`
+                SELECT
+                    (SELECT COUNT(*)::int FROM usuarios) AS usuarios,
+                    (SELECT COUNT(*)::int FROM usuarios
+                     WHERE LOWER(COALESCE(tipo,'')) IN ('prestador','colaborador')) AS prestadores,
+                    (SELECT COUNT(*)::int FROM usuarios
+                     WHERE LOWER(COALESCE(tipo,'')) NOT IN ('prestador','colaborador')) AS empresas,
+                    (SELECT COUNT(*)::int FROM servicos
+                     WHERE LOWER(COALESCE(status,'')) NOT IN ('pago','cancelado','excluido')) AS servicos_ativos,
+                    (SELECT COUNT(*)::int FROM servicos
+                     WHERE checkout_hora IS NOT NULL AND COALESCE(validado_empresa,FALSE) = FALSE) AS jornadas_pendentes,
+                    (SELECT COUNT(*)::int FROM servicos
+                     WHERE COALESCE(pagamento_autorizado,FALSE) = TRUE
+                     AND COALESCE(pagamento_realizado,FALSE) = FALSE) AS pagamentos_pendentes
+            `);
+
+            const usuariosRecentes = await pool.query(`
+                SELECT id, nome, email, tipo, criado_em
+                FROM usuarios
+                ORDER BY criado_em DESC NULLS LAST, id DESC
+                LIMIT 8
+            `);
+
+            const servicosRecentes = await pool.query(`
+                SELECT id, titulo, empresa_nome, prestador_nome, status, criado_em
+                FROM servicos
+                ORDER BY criado_em DESC NULLS LAST, id DESC
+                LIMIT 8
+            `);
+
+            return res.json({
+                sucesso: true,
+                resumo: resultado.rows[0] || {},
+                usuariosRecentes: usuariosRecentes.rows,
+                servicosRecentes: servicosRecentes.rows
+            });
+        } catch (err) {
+            console.error('❌ Painel administrativo:', err);
+            return res.status(500).json({sucesso: false, erro: 'Erro ao carregar o painel administrativo.'});
+        }
+    }
 );
 
 
