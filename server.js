@@ -2684,6 +2684,12 @@ async function criarTabelas() {
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS validado_em TIMESTAMP;",
 
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS jornada_aprovacao_status TEXT DEFAULT 'aguardando_aprovacao';",
+
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS jornada_correcao_motivo TEXT;",
+
+            "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS jornada_correcao_solicitada_em TIMESTAMP;",
+
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_autorizado BOOLEAN DEFAULT FALSE;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS pagamento_autorizado_em TIMESTAMP;",
@@ -5018,6 +5024,189 @@ app.post(
     '/api/auth/alterar-senha',
     autenticarUsuario,
     alterarSenhaRS
+);
+
+
+// ============================================================
+// REDEFINIR SENHA DE OUTRA CONTA — SUPORTE DO GRUPO RS
+//
+// Exige sessão de administrador e confirma novamente a senha
+// atual antes de permitir a alteração.
+// ============================================================
+
+app.post(
+    '/api/admin/redefinir-senha-segura',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        const adminEmail =
+            normalizarEmail(
+                req.body?.adminEmail
+            );
+
+
+        const adminSenha =
+            String(
+                req.body?.adminSenha ||
+                ''
+            );
+
+
+        const emailAlvo =
+            normalizarEmail(
+                req.body?.email
+            );
+
+
+        const novaSenha =
+            String(
+                req.body?.novaSenha ||
+                ''
+            );
+
+
+        if (!req.usuario?.gestorRS) {
+
+            return responderAcessoNegado(
+                res,
+                'Somente o Grupo RS pode redefinir a senha de outra conta.'
+            );
+        }
+
+
+        if (
+            adminEmail !==
+            normalizarEmail(req.usuario.email)
+        ) {
+
+            return res
+                .status(403)
+                .json({
+                    sucesso: false,
+                    erro: 'O administrador informado não corresponde à sessão atual.'
+                });
+        }
+
+
+        if (
+            !adminSenha ||
+            !emailAlvo ||
+            novaSenha.length < 6
+        ) {
+
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+                    erro: 'Confira os dados. A nova senha deve ter no mínimo 6 caracteres.'
+                });
+        }
+
+
+        try {
+
+            const adminResultado =
+                await pool.query(
+                    `SELECT * FROM usuarios WHERE id = $1 LIMIT 1`,
+                    [req.usuario.id]
+                );
+
+
+            const admin =
+                adminResultado.rows[0];
+
+
+            if (
+                !admin ||
+                !verificarSenha(
+                    adminSenha,
+                    admin.senha
+                )
+            ) {
+
+                return res
+                    .status(401)
+                    .json({
+                        sucesso: false,
+                        erro: 'Senha atual do administrador incorreta.'
+                    });
+            }
+
+
+            const alvoResultado =
+                await pool.query(
+                    `
+                    SELECT id, email
+                    FROM usuarios
+                    WHERE LOWER(TRIM(email)) = LOWER(TRIM($1))
+                    LIMIT 1
+                    `,
+                    [emailAlvo]
+                );
+
+
+            const alvo =
+                alvoResultado.rows[0];
+
+
+            if (!alvo) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro: 'Conta não encontrada.'
+                    });
+            }
+
+
+            await pool.query(
+                `
+                UPDATE usuarios
+                SET senha = $1, atualizado_em = CURRENT_TIMESTAMP
+                WHERE id = $2
+                `,
+                [
+                    gerarHashSenha(novaSenha),
+                    alvo.id
+                ]
+            );
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'ADMIN_REDEFINIR_SENHA',
+                `Senha redefinida para ${normalizarEmail(alvo.email)}.`
+            );
+
+
+            return res.json({
+                sucesso: true,
+                mensagem: 'Senha redefinida com segurança.'
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Redefinir senha pelo administrador:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro: 'Não foi possível redefinir a senha.'
+                });
+        }
+    }
 );
 
 
@@ -9509,6 +9698,12 @@ app.post(
 
                         validado_em =
                             CURRENT_TIMESTAMP,
+
+                        jornada_aprovacao_status =
+                            'aprovada',
+
+                        jornada_correcao_motivo =
+                            NULL,
 
                         status =
                             'validado',
@@ -15512,6 +15707,181 @@ app.get(
 
 
 // ============================================================
+// SOLICITAR CORREÇÃO DA JORNADA
+//
+// SOMENTE A EMPRESA RESPONSÁVEL OU O GRUPO RS.
+// ============================================================
+
+app.post(
+    '/api/servicos/:id/solicitar-correcao-jornada',
+
+    autenticarUsuario,
+
+    async (
+        req,
+        res
+    ) => {
+
+        const servicoId =
+            Number(
+                req.params.id
+            );
+
+
+        const motivo =
+            String(
+                req.body?.motivo ||
+                ''
+            )
+                .trim();
+
+
+        if (
+            !Number.isInteger(servicoId) ||
+            servicoId <= 0
+        ) {
+
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+                    erro: 'Serviço inválido.'
+                });
+        }
+
+
+        if (
+            motivo.length < 10 ||
+            motivo.length > 1000
+        ) {
+
+            return res
+                .status(400)
+                .json({
+                    sucesso: false,
+                    erro: 'Informe o motivo da correção entre 10 e 1000 caracteres.'
+                });
+        }
+
+
+        try {
+
+            const servico =
+                await buscarServico(
+                    servicoId
+                );
+
+
+            if (!servico) {
+
+                return res
+                    .status(404)
+                    .json({
+                        sucesso: false,
+                        erro: 'Serviço não encontrado.'
+                    });
+            }
+
+
+            if (
+                !req.usuario.gestorRS &&
+                !empresaEhResponsavel(
+                    servico,
+                    req.usuario.email
+                )
+            ) {
+
+                return responderAcessoNegado(
+                    res,
+                    'Somente a empresa responsável pode solicitar a correção.'
+                );
+            }
+
+
+            if (!servico.checkout_hora) {
+
+                return res
+                    .status(409)
+                    .json({
+                        sucesso: false,
+                        erro: 'A jornada ainda não foi finalizada.'
+                    });
+            }
+
+
+            const resultado =
+                await pool.query(
+                    `
+                    UPDATE servicos
+
+                    SET
+                        validado_empresa = FALSE,
+                        validado_em = NULL,
+                        jornada_aprovacao_status = 'correcao_solicitada',
+                        jornada_correcao_motivo = $1,
+                        jornada_correcao_solicitada_em = CURRENT_TIMESTAMP,
+                        atualizado_em = CURRENT_TIMESTAMP
+
+                    WHERE id = $2
+
+                    RETURNING *
+                    `,
+                    [
+                        motivo,
+                        servicoId
+                    ]
+                );
+
+
+            await registrarAuditoria(
+                req.usuario.email,
+                'SOLICITAR_CORRECAO_JORNADA',
+                `Correção solicitada para o serviço #${servicoId}.`
+            );
+
+
+            emitirAtualizacaoPrestador(
+                servico.prestador_email,
+                'correcao_jornada_solicitada',
+                {
+                    servicoId,
+                    motivo
+                }
+            );
+
+
+            emitirAtualizacao(
+                servicoId
+            );
+
+
+            return res.json({
+                sucesso: true,
+                mensagem: 'Correção solicitada ao prestador.',
+                servico: resultado.rows[0]
+            });
+
+
+        } catch (err) {
+
+            console.error(
+                '❌ Solicitar correção da jornada:',
+                err
+            );
+
+
+            return res
+                .status(500)
+                .json({
+                    sucesso: false,
+                    erro: 'Não foi possível solicitar a correção da jornada.'
+                });
+        }
+    }
+);
+
+
+// ============================================================
 // AUTORIZAR PAGAMENTO
 //
 // SOMENTE:
@@ -15842,7 +16212,10 @@ app.post(
 // ============================================================
 
 app.post(
-    '/api/servicos/:id/pagamento',
+    [
+        '/api/servicos/:id/pagamento',
+        '/api/servicos/:id/pagamento-realizado'
+    ],
 
     autenticarUsuario,
 
