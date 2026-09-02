@@ -12,12 +12,20 @@
 
   <meta
     name="theme-color"
-    content="#061523"
+    content="#087ca8"
   >
+
+  <meta name="application-name" content="RS CONNECT">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="RS CONNECT">
+  <link rel="manifest" href="/manifest.webmanifest">
+  <link rel="apple-touch-icon" href="/icons/icon-192.png">
 
   <title>RS Connect - Gestão de Jornada dos Clientes</title>
 
   <script src="/socket.io/socket.io.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.2/dist/jspdf.umd.min.js"></script>
 
   <style>
 
@@ -1431,14 +1439,22 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 .rs-admin-colunas{margin-top:14px}.rs-admin-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(106,151,178,.14)}.rs-admin-linha:last-child{border-bottom:0}.rs-admin-linha strong{display:block;font-size:11px}.rs-admin-linha small{color:#7894a6;font-size:9px}.rs-admin-status{padding:4px 7px;border-radius:99px;background:#0d304b;color:#83d9f0;font-size:8px;font-weight:800;text-transform:uppercase}
 .rs-admin-pendentes{margin:14px 0}.rs-admin-pendente{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid rgba(106,151,178,.16)}.rs-admin-pendente:last-child{border-bottom:0}.rs-admin-pendente strong,.rs-admin-pendente small{display:block}.rs-admin-pendente small{margin-top:3px;color:#708c9e}.rs-admin-pendente-acoes{display:flex;gap:7px;flex-wrap:wrap}
 .rs-perfil-grid{align-items:start}.rs-perfil-identidade{text-align:center}.rs-perfil-foto{width:118px;height:118px;margin:0 auto 13px;display:grid;place-items:center;overflow:hidden;border:3px solid #2c9dcc;border-radius:50%;background:#0b2c44;font-size:48px;box-shadow:0 0 0 7px rgba(44,157,204,.10)}.rs-perfil-foto img{width:100%;height:100%;object-fit:cover}.rs-perfil-identidade h3{margin:16px 0 7px}.rs-selo-verificado{display:inline-flex;padding:6px 10px;border-radius:99px;background:rgba(24,190,112,.14);color:#4cdda0;font-size:10px;font-weight:900}.rs-reputacao{margin:13px 0 6px;color:#f8c64d;font-size:13px;font-weight:800}.rs-estrelas{display:flex;justify-content:center;gap:8px;margin:18px 0 7px}.rs-estrelas button{padding:0;border:0;background:transparent;color:#496273;font-size:36px;line-height:1;transition:.15s}.rs-estrelas button.ativa{color:#f5bd2e;transform:scale(1.08)}
+.rs-termos-check{display:flex;align-items:flex-start;gap:9px;margin:4px 0 15px;padding:11px;border:1px solid #28516d;border-radius:10px;background:rgba(7,25,40,.55);color:#a8c0cf;font-size:10px;line-height:1.5}.rs-termos-check input{flex:0 0 18px;width:18px!important;min-height:18px!important;margin:1px 0}.rs-termos-check button{padding:0;border:0;background:transparent;color:#56d4ef;text-decoration:underline;cursor:pointer}.rs-legal-box{max-width:680px}.rs-legal-conteudo{max-height:58vh;margin-bottom:15px;padding-right:8px;overflow:auto;color:#a9c0ce;font-size:11px;line-height:1.7}.rs-legal-conteudo h4{margin:16px 0 5px;color:#fff}.rs-legal-conteudo p{margin:0 0 8px}.rs-relatorio-box{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.rs-relatorio-box input{width:auto;min-width:170px}
 @media(min-width:981px){
   .rs-notificacao{border-color:#d6e1e7;background:#fff;color:#1b3442;box-shadow:0 4px 15px rgba(26,67,88,.05)}
   .rs-notificacao.nao-lida{background:linear-gradient(90deg,#e8f8fc,#fff 34%)}
   .rs-notificacao-icone{background:#e4f5fa}.rs-notificacao-corpo p{color:#536c7a}.rs-notificacao-corpo time{color:#718693}
   .rs-admin-card strong{color:#153344}.rs-admin-card span{color:#557080}.rs-admin-linha strong{color:#203845}.rs-admin-linha small{color:#617986}.rs-admin-status{background:#e3f4f9;color:#126c90}
   .rs-perfil-foto{background:#e7f4f9}.rs-perfil-identidade h3{color:#183643}.rs-admin-pendente strong{color:#203845}
+  .page{color:#172f3d}.page h1,.page h2,.page h3,.page h4,.page strong{color:#142e3c}
+  .page .muted,.page .small.muted{color:#526b79!important}
+  .page input,.page select,.page textarea{border-color:#aebfc9;background:#fff;color:#142e3c}
+  .page input::placeholder,.page textarea::placeholder{color:#697e8a}.page label{color:#344e5d;font-weight:700}
+  .page [style*="background:#08243b"],.page [style*="background: #08243b"]{background:#edf6fa!important;border-color:#9fc4d5!important;color:#193b4b!important}
+  .page [style*="color:#9ab3c4"]{color:#536d7a!important}
+  .rs-termos-check{border-color:#bdccd4;background:#f4f8fa;color:#344f5e}.rs-termos-check button{color:#075f88}.rs-legal-conteudo{color:#435e6c}.rs-legal-conteudo h4{color:#173746}
 }
-@media(max-width:760px){.rs-page-head{flex-direction:column}.rs-page-head .service-actions{width:100%}.rs-page-head .service-actions .btn{flex:1}.rs-admin-colunas,.rs-perfil-grid{grid-template-columns:1fr}.rs-admin-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-admin-pendente{grid-template-columns:1fr}.rs-admin-pendente-acoes .btn{flex:1}}
+@media(max-width:760px){.rs-page-head{flex-direction:column}.rs-page-head .service-actions{width:100%}.rs-page-head .service-actions .btn{flex:1}.rs-admin-colunas,.rs-perfil-grid{grid-template-columns:1fr}.rs-admin-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-admin-pendente{grid-template-columns:1fr}.rs-admin-pendente-acoes .btn{flex:1}.rs-relatorio-box{align-items:stretch;flex-direction:column}.rs-relatorio-box input{width:100%}}
 
 #loginScreen{
   position:relative;
@@ -1919,6 +1935,10 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
 
       <div class="sidebar-user">
+
+        <button id="btnInstalarApp" class="btn btn-primary btn-block hidden" style="margin-bottom:9px;" onclick="instalarRSConnect()">
+          📲 Instalar aplicativo
+        </button>
 
         <strong id="sidebarNome">
           Usuário
@@ -3098,6 +3118,12 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
           💰 Financeiro
         </h3>
 
+        <div id="boxRelatorioMensal" class="card rs-relatorio-box hidden">
+          <div><strong>📊 Relatório mensal da empresa</strong><div class="small muted" style="margin-top:4px;">Jornadas, horas extras, pagamentos e colaboradores.</div></div>
+          <input id="relatorioMes" type="month">
+          <button class="btn btn-primary" onclick="gerarRelatorioMensalPDF(this)">📄 Gerar PDF mensal</button>
+        </div>
+
 
         <div class="grid grid-4">
 
@@ -3391,6 +3417,15 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
     <div id="avaliacaoNotaTexto" class="small muted" style="text-align:center;margin-bottom:14px;">Escolha de 1 a 5 estrelas</div>
     <div class="form-group"><label>Comentário</label><textarea id="avaliacaoComentario" maxlength="1000" placeholder="Conte como foi a experiência."></textarea></div>
     <button id="btnEnviarAvaliacao" class="btn btn-primary btn-block" onclick="enviarAvaliacao(this)">Enviar avaliação</button>
+  </div>
+</div>
+
+
+<div id="modalDocumentoLegal" class="modal hidden">
+  <div class="modal-box rs-legal-box">
+    <div class="modal-header"><h3 id="tituloDocumentoLegal" style="margin:0;">Termos</h3><button class="modal-close" onclick="$('modalDocumentoLegal').classList.add('hidden')">✕</button></div>
+    <div id="conteudoDocumentoLegal" class="rs-legal-conteudo"></div>
+    <button class="btn btn-primary btn-block" onclick="$('modalDocumentoLegal').classList.add('hidden')">Entendi</button>
   </div>
 </div>
 
@@ -3853,6 +3888,12 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
         >
 
       </div>
+
+
+      <label class="rs-termos-check">
+        <input id="cadAceiteTermos" type="checkbox" required>
+        <span>Li e aceito os <button type="button" onclick="abrirDocumentoLegal('termos')">Termos de Uso</button> e a <button type="button" onclick="abrirDocumentoLegal('privacidade')">Política de Privacidade</button>.</span>
+      </label>
 
 
       <button
@@ -7611,7 +7652,10 @@ async function cadastrarUsuario(
                 $('cadPix').value,
 
               senha:
-                $('cadSenha').value
+                $('cadSenha').value,
+
+              aceite_termos:
+                Boolean($('cadAceiteTermos')?.checked)
             })
         }
       );
@@ -7857,6 +7901,11 @@ function configurarExperienciaPorPerfil() {
   ];
 
   const empresa = ehEmpresa();
+  $('boxRelatorioMensal')?.classList.toggle('hidden', !empresa);
+  if ($('relatorioMes') && !$('relatorioMes').value) {
+    const agora=new Date();
+    $('relatorioMes').value=`${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
+  }
   if (ehGrupoRS()) {
     itensEmpresa.unshift(['🛡️', 'Painel administrativo', 'Controle geral do RS CONNECT', 'admin']);
   }
@@ -8147,6 +8196,72 @@ async function enviarAvaliacao(botao) {
     toast(data?.mensagem || 'Avaliação enviada.', 'success'); fecharAvaliacao();
   } catch(erro){toast(erro.message,'error');} finally{loadingBotao(botao,false);}
 }
+
+
+// ============================================================
+// TERMOS DE USO E PRIVACIDADE
+// ============================================================
+
+function abrirDocumentoLegal(tipo) {
+  const privacidade = tipo === 'privacidade';
+  $('tituloDocumentoLegal').textContent = privacidade ? 'Política de Privacidade' : 'Termos de Uso';
+  $('conteudoDocumentoLegal').innerHTML = privacidade ? `
+    <h4>1. Dados tratados</h4><p>O RS CONNECT utiliza dados cadastrais, profissionais, registros de jornada, fotos, documentos, localização, mensagens e informações de pagamento necessários à operação dos serviços.</p>
+    <h4>2. Fotos e localização</h4><p>Fotos e localização são coletadas durante presença, entrada e saída para comprovar a execução da jornada. O acesso é restrito aos participantes autorizados e ao Grupo RS.</p>
+    <h4>3. Finalidade e segurança</h4><p>Os dados são utilizados para cadastro, contratação, controle de jornada, comunicação, pagamentos, prevenção de fraude e cumprimento de obrigações. O sistema aplica separação entre empresas e controle de acesso.</p>
+    <h4>4. Compartilhamento</h4><p>As informações são compartilhadas somente quando necessárias à prestação do serviço, com a empresa contratante, o profissional vinculado e responsáveis autorizados do Grupo RS.</p>
+    <h4>5. Direitos do titular</h4><p>O usuário pode solicitar correção, atualização ou análise de exclusão de seus dados pelos canais oficiais do Grupo RS, respeitando prazos legais de conservação.</p>
+    <h4>6. Responsabilidade do usuário</h4><p>O usuário deve proteger sua senha, manter os dados verdadeiros e comunicar qualquer acesso indevido.</p>
+  ` : `
+    <h4>1. Uso da plataforma</h4><p>O RS CONNECT conecta empresas e profissionais, organiza serviços, jornadas, documentos, avaliações e pagamentos. O cadastro não garante contratação ou disponibilidade de vagas.</p>
+    <h4>2. Cadastro e aprovação</h4><p>As informações devem ser verdadeiras. Novos cadastros dependem da aprovação do Grupo RS e podem ser recusados ou suspensos em caso de inconsistência, fraude ou uso indevido.</p>
+    <h4>3. Jornada e comprovações</h4><p>O profissional concorda em registrar presença, entrada, intervalo e saída com informações reais. Fotos e localização podem ser exigidas como comprovação.</p>
+    <h4>4. Pagamentos</h4><p>Valores, condições e responsabilidades de pagamento seguem cada serviço publicado e os acordos firmados entre as partes.</p>
+    <h4>5. Conduta e avaliações</h4><p>As avaliações devem relatar experiências reais, sem ofensas ou conteúdo falso. Registros abusivos poderão ser analisados pelo Grupo RS.</p>
+    <h4>6. Aceite</h4><p>Ao criar a conta, o usuário declara que leu estes termos e a Política de Privacidade, versão setembro de 2026.</p>
+  `;
+  $('modalDocumentoLegal').classList.remove('hidden');
+}
+
+
+// ============================================================
+// RELATÓRIO MENSAL EM PDF
+// ============================================================
+
+function minutosRelatorio(valor) {
+  const min=Math.max(0,Number(valor)||0); return `${Math.floor(min/60)}h ${String(min%60).padStart(2,'0')}min`;
+}
+
+async function gerarRelatorioMensalPDF(botao) {
+  const mes=$('relatorioMes')?.value;
+  if(!mes){toast('Escolha o mês do relatório.','error');return;}
+  if(!window.jspdf?.jsPDF){toast('O gerador de PDF ainda não carregou. Tente novamente.','error');return;}
+  try{
+    loadingBotao(botao,true,'Gerando...');
+    const data=await apiFetch(`/api/relatorios/mensal?mes=${encodeURIComponent(mes)}`);
+    const {jsPDF}=window.jspdf; const pdf=new jsPDF({unit:'mm',format:'a4'}); const r=data?.resumo||{}; const itens=Array.isArray(data?.servicos)?data.servicos:[];
+    const azul=[12,105,151]; let y=18;
+    pdf.setFillColor(...azul);pdf.rect(0,0,210,30,'F');pdf.setTextColor(255,255,255);pdf.setFontSize(19);pdf.setFont('helvetica','bold');pdf.text('RS CONNECT',15,14);pdf.setFontSize(10);pdf.setFont('helvetica','normal');pdf.text('Relatório mensal de operações',15,22);
+    pdf.setTextColor(30,48,60);y=42;pdf.setFontSize(14);pdf.setFont('helvetica','bold');pdf.text(data?.empresaNome||'Empresa',15,y);y+=7;pdf.setFontSize(9);pdf.setFont('helvetica','normal');pdf.text(`Competência: ${mes.split('-').reverse().join('/')}   |   Gerado em: ${new Date().toLocaleString('pt-BR')}`,15,y);
+    y+=11;const cards=[['Serviços',r.servicos||0],['Horas',minutosRelatorio(r.minutos)],['Horas extras',minutosRelatorio(r.extras)],['Pagos',r.pagos||0]];cards.forEach((c,i)=>{const x=15+i*46;pdf.setFillColor(238,246,249);pdf.roundedRect(x,y,42,20,2,2,'F');pdf.setTextColor(80,105,118);pdf.setFontSize(7);pdf.text(c[0].toUpperCase(),x+3,y+6);pdf.setTextColor(18,62,82);pdf.setFontSize(12);pdf.setFont('helvetica','bold');pdf.text(String(c[1]),x+3,y+15);pdf.setFont('helvetica','normal');});y+=29;
+    pdf.setFontSize(11);pdf.setFont('helvetica','bold');pdf.text('Detalhamento dos serviços',15,y);y+=7;
+    itens.forEach((item,i)=>{if(y>272){pdf.addPage();y=18;}pdf.setFillColor(i%2?248:242,i%2?250:247,i%2?251:249);pdf.rect(15,y-4,180,18,'F');pdf.setTextColor(24,49,62);pdf.setFontSize(8);pdf.setFont('helvetica','bold');pdf.text(`#${item.id}  ${String(item.titulo||item.categoria||'Serviço').slice(0,55)}`,18,y);pdf.setFont('helvetica','normal');pdf.setTextColor(75,96,107);pdf.text(`${item.prestador_nome||'Sem colaborador'} | ${minutosRelatorio(item.minutos_trabalhados)} | Extra: ${minutosRelatorio(item.minutos_extras)} | ${item.pagamento_realizado?'Pago':'Pendente'}`,18,y+7);y+=19;});
+    if(!itens.length){pdf.setTextColor(90,108,118);pdf.setFontSize(10);pdf.text('Nenhum serviço encontrado nesta competência.',15,y);}
+    const paginas=pdf.getNumberOfPages();for(let p=1;p<=paginas;p++){pdf.setPage(p);pdf.setFontSize(7);pdf.setTextColor(115,130,138);pdf.text(`RS CONNECT · Página ${p} de ${paginas}`,105,290,{align:'center'});}
+    pdf.save(`RS_CONNECT_RELATORIO_${mes}.pdf`);toast('Relatório mensal gerado.','success');
+  }catch(erro){toast(erro.message,'error');}finally{loadingBotao(botao,false);}
+}
+
+
+// ============================================================
+// INSTALAÇÃO DO APLICATIVO
+// ============================================================
+
+let eventoInstalacaoRS=null;
+window.addEventListener('beforeinstallprompt',evento=>{evento.preventDefault();eventoInstalacaoRS=evento;$('btnInstalarApp')?.classList.remove('hidden');});
+window.addEventListener('appinstalled',()=>{$('btnInstalarApp')?.classList.add('hidden');eventoInstalacaoRS=null;toast('RS CONNECT instalado com sucesso.','success');});
+async function instalarRSConnect(){if(!eventoInstalacaoRS){toast('No iPhone, use Compartilhar e depois “Adicionar à Tela de Início”.','warning');return;}eventoInstalacaoRS.prompt();await eventoInstalacaoRS.userChoice;eventoInstalacaoRS=null;$('btnInstalarApp')?.classList.add('hidden');}
+if('serviceWorker' in navigator){window.addEventListener('load',()=>navigator.serviceWorker.register('/sw.js').catch(erro=>console.warn('Service Worker:',erro.message)));}
 
 
 // ============================================================
