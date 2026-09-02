@@ -1438,6 +1438,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 .rs-admin-card::after{content:'';position:absolute;right:-20px;bottom:-28px;width:90px;height:90px;border-radius:50%;background:rgba(45,171,221,.08)}
 .rs-admin-colunas{margin-top:14px}.rs-admin-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(106,151,178,.14)}.rs-admin-linha:last-child{border-bottom:0}.rs-admin-linha strong{display:block;font-size:11px}.rs-admin-linha small{color:#7894a6;font-size:9px}.rs-admin-status{padding:4px 7px;border-radius:99px;background:#0d304b;color:#83d9f0;font-size:8px;font-weight:800;text-transform:uppercase}
 .rs-admin-pendentes{margin:14px 0}.rs-admin-pendente{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid rgba(106,151,178,.16)}.rs-admin-pendente:last-child{border-bottom:0}.rs-admin-pendente strong,.rs-admin-pendente small{display:block}.rs-admin-pendente small{margin-top:3px;color:#708c9e}.rs-admin-pendente-acoes{display:flex;gap:7px;flex-wrap:wrap}
+.rs-central-admin{margin:14px 0}.rs-central-admin #adminBusca{width:min(280px,100%)}.rs-admin-abas{display:flex;gap:7px;margin-bottom:13px;padding-bottom:11px;overflow-x:auto;border-bottom:1px solid rgba(105,151,178,.18)}.rs-admin-abas button{flex:0 0 auto;padding:9px 11px;border:1px solid #24506c;border-radius:9px;background:#09253a;color:#9cb7c8;font-size:10px;font-weight:800}.rs-admin-abas button.ativa{border-color:#2caed0;background:#0d789e;color:#fff}.rs-admin-tabela-wrap{overflow:auto}.rs-admin-tabela{width:100%;min-width:760px;border-collapse:collapse}.rs-admin-tabela th{padding:9px;border-bottom:2px solid #24506c;color:#7f9dad;font-size:8px;text-align:left;text-transform:uppercase}.rs-admin-tabela td{padding:10px 9px;border-bottom:1px solid rgba(105,151,178,.14);color:#b8cbd6;font-size:10px;vertical-align:middle}.rs-admin-tabela td strong{display:block;color:#fff;font-size:11px}.rs-admin-tabela .acoes{display:flex;gap:5px;white-space:nowrap}.rs-admin-tabela .btn{padding:6px 8px;font-size:8px}
 .rs-perfil-grid{align-items:start}.rs-perfil-identidade{text-align:center}.rs-perfil-foto{width:118px;height:118px;margin:0 auto 13px;display:grid;place-items:center;overflow:hidden;border:3px solid #2c9dcc;border-radius:50%;background:#0b2c44;font-size:48px;box-shadow:0 0 0 7px rgba(44,157,204,.10)}.rs-perfil-foto img{width:100%;height:100%;object-fit:cover}.rs-perfil-identidade h3{margin:16px 0 7px}.rs-selo-verificado{display:inline-flex;padding:6px 10px;border-radius:99px;background:rgba(24,190,112,.14);color:#4cdda0;font-size:10px;font-weight:900}.rs-reputacao{margin:13px 0 6px;color:#f8c64d;font-size:13px;font-weight:800}.rs-estrelas{display:flex;justify-content:center;gap:8px;margin:18px 0 7px}.rs-estrelas button{padding:0;border:0;background:transparent;color:#496273;font-size:36px;line-height:1;transition:.15s}.rs-estrelas button.ativa{color:#f5bd2e;transform:scale(1.08)}
 .rs-termos-check{display:flex;align-items:flex-start;gap:9px;margin:4px 0 15px;padding:11px;border:1px solid #28516d;border-radius:10px;background:rgba(7,25,40,.55);color:#a8c0cf;font-size:10px;line-height:1.5}.rs-termos-check input{flex:0 0 18px;width:18px!important;min-height:18px!important;margin:1px 0}.rs-termos-check button{padding:0;border:0;background:transparent;color:#56d4ef;text-decoration:underline;cursor:pointer}.rs-legal-box{max-width:680px}.rs-legal-conteudo{max-height:58vh;margin-bottom:15px;padding-right:8px;overflow:auto;color:#a9c0ce;font-size:11px;line-height:1.7}.rs-legal-conteudo h4{margin:16px 0 5px;color:#fff}.rs-legal-conteudo p{margin:0 0 8px}.rs-relatorio-box{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}.rs-relatorio-box input{width:auto;min-width:170px}
 @media(min-width:981px){
@@ -1446,6 +1447,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
   .rs-notificacao-icone{background:#e4f5fa}.rs-notificacao-corpo p{color:#536c7a}.rs-notificacao-corpo time{color:#718693}
   .rs-admin-card strong{color:#153344}.rs-admin-card span{color:#557080}.rs-admin-linha strong{color:#203845}.rs-admin-linha small{color:#617986}.rs-admin-status{background:#e3f4f9;color:#126c90}
   .rs-perfil-foto{background:#e7f4f9}.rs-perfil-identidade h3{color:#183643}.rs-admin-pendente strong{color:#203845}
+  .rs-admin-abas button{border-color:#bfd0d9;background:#eef5f8;color:#355565}.rs-admin-abas button.ativa{border-color:#168ab0;background:#168ab0;color:#fff}.rs-admin-tabela th{border-color:#b8ccd6;color:#486675}.rs-admin-tabela td{border-color:#dce6eb;color:#3f5967}.rs-admin-tabela td strong{color:#173644}
   .page{color:#172f3d}.page h1,.page h2,.page h3,.page h4,.page strong{color:#142e3c}
   .page .muted,.page .small.muted{color:#526b79!important}
   .page input,.page select,.page textarea{border-color:#aebfc9;background:#fff;color:#142e3c}
@@ -3387,6 +3389,20 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
           <div id="adminCadastrosPendentes"></div>
         </div>
 
+        <div class="card rs-central-admin">
+          <div class="rs-page-head"><div><h3 class="section-title">Central de Controle</h3><p class="muted small">Administração detalhada de toda a operação.</p></div><input id="adminBusca" type="search" placeholder="Pesquisar..." oninput="renderizarModuloAdmin()"></div>
+          <div class="rs-admin-abas">
+            <button class="ativa" data-admin-modulo="usuarios" onclick="abrirModuloAdmin('usuarios',this)">👥 Usuários</button>
+            <button data-admin-modulo="empresas" onclick="abrirModuloAdmin('empresas',this)">🏢 Empresas</button>
+            <button data-admin-modulo="servicos" onclick="abrirModuloAdmin('servicos',this)">🧰 Serviços</button>
+            <button data-admin-modulo="jornadas" onclick="abrirModuloAdmin('jornadas',this)">⏱ Jornadas</button>
+            <button data-admin-modulo="pagamentos" onclick="abrirModuloAdmin('pagamentos',this)">💰 Financeiro</button>
+            <button data-admin-modulo="avaliacoes" onclick="abrirModuloAdmin('avaliacoes',this)">⭐ Avaliações</button>
+            <button data-admin-modulo="auditoria" onclick="abrirModuloAdmin('auditoria',this)">🛡 Auditoria</button>
+          </div>
+          <div id="adminModuloConteudo" class="rs-admin-tabela-wrap"><div class="rs-vazio">Carregando controles...</div></div>
+        </div>
+
         <div class="grid grid-2 rs-admin-colunas">
           <div class="card">
             <h3 class="section-title">Contas recentes</h3>
@@ -3805,6 +3821,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
         <select
           id="cadTipo"
+          onchange="configurarCadastroPorTipo()"
           required
         >
 
@@ -3823,7 +3840,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
       <div class="form-group">
 
-        <label>
+        <label id="cadNomeLabel">
           Nome / Razão social
         </label>
 
@@ -3832,6 +3849,21 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
           required
         >
 
+      </div>
+
+
+      <div id="cadCamposEmpresa" class="hidden">
+        <div class="form-group"><label>CNPJ</label><input id="cadCnpj" inputmode="numeric" placeholder="00.000.000/0000-00"></div>
+        <div class="form-group"><label>Nome do responsável</label><input id="cadResponsavel" placeholder="Responsável pela empresa"></div>
+        <div class="form-group"><label>Endereço da empresa</label><input id="cadEnderecoEmpresa" placeholder="Rua, número, bairro e cidade"></div>
+      </div>
+
+
+      <div id="cadCamposPrestador">
+        <div class="form-group"><label>CPF</label><input id="cadCpf" inputmode="numeric" placeholder="000.000.000-00"></div>
+        <div class="form-group"><label>RG ou CNH</label><input id="cadRgCnh"></div>
+        <div class="form-group"><label>Profissão principal</label><input id="cadProfissao" placeholder="Ex.: Auxiliar de logística"></div>
+        <div class="form-group"><label>Experiência</label><textarea id="cadExperiencia" placeholder="Conte resumidamente suas experiências."></textarea></div>
       </div>
 
 
@@ -3864,7 +3896,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
       </div>
 
 
-      <div class="form-group">
+      <div id="cadGrupoPix" class="form-group">
 
         <label>
           Chave PIX
@@ -7591,10 +7623,23 @@ async function fazerLogin(
 
 function abrirCadastro() {
 
+  configurarCadastroPorTipo();
+
   $('modalCadastro')
     .classList.remove(
       'hidden'
     );
+}
+
+
+function configurarCadastroPorTipo() {
+  const empresa=$('cadTipo')?.value==='empresa';
+  $('cadCamposEmpresa')?.classList.toggle('hidden',!empresa);
+  $('cadCamposPrestador')?.classList.toggle('hidden',empresa);
+  $('cadGrupoPix')?.classList.toggle('hidden',empresa);
+  if($('cadNomeLabel')) $('cadNomeLabel').textContent=empresa?'Razão social / Nome da empresa':'Nome completo';
+  for(const id of ['cadCnpj','cadResponsavel','cadEnderecoEmpresa']) if($(id)) $(id).required=empresa;
+  for(const id of ['cadCpf','cadProfissao']) if($(id)) $(id).required=!empresa;
 }
 
 
@@ -7641,6 +7686,24 @@ async function cadastrarUsuario(
 
               nome:
                 $('cadNome').value,
+
+              doc:
+                $('cadTipo').value === 'empresa' ? $('cadCnpj').value : $('cadCpf').value,
+
+              responsavel:
+                $('cadResponsavel').value,
+
+              endereco:
+                $('cadEnderecoEmpresa').value,
+
+              rg_cnh:
+                $('cadRgCnh').value,
+
+              profissao:
+                $('cadProfissao').value,
+
+              experiencia:
+                $('cadExperiencia').value,
 
               email:
                 $('cadEmail').value,
@@ -8005,6 +8068,9 @@ async function marcarTodasNotificacoesLidas() {
 // PAINEL ADMINISTRATIVO
 // ============================================================
 
+let adminCentralCache={usuarios:[],servicos:[],jornadas:[],pagamentos:[],avaliacoes:[],auditoria:[]};
+let adminModuloAtual='usuarios';
+
 async function carregarPainelAdmin(mostrarAviso = false) {
   if (!ehGrupoRS()) {
     toast('Área exclusiva do Grupo RS.', 'error');
@@ -8015,6 +8081,8 @@ async function carregarPainelAdmin(mostrarAviso = false) {
   try {
     const data = await apiFetch('/api/admin/resumo');
     const dadosPendentes = await apiFetch('/api/admin/cadastros-pendentes');
+    const central = await apiFetch('/api/admin/central');
+    adminCentralCache={...adminCentralCache,...central};
     const resumo = data?.resumo || {};
     const cards = [
       ['👥', 'Usuários cadastrados', resumo.usuarios || 0],
@@ -8064,6 +8132,8 @@ async function carregarPainelAdmin(mostrarAviso = false) {
       </div>
     `).join('') : '<div class="rs-vazio">✓ Nenhum cadastro aguardando aprovação.</div>';
 
+    renderizarModuloAdmin();
+
     if (mostrarAviso) toast('Painel administrativo atualizado.', 'success');
   } catch (erro) {
     $('adminCardsResumo').innerHTML = `<div class="rs-vazio">${escapeHtml(erro.message || 'Não foi possível carregar o painel.')}</div>`;
@@ -8092,6 +8162,22 @@ async function verificarPerfilAdmin(id, verificado, botao) {
     await carregarPainelAdmin(false);
   }catch(erro){toast(erro.message,'error');}finally{loadingBotao(botao,false);}
 }
+
+function abrirModuloAdmin(modulo,botao){adminModuloAtual=modulo;document.querySelectorAll('[data-admin-modulo]').forEach(b=>b.classList.toggle('ativa',b===botao));renderizarModuloAdmin();}
+function adminFiltrar(lista){const busca=texto($('adminBusca')?.value).trim().toLowerCase();return busca?lista.filter(item=>JSON.stringify(item).toLowerCase().includes(busca)):lista;}
+function adminTabela(cabecalhos,linhas){return linhas.length?`<table class="rs-admin-tabela"><thead><tr>${cabecalhos.map(x=>`<th>${x}</th>`).join('')}</tr></thead><tbody>${linhas.join('')}</tbody></table>`:'<div class="rs-vazio">Nenhum registro encontrado.</div>';}
+function renderizarModuloAdmin(){const box=$('adminModuloConteudo');if(!box)return;let lista=[],html='';
+  if(adminModuloAtual==='usuarios'){lista=adminFiltrar(adminCentralCache.usuarios||[]);html=adminTabela(['Usuário','Tipo','Situação','Verificação','Controles'],lista.map(u=>`<tr><td><strong>${escapeHtml(u.nome||'Sem nome')}</strong>${escapeHtml(u.email||'')}</td><td>${escapeHtml(u.tipo||'-')}</td><td><span class="rs-admin-status">${escapeHtml(u.cadastro_status||'aprovado')}</span></td><td>${u.perfil_verificado?'✓ Verificado':'Pendente'}</td><td class="acoes"><button class="btn btn-success" onclick="alterarSituacaoUsuario(${u.id},'aprovado',this)">Ativar</button><button class="btn btn-danger" onclick="alterarSituacaoUsuario(${u.id},'bloqueado',this)">Bloquear</button><button class="btn btn-dark" onclick="verificarPerfilAdmin(${u.id},${u.perfil_verificado?'false':'true'},this)">${u.perfil_verificado?'Remover selo':'Verificar'}</button></td></tr>`));}
+  else if(adminModuloAtual==='empresas'){lista=adminFiltrar((adminCentralCache.usuarios||[]).filter(u=>texto(u.tipo).toLowerCase()==='empresa'));html=adminTabela(['Empresa','CNPJ','Responsável','Contato','Situação'],lista.map(u=>`<tr><td><strong>${escapeHtml(u.nome||'-')}</strong>${escapeHtml(u.email||'')}</td><td>${escapeHtml(u.doc||'-')}</td><td>${escapeHtml(u.responsavel||'-')}</td><td>${escapeHtml(u.whatsapp||'-')}</td><td><span class="rs-admin-status">${escapeHtml(u.cadastro_status||'aprovado')}</span></td></tr>`));}
+  else if(adminModuloAtual==='servicos'){lista=adminFiltrar(adminCentralCache.servicos||[]);html=adminTabela(['Serviço','Empresa','Colaborador','Valor','Status'],lista.map(s=>`<tr><td><strong>#${s.id} · ${escapeHtml(s.titulo||'-')}</strong>${escapeHtml(s.categoria||'')}</td><td>${escapeHtml(s.empresa_nome||s.empresa_email||'-')}</td><td>${escapeHtml(s.prestador_nome||'Não definido')}</td><td>${moeda(Number(s.valor_liquido||0))}</td><td><span class="rs-admin-status">${escapeHtml(s.status||'-')}</span></td></tr>`));}
+  else if(adminModuloAtual==='jornadas'){lista=adminFiltrar(adminCentralCache.jornadas||[]);html=adminTabela(['Serviço','Empresa','Colaborador','Entrada / Saída','Aprovação'],lista.map(j=>`<tr><td><strong>#${j.id} · ${escapeHtml(j.titulo||'-')}</strong>${escapeHtml(j.data_horario||'')}</td><td>${escapeHtml(j.empresa_nome||'-')}</td><td>${escapeHtml(j.prestador_nome||j.prestador_email||'-')}</td><td>${escapeHtml(j.checkin_hora||'-')} → ${escapeHtml(j.checkout_hora||'Em andamento')}</td><td><span class="rs-admin-status">${j.validado_empresa?'aprovada':escapeHtml(j.jornada_aprovacao_status||'pendente')}</span></td></tr>`));}
+  else if(adminModuloAtual==='pagamentos'){lista=adminFiltrar(adminCentralCache.pagamentos||[]);html=adminTabela(['Serviço','Empresa','Prestador','Valor','Situação'],lista.map(p=>`<tr><td><strong>#${p.servico_id}</strong>${escapeHtml(formatarDataHora(p.criado_em)||'')}</td><td>${escapeHtml(p.empresa_email||'-')}</td><td>${escapeHtml(p.prestador_email||'-')}</td><td>${moeda(Number(p.valor||0))}</td><td><span class="rs-admin-status">${escapeHtml(p.status||'pendente')}</span></td></tr>`));}
+  else if(adminModuloAtual==='avaliacoes'){lista=adminFiltrar(adminCentralCache.avaliacoes||[]);html=adminTabela(['Serviço','Avaliador','Avaliado','Nota','Comentário','Controle'],lista.map(a=>`<tr><td>#${a.servico_id}</td><td>${escapeHtml(a.avaliador_email||'-')}</td><td>${escapeHtml(a.avaliado_email||'-')}</td><td><strong>${'★'.repeat(Number(a.nota)||0)}</strong></td><td>${escapeHtml(a.comentario||'Sem comentário')}</td><td><button class="btn btn-danger" onclick="removerAvaliacaoAdmin(${a.id},this)">Remover</button></td></tr>`));}
+  else {lista=adminFiltrar(adminCentralCache.auditoria||[]);html=adminTabela(['Data','Usuário','Ação','Detalhes'],lista.map(a=>`<tr><td>${escapeHtml(formatarDataHora(a.criado_em)||'-')}</td><td>${escapeHtml(a.usuario_email||'-')}</td><td><strong>${escapeHtml(a.acao||'-')}</strong></td><td>${escapeHtml(a.detalhes||'-')}</td></tr>`));}
+  box.innerHTML=html;
+}
+async function alterarSituacaoUsuario(id,situacao,botao){if(!confirm(`Confirma alterar esta conta para ${situacao}?`))return;try{loadingBotao(botao,true,'...');const d=await apiFetch(`/api/admin/usuarios/${id}/situacao`,{method:'POST',body:JSON.stringify({situacao})});toast(d.mensagem,'success');await carregarPainelAdmin(false);}catch(e){toast(e.message,'error');}finally{loadingBotao(botao,false);}}
+async function removerAvaliacaoAdmin(id,botao){if(!confirm('Remover esta avaliação? A ação ficará registrada na auditoria.'))return;try{loadingBotao(botao,true,'...');const d=await apiFetch(`/api/admin/avaliacoes/${id}`,{method:'DELETE'});toast(d.mensagem,'success');await carregarPainelAdmin(false);}catch(e){toast(e.message,'error');}finally{loadingBotao(botao,false);}}
 
 
 // ============================================================
