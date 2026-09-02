@@ -2739,6 +2739,12 @@ async function criarTabelas() {
 
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS documento_perfil_nome TEXT;",
 
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS aceite_termos BOOLEAN DEFAULT FALSE;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS aceite_termos_em TIMESTAMP;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS termos_versao TEXT;",
+
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS cidade TEXT;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_nome TEXT;",
@@ -4263,6 +4269,11 @@ async function cadastrarUsuarioRS(
         );
 
 
+    const aceiteTermos =
+        dados.aceite_termos === true ||
+        dados.aceiteTermos === true;
+
+
     if (
         !email ||
         !nome ||
@@ -4301,6 +4312,14 @@ async function cadastrarUsuarioRS(
                 erro:
                     'A senha precisa ter no mínimo 6 caracteres.'
             });
+    }
+
+
+    if (!aceiteTermos) {
+        return res.status(400).json({
+            sucesso: false,
+            erro: 'É necessário aceitar os Termos de Uso e a Política de Privacidade.'
+        });
     }
 
 
@@ -4378,6 +4397,9 @@ async function cadastrarUsuarioRS(
                     experiencia,
                     descricao,
                     cadastro_status,
+                    aceite_termos,
+                    aceite_termos_em,
+                    termos_versao,
                     atualizado_em
                 )
 
@@ -4386,6 +4408,7 @@ async function cadastrarUsuarioRS(
                     $5,$6,$7,$8,
                     $9,$10,$11,$12,
                     $13,$14,$15,$16,$17,
+                    TRUE,CURRENT_TIMESTAMP,'2026-09',
                     CURRENT_TIMESTAMP
                 )
 
@@ -20019,6 +20042,64 @@ app.post(
         }
     }
 );
+
+
+// ============================================================
+// RELATÓRIO MENSAL DA EMPRESA
+// ============================================================
+
+app.get('/api/relatorios/mensal', autenticarUsuario, async (req, res) => {
+    if (!req.usuario?.gestorRS && usuarioEhPrestador(req.usuario)) {
+        return responderAcessoNegado(res, 'Relatório disponível apenas para empresas e Grupo RS.');
+    }
+
+    const mes = String(req.query?.mes || '').trim();
+    if (!/^\d{4}-\d{2}$/.test(mes)) {
+        return res.status(400).json({sucesso:false, erro:'Informe o mês no formato AAAA-MM.'});
+    }
+
+    const empresaEmail = req.usuario.gestorRS && req.query?.empresa
+        ? normalizarEmail(req.query.empresa)
+        : normalizarEmail(req.usuario.email);
+
+    try {
+        const inicio = `${mes}-01`;
+        const resultado = await pool.query(`
+            SELECT id, titulo, categoria, empresa_nome, empresa_email, prestador_nome,
+                   prestador_email, data_horario, checkin_hora, intervalo_inicio,
+                   intervalo_retorno, intervalo_fim, checkout_hora, valor_diaria,
+                   valor_liquido, valor_total, status, validado_empresa,
+                   pagamento_realizado, criado_em
+            FROM servicos
+            WHERE LOWER(empresa_email)=LOWER($1)
+              AND criado_em >= $2::date
+              AND criado_em < ($2::date + INTERVAL '1 month')
+            ORDER BY criado_em ASC, id ASC
+        `, [empresaEmail, inicio]);
+
+        const servicos = resultado.rows.map(item => {
+            const tempo = item.checkin_hora && item.checkout_hora
+                ? calcularTempoTrabalhado(item, item.checkout_hora)
+                : {minutos:0};
+            const minutos = Math.max(0, Number(tempo?.minutos || 0));
+            return {...item, minutos_trabalhados:minutos, minutos_extras:Math.max(0,minutos-480)};
+        });
+
+        const resumo = servicos.reduce((acc,item) => {
+            acc.servicos += 1;
+            acc.minutos += Number(item.minutos_trabalhados||0);
+            acc.extras += Number(item.minutos_extras||0);
+            acc.valor += numeroRS(item.valor_liquido || item.valor_diaria || item.valor_total || 0);
+            if (item.pagamento_realizado) acc.pagos += 1;
+            return acc;
+        }, {servicos:0,minutos:0,extras:0,valor:0,pagos:0});
+
+        return res.json({sucesso:true, mes, empresaEmail, empresaNome:servicos[0]?.empresa_nome || req.usuario.nome || 'Empresa', resumo, servicos});
+    } catch (err) {
+        console.error('❌ Relatório mensal:', err);
+        return res.status(500).json({sucesso:false, erro:'Erro ao gerar relatório mensal.'});
+    }
+});
 
 
 // ============================================================
