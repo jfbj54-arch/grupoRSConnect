@@ -1379,6 +1379,162 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
   .inicio-atalhos.modulos-rs .inicio-atalho small{display:block;font-size:8px}
 }
 
+/* =========================================================
+   LOGIN FUTURISTA RS CONNECT
+========================================================= */
+#loginScreen{
+  position:relative;
+  isolation:isolate;
+  overflow:hidden;
+  padding:28px;
+  background:
+    radial-gradient(circle at 18% 20%,rgba(0,174,255,.22),transparent 27%),
+    radial-gradient(circle at 82% 78%,rgba(16,230,194,.14),transparent 25%),
+    linear-gradient(145deg,#020914 0%,#061b2c 50%,#04101d 100%);
+}
+#loginScreen::before{
+  content:'';
+  position:absolute;
+  z-index:-2;
+  inset:-45%;
+  background-image:
+    linear-gradient(rgba(50,178,226,.06) 1px,transparent 1px),
+    linear-gradient(90deg,rgba(50,178,226,.06) 1px,transparent 1px);
+  background-size:52px 52px;
+  transform:perspective(650px) rotateX(58deg) translateY(14%);
+  animation:rsLoginGrade 14s linear infinite;
+  mask-image:linear-gradient(to bottom,transparent 8%,#000 48%,transparent 88%);
+}
+#loginScreen::after{
+  content:'';
+  position:absolute;
+  z-index:-1;
+  width:520px;
+  height:520px;
+  border:1px solid rgba(62,202,244,.12);
+  border-radius:50%;
+  box-shadow:
+    0 0 0 70px rgba(38,170,225,.025),
+    0 0 0 140px rgba(38,170,225,.018);
+  animation:rsLoginOrbita 18s linear infinite;
+}
+#loginScreen .login-box{
+  position:relative;
+  width:min(440px,100%);
+  max-width:none;
+  padding:34px 34px 29px;
+  overflow:hidden;
+  border:1px solid rgba(103,211,244,.25);
+  border-radius:25px;
+  background:linear-gradient(145deg,rgba(11,37,58,.86),rgba(5,20,34,.91));
+  box-shadow:
+    0 32px 90px rgba(0,0,0,.48),
+    inset 0 1px 0 rgba(255,255,255,.08),
+    0 0 55px rgba(22,147,205,.10);
+  backdrop-filter:blur(22px);
+}
+#loginScreen .login-box::before{
+  content:'';
+  position:absolute;
+  top:0;
+  left:18%;
+  right:18%;
+  height:2px;
+  background:linear-gradient(90deg,transparent,#53dcff,transparent);
+  box-shadow:0 0 18px #30bde8;
+}
+#loginScreen .login-box::after{
+  content:'';
+  position:absolute;
+  top:-100px;
+  right:-100px;
+  width:210px;
+  height:210px;
+  border-radius:50%;
+  background:rgba(35,180,224,.08);
+  filter:blur(4px);
+  pointer-events:none;
+}
+#loginScreen .login-logo{position:relative;margin-bottom:27px}
+.rs-login-emblema{
+  position:relative;
+  display:grid;
+  place-items:center;
+  width:78px;
+  height:78px;
+  margin:0 auto 18px;
+  border:1px solid rgba(94,218,249,.44);
+  border-radius:24px;
+  background:linear-gradient(145deg,rgba(35,149,212,.25),rgba(21,223,196,.10));
+  box-shadow:0 0 35px rgba(43,191,232,.20),inset 0 0 25px rgba(50,201,240,.10);
+  color:#fff;
+  font-size:25px;
+  font-weight:900;
+  letter-spacing:-1px;
+}
+.rs-login-emblema::before,.rs-login-emblema::after{
+  content:'';
+  position:absolute;
+  inset:-9px;
+  border:1px solid rgba(78,204,242,.18);
+  border-radius:29px;
+  animation:rsLoginPulso 2.8s ease-in-out infinite;
+}
+.rs-login-emblema::after{inset:-17px;border-style:dashed;animation:rsLoginOrbita 13s linear infinite}
+.rs-login-selo{
+  display:inline-flex;
+  padding:5px 9px;
+  border:1px solid rgba(65,205,235,.20);
+  border-radius:99px;
+  background:rgba(35,176,215,.07);
+  color:#6ddcf4;
+  font-size:8px;
+  font-weight:900;
+  letter-spacing:1.5px;
+}
+#loginScreen .login-logo h1{margin-top:11px;font-size:34px;letter-spacing:-1.2px;background:linear-gradient(90deg,#fff,#9eeeff);-webkit-background-clip:text;background-clip:text;color:transparent}
+#loginScreen .login-logo p{color:#8aaabd;line-height:1.5}
+#loginScreen label{color:#a6c1cf;font-weight:700;letter-spacing:.2px}
+#loginScreen input{
+  min-height:50px;
+  padding:13px 14px;
+  border:1px solid rgba(82,156,194,.32);
+  border-radius:12px;
+  background:rgba(2,14,25,.62);
+  color:#fff;
+  box-shadow:inset 0 1px 8px rgba(0,0,0,.18);
+}
+#loginScreen input:focus{border-color:#49caef;box-shadow:0 0 0 3px rgba(54,190,232,.12),0 0 22px rgba(54,190,232,.08)}
+#loginScreen #btnLogin{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  min-height:51px;
+  margin-top:7px;
+  border:1px solid rgba(130,235,255,.20);
+  border-radius:12px;
+  background:linear-gradient(100deg,#147fd3,#18b8d1);
+  box-shadow:0 13px 28px rgba(12,136,193,.25),inset 0 1px 0 rgba(255,255,255,.22);
+  font-size:13px;
+  letter-spacing:.25px;
+}
+#loginScreen #btnLogin:hover{transform:translateY(-1px);box-shadow:0 16px 32px rgba(12,158,202,.33)}
+#loginScreen .btn-dark{border-color:rgba(74,147,184,.26);background:rgba(7,29,46,.72);color:#b8cfdb}
+#loginScreen .btn-dark:hover{border-color:rgba(78,204,242,.40);color:#fff}
+@keyframes rsLoginGrade{to{background-position:0 52px,52px 0}}
+@keyframes rsLoginOrbita{to{transform:rotate(360deg)}}
+@keyframes rsLoginPulso{50%{opacity:.35;transform:scale(1.04)}}
+@media(prefers-reduced-motion:reduce){#loginScreen::before,#loginScreen::after,.rs-login-emblema::before,.rs-login-emblema::after{animation:none}}
+@media(max-width:520px){
+  #loginScreen{padding:16px}
+  #loginScreen .login-box{padding:27px 19px 22px;border-radius:20px}
+  .rs-login-emblema{width:67px;height:67px;border-radius:20px}
+  #loginScreen .login-logo h1{font-size:29px}
+  #loginScreen .login-logo{margin-bottom:21px}
+  #loginScreen .btn-dark{margin:5px 2px!important;padding:9px 10px;font-size:10px}
+}
+
 </style>
 
 
@@ -1419,10 +1575,18 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
     <div class="login-logo">
 
+      <div class="rs-login-emblema" aria-hidden="true">
+        <span>RS</span>
+      </div>
+
+      <div class="rs-login-selo">
+        PLATAFORMA OPERACIONAL
+      </div>
+
       <h1>RS Connect</h1>
 
       <p>
-        Empresas e prestadores conectados.
+        Tecnologia que conecta empresas e profissionais.
       </p>
 
     </div>
@@ -1470,7 +1634,8 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
         class="btn btn-primary btn-block"
         type="submit"
       >
-        Entrar
+        <span>Entrar no sistema</span>
+        <span aria-hidden="true">→</span>
       </button>
 
     </form>
