@@ -1429,13 +1429,16 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 .rs-admin-card{position:relative;overflow:hidden;min-height:112px;padding:18px}.rs-admin-card span{display:block;color:#87a2b4;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.7px}.rs-admin-card strong{display:block;margin-top:9px;color:#fff;font-size:27px}.rs-admin-card small{color:#688699}
 .rs-admin-card::after{content:'';position:absolute;right:-20px;bottom:-28px;width:90px;height:90px;border-radius:50%;background:rgba(45,171,221,.08)}
 .rs-admin-colunas{margin-top:14px}.rs-admin-linha{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:11px 0;border-bottom:1px solid rgba(106,151,178,.14)}.rs-admin-linha:last-child{border-bottom:0}.rs-admin-linha strong{display:block;font-size:11px}.rs-admin-linha small{color:#7894a6;font-size:9px}.rs-admin-status{padding:4px 7px;border-radius:99px;background:#0d304b;color:#83d9f0;font-size:8px;font-weight:800;text-transform:uppercase}
+.rs-admin-pendentes{margin:14px 0}.rs-admin-pendente{display:grid;grid-template-columns:1fr auto;gap:12px;align-items:center;padding:13px 0;border-bottom:1px solid rgba(106,151,178,.16)}.rs-admin-pendente:last-child{border-bottom:0}.rs-admin-pendente strong,.rs-admin-pendente small{display:block}.rs-admin-pendente small{margin-top:3px;color:#708c9e}.rs-admin-pendente-acoes{display:flex;gap:7px;flex-wrap:wrap}
+.rs-perfil-grid{align-items:start}.rs-perfil-identidade{text-align:center}.rs-perfil-foto{width:118px;height:118px;margin:0 auto 13px;display:grid;place-items:center;overflow:hidden;border:3px solid #2c9dcc;border-radius:50%;background:#0b2c44;font-size:48px;box-shadow:0 0 0 7px rgba(44,157,204,.10)}.rs-perfil-foto img{width:100%;height:100%;object-fit:cover}.rs-perfil-identidade h3{margin:16px 0 7px}.rs-selo-verificado{display:inline-flex;padding:6px 10px;border-radius:99px;background:rgba(24,190,112,.14);color:#4cdda0;font-size:10px;font-weight:900}.rs-reputacao{margin:13px 0 6px;color:#f8c64d;font-size:13px;font-weight:800}.rs-estrelas{display:flex;justify-content:center;gap:8px;margin:18px 0 7px}.rs-estrelas button{padding:0;border:0;background:transparent;color:#496273;font-size:36px;line-height:1;transition:.15s}.rs-estrelas button.ativa{color:#f5bd2e;transform:scale(1.08)}
 @media(min-width:981px){
   .rs-notificacao{border-color:#d6e1e7;background:#fff;color:#1b3442;box-shadow:0 4px 15px rgba(26,67,88,.05)}
   .rs-notificacao.nao-lida{background:linear-gradient(90deg,#e8f8fc,#fff 34%)}
   .rs-notificacao-icone{background:#e4f5fa}.rs-notificacao-corpo p{color:#536c7a}.rs-notificacao-corpo time{color:#718693}
   .rs-admin-card strong{color:#153344}.rs-admin-card span{color:#557080}.rs-admin-linha strong{color:#203845}.rs-admin-linha small{color:#617986}.rs-admin-status{background:#e3f4f9;color:#126c90}
+  .rs-perfil-foto{background:#e7f4f9}.rs-perfil-identidade h3{color:#183643}.rs-admin-pendente strong{color:#203845}
 }
-@media(max-width:760px){.rs-page-head{flex-direction:column}.rs-page-head .service-actions{width:100%}.rs-page-head .service-actions .btn{flex:1}.rs-admin-colunas{grid-template-columns:1fr}.rs-admin-cards{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:760px){.rs-page-head{flex-direction:column}.rs-page-head .service-actions{width:100%}.rs-page-head .service-actions .btn{flex:1}.rs-admin-colunas,.rs-perfil-grid{grid-template-columns:1fr}.rs-admin-cards{grid-template-columns:repeat(2,minmax(0,1fr))}.rs-admin-pendente{grid-template-columns:1fr}.rs-admin-pendente-acoes .btn{flex:1}}
 
 #loginScreen{
   position:relative;
@@ -1812,6 +1815,11 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
         </button>
 
         <div class="nav-section-label">GESTÃO</div>
+
+
+        <button id="navPerfil" class="nav-btn nav-secundario" data-page="perfil" onclick="abrirPagina('perfil')">
+          👤 Meu Perfil
+        </button>
 
 
         <button
@@ -3289,6 +3297,32 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
            CENTRAL DE NOTIFICAÇÕES
       ==================================================== -->
 
+      <section id="pagePerfil" class="page">
+        <div class="rs-page-head">
+          <div><h3 class="section-title">👤 Perfil Profissional</h3><p class="muted small">Mantenha seus dados profissionais atualizados.</p></div>
+          <button id="btnSalvarPerfil" class="btn btn-primary" onclick="salvarMeuPerfil(this)">Salvar perfil</button>
+        </div>
+        <div class="grid grid-2 rs-perfil-grid">
+          <div class="card rs-perfil-identidade">
+            <div id="perfilFotoPreview" class="rs-perfil-foto">👤</div>
+            <input id="perfilFoto" type="file" accept="image/jpeg,image/png,image/webp" onchange="prepararFotoPerfil(this)" hidden>
+            <button class="btn btn-dark" onclick="$('perfilFoto').click()">📷 Escolher foto</button>
+            <h3 id="perfilNome">Usuário</h3>
+            <div id="perfilVerificado" class="rs-selo-verificado hidden">✓ Perfil verificado</div>
+            <div id="perfilReputacao" class="rs-reputacao">☆☆☆☆☆ · Sem avaliações</div>
+            <div id="perfilServicos" class="small muted">0 serviços concluídos</div>
+          </div>
+          <div class="card">
+            <div class="form-group"><label>WhatsApp</label><input id="perfilWhatsapp" type="text"></div>
+            <div class="form-group"><label>Profissão principal</label><input id="perfilProfissao" type="text" placeholder="Ex.: Auxiliar de logística"></div>
+            <div class="form-group"><label>Funções que realiza</label><input id="perfilFuncoes" type="text" placeholder="Carga, descarga, conferência, limpeza..."></div>
+            <div class="form-group"><label>Experiência profissional</label><textarea id="perfilExperiencia" maxlength="2000"></textarea></div>
+            <div class="form-group"><label>Apresentação</label><textarea id="perfilDescricao" maxlength="1000" placeholder="Conte um pouco sobre seu trabalho."></textarea></div>
+            <div class="form-group"><label>Documento profissional ou de identificação (PDF ou imagem)</label><input id="perfilDocumento" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="prepararDocumentoPerfil(this)"><div id="perfilDocumentoStatus" class="small muted" style="margin-top:6px;">Nenhum documento selecionado.</div></div>
+          </div>
+        </div>
+      </section>
+
       <section id="pageNotificacoes" class="page">
         <div class="rs-page-head">
           <div>
@@ -3320,6 +3354,13 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
         <div id="adminCardsResumo" class="grid grid-3 rs-admin-cards"></div>
 
+        <div class="card rs-admin-pendentes">
+          <div class="rs-page-head" style="margin-bottom:10px;">
+            <div><h3 class="section-title">Novos cadastros aguardando aprovação</h3><p class="muted small">Confira os dados antes de liberar o acesso.</p></div>
+          </div>
+          <div id="adminCadastrosPendentes"></div>
+        </div>
+
         <div class="grid grid-2 rs-admin-colunas">
           <div class="card">
             <h3 class="section-title">Contas recentes</h3>
@@ -3338,6 +3379,24 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
   </div>
 
 </section>
+
+
+<div id="modalAvaliacao" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-header"><div><h3 style="margin:0;">⭐ Avaliar serviço</h3><div class="small muted">Sua avaliação ajuda a fortalecer a comunidade RS.</div></div><button class="modal-close" onclick="fecharAvaliacao()">✕</button></div>
+    <input id="avaliacaoServicoId" type="hidden">
+    <div id="avaliacaoEstrelas" class="rs-estrelas">
+      <button type="button" onclick="selecionarNota(1)">★</button><button type="button" onclick="selecionarNota(2)">★</button><button type="button" onclick="selecionarNota(3)">★</button><button type="button" onclick="selecionarNota(4)">★</button><button type="button" onclick="selecionarNota(5)">★</button>
+    </div>
+    <div id="avaliacaoNotaTexto" class="small muted" style="text-align:center;margin-bottom:14px;">Escolha de 1 a 5 estrelas</div>
+    <div class="form-group"><label>Comentário</label><textarea id="avaliacaoComentario" maxlength="1000" placeholder="Conte como foi a experiência."></textarea></div>
+    <button id="btnEnviarAvaliacao" class="btn btn-primary btn-block" onclick="enviarAvaliacao(this)">Enviar avaliação</button>
+  </div>
+</div>
+
+<div id="modalPerfilPublico" class="modal hidden">
+  <div class="modal-box"><div class="modal-header"><h3 style="margin:0;">👤 Perfil do colaborador</h3><button class="modal-close" onclick="$('modalPerfilPublico').classList.add('hidden')">✕</button></div><div id="perfilPublicoConteudo"></div></div>
+</div>
 
 
 
@@ -7781,7 +7840,8 @@ function configurarExperienciaPorPerfil() {
     ['💰', 'Gestão financeira', 'Pagamentos e comprovantes', 'financeiro'],
     ['📋', 'Histórico e relatórios', 'Consulte atividades anteriores', 'historico'],
     ['🗂️', 'Arquivo da empresa', 'Documentos e registros organizados', 'arquivo'],
-    ['🔔', 'Notificações', 'Avisos e movimentações importantes', 'notificacoes']
+    ['🔔', 'Notificações', 'Avisos e movimentações importantes', 'notificacoes'],
+    ['👤', 'Meu perfil', 'Dados e situação da conta', 'perfil']
   ];
 
   const itensPrestador = [
@@ -7792,7 +7852,8 @@ function configurarExperienciaPorPerfil() {
     ['💬', 'Mensagens', 'Converse com a empresa', 'mensagens'],
     ['💰', 'Meus pagamentos', 'Valores e comprovantes recebidos', 'financeiro'],
     ['📋', 'Meu histórico', 'Consulte trabalhos anteriores', 'historico'],
-    ['🔔', 'Notificações', 'Avisos e movimentações importantes', 'notificacoes']
+    ['🔔', 'Notificações', 'Avisos e movimentações importantes', 'notificacoes'],
+    ['👤', 'Perfil profissional', 'Foto, experiência e avaliações', 'perfil']
   ];
 
   const empresa = ehEmpresa();
@@ -7904,9 +7965,11 @@ async function carregarPainelAdmin(mostrarAviso = false) {
 
   try {
     const data = await apiFetch('/api/admin/resumo');
+    const dadosPendentes = await apiFetch('/api/admin/cadastros-pendentes');
     const resumo = data?.resumo || {};
     const cards = [
       ['👥', 'Usuários cadastrados', resumo.usuarios || 0],
+      ['🕒', 'Cadastros pendentes', resumo.cadastros_pendentes || 0],
       ['🏢', 'Empresas', resumo.empresas || 0],
       ['🧑‍🔧', 'Prestadores', resumo.prestadores || 0],
       ['🧰', 'Serviços ativos', resumo.servicos_ativos || 0],
@@ -7925,8 +7988,11 @@ async function carregarPainelAdmin(mostrarAviso = false) {
     const usuarios = Array.isArray(data?.usuariosRecentes) ? data.usuariosRecentes : [];
     $('adminUsuariosRecentes').innerHTML = usuarios.length ? usuarios.map(item => `
       <div class="rs-admin-linha">
-        <div><strong>${escapeHtml(item?.nome || 'Sem nome')}</strong><small>${escapeHtml(item?.email || '')}</small></div>
-        <span class="rs-admin-status">${escapeHtml(item?.tipo || 'conta')}</span>
+        <div><strong>${escapeHtml(item?.nome || 'Sem nome')}</strong><small>${escapeHtml(item?.email || '')}${item?.documento_perfil_nome ? ' · 📎 Documento enviado' : ''}</small></div>
+        <div class="rs-admin-pendente-acoes">
+          <span class="rs-admin-status">${item?.perfil_verificado ? '✓ verificado' : escapeHtml(item?.tipo || 'conta')}</span>
+          ${['prestador','colaborador'].includes(texto(item?.tipo).toLowerCase()) ? `<button class="btn btn-dark" onclick="verificarPerfilAdmin(${Number(item.id)}, ${item?.perfil_verificado ? 'false' : 'true'}, this)">${item?.perfil_verificado ? 'Remover selo' : 'Verificar perfil'}</button>` : ''}
+        </div>
       </div>
     `).join('') : '<div class="rs-vazio">Nenhuma conta encontrada.</div>';
 
@@ -7938,11 +8004,148 @@ async function carregarPainelAdmin(mostrarAviso = false) {
       </div>
     `).join('') : '<div class="rs-vazio">Nenhum serviço encontrado.</div>';
 
+    const pendentes = Array.isArray(dadosPendentes?.cadastros) ? dadosPendentes.cadastros : [];
+    $('adminCadastrosPendentes').innerHTML = pendentes.length ? pendentes.map(item => `
+      <div class="rs-admin-pendente">
+        <div><strong>${escapeHtml(item?.nome || 'Sem nome')}</strong><small>${escapeHtml(item?.email || '')} · ${escapeHtml(item?.tipo || 'conta')} · ${escapeHtml(item?.whatsapp || 'Sem WhatsApp')}</small></div>
+        <div class="rs-admin-pendente-acoes">
+          <button class="btn btn-success" onclick="decidirCadastro(${Number(item.id)}, 'aprovar', this)">✓ Aprovar</button>
+          <button class="btn btn-danger" onclick="decidirCadastro(${Number(item.id)}, 'rejeitar', this)">✕ Rejeitar</button>
+        </div>
+      </div>
+    `).join('') : '<div class="rs-vazio">✓ Nenhum cadastro aguardando aprovação.</div>';
+
     if (mostrarAviso) toast('Painel administrativo atualizado.', 'success');
   } catch (erro) {
     $('adminCardsResumo').innerHTML = `<div class="rs-vazio">${escapeHtml(erro.message || 'Não foi possível carregar o painel.')}</div>`;
     toast(erro.message, 'error');
   }
+}
+
+async function decidirCadastro(id, acao, botao) {
+  const verbo = acao === 'aprovar' ? 'aprovar' : 'rejeitar';
+  if (!confirm(`Deseja ${verbo} este cadastro?`)) return;
+  try {
+    loadingBotao(botao, true, 'Salvando...');
+    const data = await apiFetch(`/api/admin/usuarios/${Number(id)}/${acao}`, {method:'POST'});
+    toast(data?.mensagem || 'Cadastro atualizado.', 'success');
+    await carregarPainelAdmin(false);
+  } catch (erro) {
+    toast(erro.message, 'error');
+  } finally { loadingBotao(botao, false); }
+}
+
+async function verificarPerfilAdmin(id, verificado, botao) {
+  try {
+    loadingBotao(botao,true,'Salvando...');
+    const data=await apiFetch(`/api/admin/usuarios/${Number(id)}/verificar-perfil`,{method:'POST',body:JSON.stringify({verificado:Boolean(verificado)})});
+    toast(data?.mensagem || 'Perfil atualizado.','success');
+    await carregarPainelAdmin(false);
+  }catch(erro){toast(erro.message,'error');}finally{loadingBotao(botao,false);}
+}
+
+
+// ============================================================
+// PERFIL PROFISSIONAL
+// ============================================================
+
+let fotoPerfilBase64 = '';
+let documentoPerfilBase64 = '';
+let documentoPerfilNome = '';
+
+async function carregarMeuPerfil() {
+  try {
+    const data = await apiFetch('/api/perfil/me');
+    const p = data?.perfil || {};
+    $('perfilNome').textContent = p.nome || usuarioAtual?.nome || 'Usuário';
+    $('perfilWhatsapp').value = p.whatsapp || '';
+    $('perfilProfissao').value = p.profissao || '';
+    $('perfilFuncoes').value = p.funcoes || '';
+    $('perfilExperiencia').value = p.experiencia || '';
+    $('perfilDescricao').value = p.descricao || '';
+    fotoPerfilBase64 = '';
+    documentoPerfilBase64 = '';
+    documentoPerfilNome = '';
+    $('perfilFotoPreview').innerHTML = p.foto_perfil ? `<img src="${escapeHtml(p.foto_perfil)}" alt="Foto do perfil">` : '👤';
+    $('perfilVerificado').classList.toggle('hidden', !p.perfil_verificado);
+    const media = Number(p.avaliacao_media || 0);
+    const total = Number(p.total_avaliacoes || 0);
+    $('perfilReputacao').textContent = `${'★'.repeat(Math.round(media))}${'☆'.repeat(5-Math.round(media))} · ${total ? media.toFixed(1)+' ('+total+' avaliações)' : 'Sem avaliações'}`;
+    $('perfilServicos').textContent = `${Number(p.servicos_concluidos || 0)} serviços concluídos`;
+    $('perfilDocumentoStatus').textContent = p.documento_perfil_nome ? `Documento enviado: ${p.documento_perfil_nome}${p.documentos_verificados ? ' · verificado pelo Grupo RS' : ' · aguardando verificação'}` : 'Nenhum documento enviado.';
+  } catch (erro) { toast(erro.message, 'error'); }
+}
+
+function prepararFotoPerfil(input) {
+  const arquivo = input?.files?.[0];
+  if (!arquivo) return;
+  if (arquivo.size > 3 * 1024 * 1024) { toast('Escolha uma foto de até 3 MB.', 'error'); input.value=''; return; }
+  const leitor = new FileReader();
+  leitor.onload = () => { fotoPerfilBase64 = String(leitor.result || ''); $('perfilFotoPreview').innerHTML = `<img src="${fotoPerfilBase64}" alt="Nova foto">`; };
+  leitor.readAsDataURL(arquivo);
+}
+
+function prepararDocumentoPerfil(input) {
+  const arquivo=input?.files?.[0]; if(!arquivo)return;
+  if(arquivo.size>5*1024*1024){toast('Escolha um documento de até 5 MB.','error');input.value='';return;}
+  const leitor=new FileReader();
+  leitor.onload=()=>{documentoPerfilBase64=String(leitor.result||'');documentoPerfilNome=arquivo.name;$('perfilDocumentoStatus').textContent=`Pronto para enviar: ${arquivo.name}`;};
+  leitor.readAsDataURL(arquivo);
+}
+
+async function salvarMeuPerfil(botao) {
+  try {
+    loadingBotao(botao, true, 'Salvando...');
+    const data = await apiFetch('/api/perfil/me', {method:'PUT', body:JSON.stringify({
+      whatsapp:$('perfilWhatsapp').value,
+      profissao:$('perfilProfissao').value,
+      funcoes:$('perfilFuncoes').value,
+      experiencia:$('perfilExperiencia').value,
+      descricao:$('perfilDescricao').value,
+      foto_perfil:fotoPerfilBase64
+      ,documento_perfil:documentoPerfilBase64
+      ,documento_perfil_nome:documentoPerfilNome
+    })});
+    toast(data?.mensagem || 'Perfil salvo.', 'success');
+    await carregarMeuPerfil();
+  } catch (erro) { toast(erro.message, 'error'); }
+  finally { loadingBotao(botao, false); }
+}
+
+async function abrirPerfilProfissional(email) {
+  try {
+    const data=await apiFetch(`/api/perfis/${encodeURIComponent(email)}`);
+    const p=data?.perfil||{}; const media=Number(p.avaliacao_media||0); const total=Number(p.total_avaliacoes||0);
+    $('perfilPublicoConteudo').innerHTML=`
+      <div class="rs-perfil-identidade">
+        <div class="rs-perfil-foto">${p.foto_perfil?`<img src="${escapeHtml(p.foto_perfil)}" alt="Foto">`:'👤'}</div>
+        <h3>${escapeHtml(p.nome||'Colaborador')}</h3>
+        ${p.perfil_verificado?'<div class="rs-selo-verificado">✓ Perfil verificado pelo Grupo RS</div>':''}
+        <div class="rs-reputacao">${'★'.repeat(Math.round(media))}${'☆'.repeat(5-Math.round(media))} · ${total?media.toFixed(1)+' ('+total+' avaliações)':'Sem avaliações'}</div>
+        <div class="small muted">${Number(p.servicos_concluidos||0)} serviços concluídos</div>
+      </div>
+      <div class="card" style="margin-top:14px;"><strong>${escapeHtml(p.profissao||'Profissão não informada')}</strong><div class="small muted" style="margin-top:7px;line-height:1.6;">Funções: ${escapeHtml(p.funcoes||'Não informadas')}<br><br>${escapeHtml(p.descricao||p.experiencia||'Sem apresentação profissional.')}</div></div>`;
+    $('modalPerfilPublico').classList.remove('hidden');
+  }catch(erro){toast(erro.message,'error');}
+}
+
+
+// ============================================================
+// AVALIAÇÃO DO SERVIÇO
+// ============================================================
+
+let notaAvaliacao = 0;
+function abrirAvaliacao(servicoId) { notaAvaliacao=0; $('avaliacaoServicoId').value=Number(servicoId); $('avaliacaoComentario').value=''; selecionarNota(0); $('modalAvaliacao').classList.remove('hidden'); }
+function fecharAvaliacao() { $('modalAvaliacao').classList.add('hidden'); }
+function selecionarNota(nota) { notaAvaliacao=Number(nota)||0; document.querySelectorAll('#avaliacaoEstrelas button').forEach((b,i)=>b.classList.toggle('ativa',i<notaAvaliacao)); $('avaliacaoNotaTexto').textContent=notaAvaliacao?`${notaAvaliacao} de 5 estrelas`:'Escolha de 1 a 5 estrelas'; }
+async function enviarAvaliacao(botao) {
+  if (!notaAvaliacao) { toast('Escolha uma nota.', 'error'); return; }
+  try {
+    loadingBotao(botao,true,'Enviando...');
+    const id=Number($('avaliacaoServicoId').value);
+    const data=await apiFetch(`/api/servicos/${id}/avaliar`,{method:'POST',body:JSON.stringify({nota:notaAvaliacao,comentario:$('avaliacaoComentario').value})});
+    toast(data?.mensagem || 'Avaliação enviada.', 'success'); fecharAvaliacao();
+  } catch(erro){toast(erro.message,'error');} finally{loadingBotao(botao,false);}
 }
 
 
@@ -8141,6 +8344,9 @@ async function abrirPagina(
     notificacoes:
       'Notificações',
 
+    perfil:
+      'Perfil Profissional',
+
     admin:
       'Administração',
 
@@ -8181,6 +8387,11 @@ async function abrirPagina(
 
   if (pagina === 'notificacoes') {
     carregarNotificacoes();
+  }
+
+
+  if (pagina === 'perfil') {
+    carregarMeuPerfil();
   }
 
 
@@ -10466,6 +10677,7 @@ function htmlServico(
     ) {
 
       acoes += `
+        <button class="btn btn-warning" onclick="abrirAvaliacao(${id})">⭐ Avaliar empresa</button>
         <button
           class="btn btn-danger"
           onclick="ocultarServicoPrestador(
@@ -10529,6 +10741,7 @@ function htmlServico(
     ) {
 
       acoes += `
+        <button class="btn btn-dark" onclick="abrirPerfilProfissional('${escapeHtml(prestadorEmailServico(servico))}')">👤 Ver perfil</button>
         <button
           class="btn btn-dark"
           onclick="abrirChatPorServico(
@@ -10538,6 +10751,11 @@ function htmlServico(
           💬 Mensagens
         </button>
       `;
+    }
+
+
+    if (servico?.checkout_hora && prestadorEmailServico(servico)) {
+      acoes += `<button class="btn btn-warning" onclick="abrirAvaliacao(${id})">⭐ Avaliar colaborador</button>`;
     }
 
 
@@ -18039,6 +18257,9 @@ function renderizarHistorico() {
                             )"
                           >
                             📄 Relatório PDF
+                          </button>
+                          <button class="btn btn-warning" onclick="abrirAvaliacao(${Number(servico.id)})">
+                            ⭐ ${ehPrestador() ? 'Avaliar empresa' : 'Avaliar colaborador'}
                           </button>
                         </div>
                       `
