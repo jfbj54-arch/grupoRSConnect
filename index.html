@@ -1246,6 +1246,9 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 .jornada-proxima-acao{padding:15px!important;border-color:rgba(38,140,255,.34)!important;background:linear-gradient(135deg,rgba(38,140,255,.13),rgba(8,31,49,.95))!important}
 .jornada-proxima-acao::before{content:'PRÓXIMA AÇÃO';display:block;margin-bottom:9px;color:#6fb6e8;font-size:9px;font-weight:900;letter-spacing:1px}
 .jornada-proxima-acao .service-actions{margin-top:0!important}.jornada-proxima-acao .btn:not(.hidden){min-height:44px}
+.hora-extra-card{border-color:rgba(70,145,191,.24)!important}.hora-extra-card.tem-extra{border-color:rgba(251,191,36,.45)!important;background:linear-gradient(145deg,rgba(77,57,9,.30),rgba(8,29,46,.97))!important}.hora-extra-card.tem-extra #jornadaStatusHorasExtras{color:#fbd76c}
+.hora-extra-resumo{display:flex;flex-wrap:wrap;gap:7px 12px;margin-top:11px;padding:9px 10px;border:1px solid rgba(70,143,187,.18);border-radius:9px;background:rgba(5,21,34,.35);color:#91acbd;font-size:10px}.hora-extra-resumo.tem-extra{border-color:rgba(251,191,36,.28);color:#e8c765}.hora-extra-resumo strong{color:#eef8ff}
+.jornada-aprovacao-box{margin-top:14px;padding:14px;border:1px solid rgba(74,151,199,.26);border-radius:13px;background:linear-gradient(145deg,rgba(10,42,64,.88),rgba(6,27,43,.92))}.jornada-aprovacao-topo{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.jornada-aprovacao-resumo{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin-top:12px}.jornada-aprovacao-item{padding:10px;border:1px solid rgba(67,139,183,.18);border-radius:9px;background:rgba(4,19,31,.34)}.jornada-aprovacao-item span{display:block;color:#7f9daf;font-size:9px}.jornada-aprovacao-item strong{display:block;margin-top:4px;color:#f2f8fc;font-size:12px}.jornada-correcao-aviso{margin-top:12px;padding:11px 12px;border:1px solid rgba(251,191,36,.34);border-radius:10px;background:rgba(97,68,8,.20);color:#f5d778;font-size:11px;line-height:1.55}.jornada-aprovacao-acoes{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}.jornada-aprovacao-acoes .btn{flex:1 1 180px}
 
 @media(max-width:980px){
   .main{padding:16px 13px 90px}.topbar{margin-bottom:14px}.topbar h2{font-size:19px}.topbar-user{display:none}
@@ -1258,6 +1261,7 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
   .inicio-hero{align-items:flex-start;padding:20px 17px}.inicio-online{display:none}
   .inicio-atalhos{grid-template-columns:repeat(2,minmax(0,1fr))}.inicio-atalho{min-height:65px;padding:10px}.inicio-atalho small{display:none}
   .service-card>div:first-child{gap:7px!important}.service-card h3{font-size:14px!important}.service-value{font-size:14px!important}.servico-acoes-detalhes .service-actions{display:grid;grid-template-columns:1fr}.servico-acoes-detalhes .btn{width:100%}
+  .jornada-aprovacao-resumo{grid-template-columns:1fr 1fr}.jornada-aprovacao-acoes{display:grid;grid-template-columns:1fr}.jornada-aprovacao-acoes .btn{width:100%}
 }
 
 @media(max-width:420px){.inicio-hero{padding:18px 15px}.inicio-atalhos{gap:8px}.inicio-atalho{gap:8px}.inicio-atalho-icone{flex-basis:34px;height:34px}}
@@ -2601,6 +2605,25 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
             </div>
 
+            <div class="card hora-extra-card">
+
+              <div class="small muted">
+                Horas extras
+              </div>
+
+              <strong
+                id="jornadaStatusHorasExtras"
+                style="display:block;margin-top:6px;"
+              >
+                0h 00min
+              </strong>
+
+              <div class="small muted" style="margin-top:5px;">
+                Após 8h trabalhadas
+              </div>
+
+            </div>
+
           </div>
 
 
@@ -3078,6 +3101,35 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
     <div id="supResetResultado" class="small muted" style="margin-top:10px;"></div>
   </div>
 </div>
+
+<!-- =========================================================
+     MODAL — SOLICITAR CORREÇÃO DA JORNADA
+========================================================= -->
+
+<div id="modalCorrecaoJornada" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h3 style="margin:0;">⚠️ Solicitar correção</h3>
+        <div class="small muted" style="margin-top:4px;">O prestador receberá o motivo informado.</div>
+      </div>
+      <button class="modal-close" type="button" onclick="fecharCorrecaoJornada()">✕</button>
+    </div>
+
+    <div id="correcaoJornadaResumo" class="jornada-aprovacao-resumo"></div>
+
+    <div class="form-group" style="margin-top:14px;">
+      <label>O que precisa ser corrigido?</label>
+      <textarea id="correcaoJornadaMotivo" maxlength="1000" placeholder="Ex.: O horário de saída está diferente do registro da empresa." required></textarea>
+      <div class="small muted" style="margin-top:5px;">Informe pelo menos 10 caracteres.</div>
+    </div>
+
+    <button id="btnEnviarCorrecaoJornada" class="btn btn-warning btn-block" type="button" onclick="enviarSolicitacaoCorrecaoJornada(this)">
+      Enviar solicitação ao prestador
+    </button>
+  </div>
+</div>
+
 
 <!-- =========================================================
      MODAL CHAT
@@ -8399,6 +8451,14 @@ function classeBadgeStatus(
     return 'badge-red';
   }
 
+  if (
+    valor === 'correcao_solicitada'
+    ||
+    texto(servico?.jornada_aprovacao_status).toLowerCase() === 'correcao_solicitada'
+  ) {
+    return 'badge-yellow';
+  }
+
 
   if (
     servico?.checkout_hora
@@ -8457,6 +8517,14 @@ function rotuloStatus(
 ) {
 
   if (
+    texto(status).toLowerCase() === 'correcao_solicitada'
+    ||
+    texto(servico?.jornada_aprovacao_status).toLowerCase() === 'correcao_solicitada'
+  ) {
+    return 'Correção Solicitada';
+  }
+
+  if (
     ehPrestador()
     &&
     servico?.checkout_hora
@@ -8492,6 +8560,9 @@ function rotuloStatus(
         'Serviço Finalizado'
         :
         'Aguardando Validação',
+
+    correcao_solicitada:
+      'Correção Solicitada',
 
     validado:
       ehPrestador()
@@ -9435,6 +9506,67 @@ function selecionarContratoAssinadoPrestador(
 // CARD DE SERVIÇO
 // ============================================================
 
+const RS_JORNADA_NORMAL_MINUTOS = 8 * 60;
+
+function rsMinutosDoHorario(valor) {
+  if (!valor) return null;
+
+  const textoHora = String(valor);
+  const dataCompleta = Date.parse(textoHora);
+
+  if (/\d{4}-\d{2}-\d{2}/.test(textoHora) && !Number.isNaN(dataCompleta)) {
+    const data = new Date(dataCompleta);
+    return (data.getHours() * 60) + data.getMinutes();
+  }
+
+  const partes = textoHora.match(/(\d{1,2}):(\d{2})/);
+  if (!partes) return null;
+  return (Number(partes[1]) * 60) + Number(partes[2]);
+}
+
+function rsDiferencaMinutos(inicio, fim) {
+  const inicioTexto = String(inicio || '');
+  const fimTexto = String(fim || '');
+
+  if (/\d{4}-\d{2}-\d{2}/.test(inicioTexto) && /\d{4}-\d{2}-\d{2}/.test(fimTexto)) {
+    const inicioMs = Date.parse(inicioTexto);
+    const fimMs = Date.parse(fimTexto);
+    if (!Number.isNaN(inicioMs) && !Number.isNaN(fimMs)) return Math.max(0, Math.round((fimMs - inicioMs) / 60000));
+  }
+
+  const inicioMinutos = rsMinutosDoHorario(inicio);
+  const fimMinutos = rsMinutosDoHorario(fim);
+  if (inicioMinutos === null || fimMinutos === null) return 0;
+
+  let diferenca = fimMinutos - inicioMinutos;
+  if (diferenca < 0) diferenca += 24 * 60;
+  return diferenca;
+}
+
+function rsResumoJornadaServico(servico) {
+  if (!servico?.checkin_hora || !servico?.checkout_hora) {
+    return { totalMinutos: 0, intervaloMinutos: 0, extrasMinutos: 0, concluida: false };
+  }
+
+  const intervaloInicio = servico?.intervalo_inicio;
+  const intervaloFim = servico?.intervalo_retorno || servico?.intervalo_fim;
+  const intervaloMinutos = intervaloInicio && intervaloFim ? rsDiferencaMinutos(intervaloInicio, intervaloFim) : 0;
+  const periodoMinutos = rsDiferencaMinutos(servico.checkin_hora, servico.checkout_hora);
+  const totalMinutos = Math.max(0, periodoMinutos - intervaloMinutos);
+
+  return {
+    totalMinutos,
+    intervaloMinutos,
+    extrasMinutos: Math.max(0, totalMinutos - RS_JORNADA_NORMAL_MINUTOS),
+    concluida: true
+  };
+}
+
+function rsFormatarMinutos(total) {
+  const minutos = Math.max(0, Math.round(Number(total) || 0));
+  return `${Math.floor(minutos / 60)}h ${String(minutos % 60).padStart(2, '0')}min`;
+}
+
 function htmlServico(
   servico,
   contexto = 'meus'
@@ -9474,6 +9606,24 @@ function htmlServico(
     posicaoUsuarioServico(
       servico
     );
+
+  const resumoHoras =
+    rsResumoJornadaServico(servico);
+
+  const alertaCorrecaoPrestador =
+    ehPrestador()
+    &&
+    texto(servico?.jornada_aprovacao_status).toLowerCase() === 'correcao_solicitada'
+      ?
+      `
+        <div class="jornada-correcao-aviso">
+          <strong>⚠️ A empresa solicitou uma correção na Jornada</strong>
+          <div style="margin-top:6px;">${escapeHtml(servico?.jornada_correcao_motivo || 'Entre em contato com a empresa para conferir os registros.')}</div>
+          <div class="small muted" style="margin-top:7px;">O pagamento ficará aguardando até a Jornada ser aprovada.</div>
+        </div>
+      `
+      :
+      '';
 
 
   let acoes =
@@ -9953,6 +10103,12 @@ function htmlServico(
         servico?.checkout_hora
       );
 
+    const statusAprovacao =
+      texto(servico?.jornada_aprovacao_status || (servico?.validado_empresa ? 'aprovada' : 'aguardando_aprovacao')).toLowerCase();
+
+    const correcaoSolicitada =
+      statusAprovacao === 'correcao_solicitada';
+
 
     painelJornadaEmpresa = `
 
@@ -10314,6 +10470,53 @@ function htmlServico(
             ''
         }
 
+        ${
+          checkoutHora
+            ?
+            `
+              <div class="jornada-aprovacao-box">
+                <div class="jornada-aprovacao-topo">
+                  <strong>✅ Aprovação da Jornada</strong>
+                  <span class="badge ${servico?.validado_empresa ? 'badge-green' : (correcaoSolicitada ? 'badge-yellow' : 'badge-blue')}">
+                    ${servico?.validado_empresa ? 'APROVADA' : (correcaoSolicitada ? 'CORREÇÃO SOLICITADA' : 'AGUARDANDO APROVAÇÃO')}
+                  </span>
+                </div>
+
+                <div class="jornada-aprovacao-resumo">
+                  <div class="jornada-aprovacao-item"><span>Entrada</span><strong>${escapeHtml(checkinHora || '-')}</strong></div>
+                  <div class="jornada-aprovacao-item"><span>Saída</span><strong>${escapeHtml(checkoutHora || '-')}</strong></div>
+                  <div class="jornada-aprovacao-item"><span>Trabalhadas</span><strong>${rsFormatarMinutos(resumoHoras.totalMinutos)}</strong></div>
+                  <div class="jornada-aprovacao-item"><span>Intervalo</span><strong>${rsFormatarMinutos(resumoHoras.intervaloMinutos)}</strong></div>
+                  <div class="jornada-aprovacao-item"><span>Horas extras</span><strong>${rsFormatarMinutos(resumoHoras.extrasMinutos)}</strong></div>
+                  <div class="jornada-aprovacao-item"><span>Registros</span><strong>${fotoEntrada || fotoServicoFeito ? '📸 Fotos salvas' : 'Sem fotos'}</strong></div>
+                </div>
+
+                ${
+                  correcaoSolicitada
+                    ?
+                    `<div class="jornada-correcao-aviso"><strong>Motivo enviado ao prestador:</strong><br>${escapeHtml(servico?.jornada_correcao_motivo || 'Correção solicitada pela empresa.')}</div>`
+                    :
+                    ''
+                }
+
+                ${
+                  servico?.validado_empresa
+                    ?
+                    `<div class="small muted" style="margin-top:11px;">Aprovada por ${escapeHtml(servico?.jornada_aprovada_por || 'empresa')}${servico?.jornada_aprovada_em ? ` em ${escapeHtml(formatarDataHora(servico.jornada_aprovada_em))}` : ''}.</div>`
+                    :
+                    `
+                      <div class="jornada-aprovacao-acoes">
+                        <button class="btn btn-success" type="button" onclick="validarServicoEmpresa(${id}, this)">✅ Aprovar Jornada</button>
+                        <button class="btn btn-warning" type="button" onclick="abrirCorrecaoJornada(${id})">⚠️ Solicitar correção</button>
+                      </div>
+                    `
+                }
+              </div>
+            `
+            :
+            ''
+        }
+
       </div>
     `;
   }
@@ -10630,6 +10833,19 @@ function htmlServico(
               ''
           }
 
+          ${
+            contexto === 'meus' && resumoHoras.concluida
+              ?
+              `
+                <div class="hora-extra-resumo ${resumoHoras.extrasMinutos > 0 ? 'tem-extra' : ''}">
+                  <span>⏱ Trabalhadas: <strong>${rsFormatarMinutos(resumoHoras.totalMinutos)}</strong></span>
+                  <span>＋ Extras: <strong>${rsFormatarMinutos(resumoHoras.extrasMinutos)}</strong></span>
+                </div>
+              `
+              :
+              ''
+          }
+
         </div>
 
 
@@ -10677,6 +10893,7 @@ function htmlServico(
           `
             <details class="servico-acoes-detalhes">
               <summary>Ver informações e ações</summary>
+              ${alertaCorrecaoPrestador}
               ${painelJornadaEmpresa}
               ${painelJornadaTitular}
               ${acoes ? `<div class="service-actions">${acoes}</div>` : '<div class="small muted" style="padding:12px 0 2px;">Nenhuma ação necessária no momento.</div>'}
@@ -12674,6 +12891,14 @@ function carregarJornada() {
               }
 
               <br>
+              ⏱ Horas trabalhadas:
+              <strong>${rsFormatarMinutos(rsResumoJornadaServico(finalizadoRecente).totalMinutos)}</strong>
+
+              <br>
+              ＋ Horas extras:
+              <strong>${rsFormatarMinutos(rsResumoJornadaServico(finalizadoRecente).extrasMinutos)}</strong>
+
+              <br>
 
               O serviço continuará disponível em
               <strong>Meus Serviços</strong>,
@@ -13334,6 +13559,19 @@ function renderizarStatusJornada(
         `
         :
         'Pendente';
+
+
+  const campoHorasExtras = $('jornadaStatusHorasExtras');
+
+  if (campoHorasExtras) {
+    const resumoHoras = rsResumoJornadaServico(servico);
+
+    campoHorasExtras.innerHTML = resumoHoras.concluida
+      ? `${resumoHoras.extrasMinutos > 0 ? '✅ ' : ''}${rsFormatarMinutos(resumoHoras.extrasMinutos)}`
+      : '<span class="muted">Calculado após a saída</span>';
+
+    campoHorasExtras.closest('.hora-extra-card')?.classList.toggle('tem-extra', resumoHoras.extrasMinutos > 0);
+  }
 }
 
 
@@ -16411,7 +16649,14 @@ async function renderizarFinanceiro() {
                   )
                 "
               >
-                ✅ Validar serviço
+                ✅ Aprovar Jornada
+              </button>
+
+              <button
+                class="btn btn-warning"
+                onclick="abrirCorrecaoJornada(${id})"
+              >
+                ⚠️ Solicitar correção
               </button>
             `;
           }
@@ -16519,7 +16764,19 @@ async function renderizarFinanceiro() {
                           ${escapeHtml(
                             servico.checkout_hora
                           )}
+                          <br>
+                          ⏱ Trabalhadas: ${rsFormatarMinutos(rsResumoJornadaServico(servico).totalMinutos)}
+                          <br>
+                          ＋ Extras: ${rsFormatarMinutos(rsResumoJornadaServico(servico).extrasMinutos)}
                         `
+                        :
+                        ''
+                    }
+
+                    ${
+                      texto(servico?.jornada_aprovacao_status).toLowerCase() === 'correcao_solicitada'
+                        ?
+                        `<div class="jornada-correcao-aviso"><strong>Correção solicitada:</strong><br>${escapeHtml(servico?.jornada_correcao_motivo || '')}</div>`
                         :
                         ''
                     }
@@ -16597,6 +16854,62 @@ async function renderizarFinanceiro() {
 // POST /api/servicos/:id/validar
 // ============================================================
 
+let servicoCorrecaoJornadaId = null;
+
+function abrirCorrecaoJornada(servicoId) {
+  if (!ehEmpresa()) return;
+
+  const servico = servicosCache.find(item => idServico(item) === Number(servicoId));
+  if (!servico) {
+    toast('Serviço não encontrado.', 'error');
+    return;
+  }
+
+  const resumo = rsResumoJornadaServico(servico);
+  servicoCorrecaoJornadaId = Number(servicoId);
+  $('correcaoJornadaMotivo').value = '';
+  $('correcaoJornadaResumo').innerHTML = `
+    <div class="jornada-aprovacao-item"><span>Prestador</span><strong>${escapeHtml(servico?.prestador_nome || servico?.prestador_email || '-')}</strong></div>
+    <div class="jornada-aprovacao-item"><span>Trabalhadas</span><strong>${rsFormatarMinutos(resumo.totalMinutos)}</strong></div>
+    <div class="jornada-aprovacao-item"><span>Horas extras</span><strong>${rsFormatarMinutos(resumo.extrasMinutos)}</strong></div>
+  `;
+  $('modalCorrecaoJornada').classList.remove('hidden');
+  setTimeout(() => $('correcaoJornadaMotivo')?.focus(), 80);
+}
+
+function fecharCorrecaoJornada() {
+  $('modalCorrecaoJornada')?.classList.add('hidden');
+  servicoCorrecaoJornadaId = null;
+}
+
+async function enviarSolicitacaoCorrecaoJornada(botao) {
+  if (!ehEmpresa() || !servicoCorrecaoJornadaId) return;
+
+  const motivo = texto($('correcaoJornadaMotivo')?.value).trim();
+  if (motivo.length < 10) {
+    toast('Explique o motivo da correção com pelo menos 10 caracteres.', 'error');
+    return;
+  }
+
+  loadingBotao(botao, true, 'Enviando...');
+
+  try {
+    const data = await apiFetch(`/api/servicos/${servicoCorrecaoJornadaId}/solicitar-correcao-jornada`, {
+      method: 'POST',
+      body: JSON.stringify({ motivo })
+    });
+
+    toast(data?.mensagem || 'Correção solicitada ao prestador.', 'success');
+    fecharCorrecaoJornada();
+    await carregarServicos(false);
+    if ($('pageFinanceiro')?.classList.contains('active')) await renderizarFinanceiro();
+  } catch (erro) {
+    toast(erro.message || 'Não foi possível solicitar a correção.', 'error');
+  } finally {
+    loadingBotao(botao, false);
+  }
+}
+
 async function validarServicoEmpresa(
   servicoId,
   botao
@@ -16612,7 +16925,7 @@ async function validarServicoEmpresa(
 
   const confirmar =
     window.confirm(
-      'Confirma que o serviço foi executado corretamente?'
+      'Confirma a aprovação da Jornada, incluindo horários, intervalo, fotos e horas extras?'
     );
 
 
@@ -16651,7 +16964,7 @@ async function validarServicoEmpresa(
 
     toast(
       data.mensagem ||
-      'Serviço validado.',
+      'Jornada aprovada.',
       'success'
     );
 
@@ -16990,6 +17303,9 @@ function renderizarHistorico() {
               servico.id
             );
 
+          const resumoHoras =
+            rsResumoJornadaServico(servico);
+
 
           return `
 
@@ -17090,6 +17406,27 @@ function renderizarHistorico() {
                             servico.checkout_hora
                           )}
                         `
+                        :
+                        ''
+                    }
+
+                    ${
+                      resumoHoras.concluida
+                        ?
+                        `
+                          <br>
+                          ⏱ Horas trabalhadas: <strong>${rsFormatarMinutos(resumoHoras.totalMinutos)}</strong>
+                          <br>
+                          ＋ Horas extras: <strong style="color:${resumoHoras.extrasMinutos > 0 ? '#f3cc59' : '#9ab3c4'};">${rsFormatarMinutos(resumoHoras.extrasMinutos)}</strong>
+                        `
+                        :
+                        ''
+                    }
+
+                    ${
+                      texto(servico?.jornada_aprovacao_status).toLowerCase() === 'correcao_solicitada'
+                        ?
+                        `<div class="jornada-correcao-aviso"><strong>Correção solicitada:</strong><br>${escapeHtml(servico?.jornada_correcao_motivo || '')}</div>`
                         :
                         ''
                     }
@@ -17278,6 +17615,9 @@ function abrirRelatorioServicoPDF(
       '-'
     );
 
+  const resumoHorasRelatorio =
+    rsResumoJornadaServico(servico);
+
 
   const valor =
     moeda(
@@ -17455,6 +17795,16 @@ function abrirRelatorioServicoPDF(
           <tr>
             <td>Saída</td>
             <td>${saida}</td>
+          </tr>
+
+          <tr>
+            <td>Horas trabalhadas</td>
+            <td>${rsFormatarMinutos(resumoHorasRelatorio.totalMinutos)}</td>
+          </tr>
+
+          <tr>
+            <td>Horas extras (após 8h)</td>
+            <td><strong>${rsFormatarMinutos(resumoHorasRelatorio.extrasMinutos)}</strong></td>
           </tr>
 
           <tr>
@@ -20601,6 +20951,7 @@ function jcRenderizarAcompanhamento(
                     <th>Retorno</th>
                     <th>Saída</th>
                     <th>H. Trab.</th>
+                    <th>H. Extra</th>
                     <th>Valor</th>
                     <th>Validação</th>
                   </tr>
@@ -20653,6 +21004,12 @@ function jcRenderizarAcompanhamento(
 
                       <td>
                         <strong>${Number(jornada.total_horas || 0).toFixed(2)}h</strong>
+                      </td>
+
+                      <td>
+                        <span class="badge ${Math.max(0, Number(jornada.total_minutos || 0) - RS_JORNADA_NORMAL_MINUTOS) > 0 ? 'badge-yellow' : 'badge-blue'}">
+                          ${rsFormatarMinutos(Math.max(0, Number(jornada.total_minutos || 0) - RS_JORNADA_NORMAL_MINUTOS))}
+                        </span>
                       </td>
 
                       <td>${moeda(jornada.valor_gerado || 0)}</td>
