@@ -2264,6 +2264,9 @@ function dadosNotificacaoEvento(
         pagamento_realizado: ['Pagamento realizado', 'O pagamento do serviço foi registrado.', 'financeiro'],
         comprovante_pagamento: ['Comprovante disponível', 'Um comprovante de pagamento foi anexado.', 'financeiro'],
         nova_mensagem: ['Nova mensagem', 'Você recebeu uma nova mensagem.', 'mensagens']
+        ,cadastro_aprovado: ['Cadastro aprovado', 'Seu acesso ao RS CONNECT foi liberado.', 'inicio']
+        ,nova_avaliacao: ['Nova avaliação', 'Você recebeu uma nova avaliação.', 'perfil']
+        ,novo_cadastro_pendente: ['Novo cadastro', 'Há um novo cadastro aguardando aprovação.', 'admin']
     };
 
 
@@ -2718,6 +2721,24 @@ async function criarTabelas() {
 
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP;",
 
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS cadastro_status TEXT DEFAULT 'aprovado';",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS aprovado_em TIMESTAMP;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS aprovado_por TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS foto_perfil TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS funcoes TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS perfil_verificado BOOLEAN DEFAULT FALSE;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS documentos_verificados BOOLEAN DEFAULT FALSE;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS documento_perfil TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS documento_perfil_nome TEXT;",
+
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS cidade TEXT;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_nome TEXT;",
@@ -2847,6 +2868,21 @@ async function criarTabelas() {
 
             CREATE INDEX IF NOT EXISTS idx_notificacoes_usuario_lida
             ON notificacoes (usuario_email, lida);
+
+            CREATE TABLE IF NOT EXISTS avaliacoes (
+                id SERIAL PRIMARY KEY,
+                servico_id INTEGER NOT NULL,
+                avaliador_email TEXT NOT NULL,
+                avaliado_email TEXT NOT NULL,
+                avaliador_tipo TEXT NOT NULL,
+                nota INTEGER NOT NULL CHECK (nota BETWEEN 1 AND 5),
+                comentario TEXT,
+                criado_em TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (servico_id, avaliador_email)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_avaliacoes_avaliado
+            ON avaliacoes (avaliado_email, criado_em DESC);
         `);
 
 
@@ -4341,6 +4377,7 @@ async function cadastrarUsuarioRS(
                     conta,
                     experiencia,
                     descricao,
+                    cadastro_status,
                     atualizado_em
                 )
 
@@ -4348,7 +4385,7 @@ async function cadastrarUsuarioRS(
                     $1,$2,$3,$4,
                     $5,$6,$7,$8,
                     $9,$10,$11,$12,
-                    $13,$14,$15,$16,
+                    $13,$14,$15,$16,$17,
                     CURRENT_TIMESTAMP
                 )
 
@@ -4399,7 +4436,9 @@ async function cadastrarUsuarioRS(
                     '',
 
                     dados.descricao ||
-                    ''
+                    '',
+
+                    'pendente'
                 ]
             );
 
@@ -4451,18 +4490,6 @@ async function cadastrarUsuarioRS(
         delete usuario.senha;
 
 
-        // ====================================================
-        // JÁ DEVOLVE TOKEN
-        //
-        // ASSIM O USUÁRIO PODE ENTRAR LOGO APÓS O CADASTRO.
-        // ====================================================
-
-        const token =
-            gerarTokenUsuario(
-                usuarioBanco
-            );
-
-
         await registrarAuditoria(
             email,
             'CADASTRO',
@@ -4470,12 +4497,31 @@ async function cadastrarUsuarioRS(
         );
 
 
+        const gestores = await pool.query(`
+            SELECT email FROM usuarios
+            WHERE LOWER(COALESCE(tipo,'')) IN ('admin','administrador','gestor','grupo_rs','grupo rs')
+               OR LOWER(email)=LOWER($1)
+        `, [normalizarEmail(process.env.ADMIN_EMAIL)]);
+
+        for (const gestor of gestores.rows) {
+            await registrarNotificacaoUsuario(
+                gestor.email,
+                'novo_cadastro_pendente',
+                {mensagem:`${nome} solicitou cadastro como ${tipo}.`}
+            );
+        }
+
+
         return res.json({
 
             sucesso:
                 true,
 
-            token,
+            pendenteAprovacao:
+                true,
+
+            mensagem:
+                'Cadastro enviado. Aguarde a aprovação do Grupo RS para entrar.',
 
             usuario
         });
@@ -4656,6 +4702,28 @@ async function loginUsuarioRS(
 
                     erro:
                         'E-mail ou senha incorretos.'
+                });
+        }
+
+
+        const cadastroStatus =
+            String(
+                usuarioBanco.cadastro_status ||
+                'aprovado'
+            )
+                .trim()
+                .toLowerCase();
+
+
+        if (cadastroStatus !== 'aprovado') {
+            return res
+                .status(403)
+                .json({
+                    sucesso: false,
+                    pendenteAprovacao: cadastroStatus === 'pendente',
+                    erro: cadastroStatus === 'rejeitado'
+                        ? 'Este cadastro não foi aprovado. Entre em contato com o Grupo RS.'
+                        : 'Seu cadastro está aguardando aprovação do Grupo RS.'
                 });
         }
 
@@ -19954,8 +20022,225 @@ app.post(
 
 
 // ============================================================
+// PERFIL PROFISSIONAL E AVALIAÇÕES
+// ============================================================
+
+app.get('/api/perfil/me', autenticarUsuario, async (req, res) => {
+    try {
+        const resultado = await pool.query(`
+            SELECT u.id, u.nome, u.email, u.tipo, u.whatsapp, u.profissao, u.experiencia,
+                   u.descricao, u.funcoes, u.foto_perfil, u.perfil_verificado,
+                   u.documentos_verificados, u.documento_perfil_nome, u.cadastro_status,
+                   COALESCE(AVG(a.nota),0)::numeric(3,2) AS avaliacao_media,
+                   COUNT(a.id)::int AS total_avaliacoes,
+                   (SELECT COUNT(*)::int FROM servicos s
+                    WHERE LOWER(s.prestador_email)=LOWER(u.email)
+                    AND s.checkout_hora IS NOT NULL) AS servicos_concluidos
+            FROM usuarios u LEFT JOIN avaliacoes a ON LOWER(a.avaliado_email)=LOWER(u.email)
+            WHERE u.id=$1 GROUP BY u.id
+        `, [req.usuario.id]);
+        return res.json({sucesso:true, perfil:resultado.rows[0] || null});
+    } catch (err) {
+        console.error('❌ Meu perfil:', err);
+        return res.status(500).json({sucesso:false, erro:'Erro ao carregar o perfil.'});
+    }
+});
+
+
+app.get('/api/perfis/:email', autenticarUsuario, async (req, res) => {
+    try {
+        const resultado = await pool.query(`
+            SELECT u.nome, u.email, u.profissao, u.experiencia, u.descricao, u.funcoes,
+                   u.foto_perfil, u.perfil_verificado,
+                   COALESCE(AVG(a.nota),0)::numeric(3,2) AS avaliacao_media,
+                   COUNT(a.id)::int AS total_avaliacoes,
+                   (SELECT COUNT(*)::int FROM servicos s WHERE LOWER(s.prestador_email)=LOWER(u.email)
+                    AND s.checkout_hora IS NOT NULL) AS servicos_concluidos
+            FROM usuarios u LEFT JOIN avaliacoes a ON LOWER(a.avaliado_email)=LOWER(u.email)
+            WHERE LOWER(u.email)=LOWER($1) AND LOWER(COALESCE(u.cadastro_status,'aprovado'))='aprovado'
+            GROUP BY u.id
+        `, [normalizarEmail(req.params.email)]);
+        if (!resultado.rows.length) return res.status(404).json({sucesso:false, erro:'Perfil não encontrado.'});
+        return res.json({sucesso:true, perfil:resultado.rows[0]});
+    } catch (err) {
+        console.error('❌ Perfil profissional:', err);
+        return res.status(500).json({sucesso:false, erro:'Erro ao carregar o perfil profissional.'});
+    }
+});
+
+
+app.put('/api/perfil/me', autenticarUsuario, async (req, res) => {
+    try {
+        const foto = String(req.body?.foto_perfil || '');
+        const documento = String(req.body?.documento_perfil || '');
+        const documentoNome = String(req.body?.documento_perfil_nome || '').slice(0,180);
+        if (foto && !/^data:image\/(jpeg|png|webp);base64,/i.test(foto)) {
+            return res.status(400).json({sucesso:false, erro:'Formato da foto inválido.'});
+        }
+        if (foto.length > 5 * 1024 * 1024) {
+            return res.status(413).json({sucesso:false, erro:'A foto é muito grande.'});
+        }
+        if (documento && !/^data:(application\/pdf|image\/(jpeg|png|webp));base64,/i.test(documento)) {
+            return res.status(400).json({sucesso:false, erro:'Envie o documento em PDF ou imagem.'});
+        }
+        if (documento.length > 7 * 1024 * 1024) {
+            return res.status(413).json({sucesso:false, erro:'O documento é muito grande.'});
+        }
+        const resultado = await pool.query(`
+            UPDATE usuarios SET whatsapp=$1, profissao=$2, experiencia=$3, descricao=$4,
+                funcoes=$5, foto_perfil=CASE WHEN $6='' THEN foto_perfil ELSE $6 END,
+                documento_perfil=CASE WHEN $7='' THEN documento_perfil ELSE $7 END,
+                documento_perfil_nome=CASE WHEN $7='' THEN documento_perfil_nome ELSE $8 END,
+                atualizado_em=CURRENT_TIMESTAMP
+            WHERE id=$9
+            RETURNING id, nome, email, tipo, whatsapp, profissao, experiencia, descricao,
+                      funcoes, foto_perfil, perfil_verificado, documentos_verificados
+        `, [
+            String(req.body?.whatsapp || '').slice(0,40),
+            String(req.body?.profissao || '').slice(0,150),
+            String(req.body?.experiencia || '').slice(0,2000),
+            String(req.body?.descricao || '').slice(0,1000),
+            String(req.body?.funcoes || '').slice(0,600),
+            foto,
+            documento,
+            documentoNome,
+            req.usuario.id
+        ]);
+        return res.json({sucesso:true, mensagem:'Perfil atualizado.', perfil:resultado.rows[0]});
+    } catch (err) {
+        console.error('❌ Atualizar perfil:', err);
+        return res.status(500).json({sucesso:false, erro:'Erro ao atualizar o perfil.'});
+    }
+});
+
+
+app.post('/api/servicos/:id/avaliar', autenticarUsuario, async (req, res) => {
+    const nota = Number(req.body?.nota);
+    const comentario = String(req.body?.comentario || '').trim().slice(0,1000);
+    if (!Number.isInteger(nota) || nota < 1 || nota > 5) {
+        return res.status(400).json({sucesso:false, erro:'Escolha uma nota de 1 a 5.'});
+    }
+    try {
+        const servico = await buscarServico(Number(req.params.id));
+        if (!servico) return res.status(404).json({sucesso:false, erro:'Serviço não encontrado.'});
+        if (!servico.checkout_hora) return res.status(409).json({sucesso:false, erro:'A avaliação só é liberada após o serviço.'});
+
+        const email = normalizarEmail(req.usuario.email);
+        let avaliadoEmail = '';
+        let avaliadorTipo = '';
+        if (req.usuario.gestorRS || empresaEhResponsavel(servico, email)) {
+            avaliadoEmail = normalizarEmail(servico.prestador_email);
+            avaliadorTipo = 'empresa';
+        } else if (prestadorEhTitular(servico, email)) {
+            avaliadoEmail = normalizarEmail(servico.empresa_email);
+            avaliadorTipo = 'prestador';
+        } else {
+            return responderAcessoNegado(res, 'Você não participou deste serviço.');
+        }
+        if (!avaliadoEmail) return res.status(409).json({sucesso:false, erro:'Não foi possível identificar quem será avaliado.'});
+
+        await pool.query(`
+            INSERT INTO avaliacoes (servico_id, avaliador_email, avaliado_email, avaliador_tipo, nota, comentario)
+            VALUES ($1,$2,$3,$4,$5,$6)
+            ON CONFLICT (servico_id, avaliador_email)
+            DO UPDATE SET nota=EXCLUDED.nota, comentario=EXCLUDED.comentario, criado_em=CURRENT_TIMESTAMP
+        `, [Number(req.params.id), email, avaliadoEmail, avaliadorTipo, nota, comentario]);
+
+        await registrarNotificacaoUsuario(avaliadoEmail, 'nova_avaliacao', {mensagem:`Você recebeu uma avaliação de ${nota} estrela(s).`, servicoId:Number(req.params.id)});
+        return res.json({sucesso:true, mensagem:'Avaliação enviada com sucesso.'});
+    } catch (err) {
+        console.error('❌ Avaliar serviço:', err);
+        return res.status(500).json({sucesso:false, erro:'Erro ao registrar a avaliação.'});
+    }
+});
+
+
+// ============================================================
 // PAINEL ADMINISTRATIVO — SOMENTE GRUPO RS
 // ============================================================
+
+app.get(
+    '/api/admin/cadastros-pendentes',
+    autenticarUsuario,
+    async (req, res) => {
+        if (!req.usuario?.gestorRS) return responderAcessoNegado(res, 'Área exclusiva do Grupo RS.');
+        try {
+            const resultado = await pool.query(`
+                SELECT id, nome, email, tipo, doc, whatsapp, profissao, criado_em
+                FROM usuarios
+                WHERE LOWER(COALESCE(cadastro_status,'aprovado')) = 'pendente'
+                ORDER BY criado_em ASC NULLS LAST, id ASC
+            `);
+            return res.json({sucesso: true, cadastros: resultado.rows});
+        } catch (err) {
+            console.error('❌ Cadastros pendentes:', err);
+            return res.status(500).json({sucesso: false, erro: 'Erro ao consultar cadastros pendentes.'});
+        }
+    }
+);
+
+
+app.post(
+    '/api/admin/usuarios/:id/aprovar',
+    autenticarUsuario,
+    async (req, res) => {
+        if (!req.usuario?.gestorRS) return responderAcessoNegado(res, 'Área exclusiva do Grupo RS.');
+        try {
+            const resultado = await pool.query(`
+                UPDATE usuarios SET cadastro_status = 'aprovado', aprovado_em = CURRENT_TIMESTAMP,
+                    aprovado_por = $1, atualizado_em = CURRENT_TIMESTAMP
+                WHERE id = $2 RETURNING id, nome, email, tipo
+            `, [req.usuario.email, Number(req.params.id)]);
+            if (!resultado.rows.length) return res.status(404).json({sucesso:false, erro:'Cadastro não encontrado.'});
+            await registrarNotificacaoUsuario(resultado.rows[0].email, 'cadastro_aprovado', {mensagem:'Seu cadastro foi aprovado. Você já pode entrar no RS CONNECT.'});
+            return res.json({sucesso:true, mensagem:'Cadastro aprovado com sucesso.', usuario:resultado.rows[0]});
+        } catch (err) {
+            console.error('❌ Aprovar cadastro:', err);
+            return res.status(500).json({sucesso:false, erro:'Erro ao aprovar cadastro.'});
+        }
+    }
+);
+
+
+app.post(
+    '/api/admin/usuarios/:id/rejeitar',
+    autenticarUsuario,
+    async (req, res) => {
+        if (!req.usuario?.gestorRS) return responderAcessoNegado(res, 'Área exclusiva do Grupo RS.');
+        try {
+            const resultado = await pool.query(`
+                UPDATE usuarios SET cadastro_status = 'rejeitado', aprovado_por = $1,
+                    atualizado_em = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, email
+            `, [req.usuario.email, Number(req.params.id)]);
+            if (!resultado.rows.length) return res.status(404).json({sucesso:false, erro:'Cadastro não encontrado.'});
+            return res.json({sucesso:true, mensagem:'Cadastro rejeitado.'});
+        } catch (err) {
+            console.error('❌ Rejeitar cadastro:', err);
+            return res.status(500).json({sucesso:false, erro:'Erro ao rejeitar cadastro.'});
+        }
+    }
+);
+
+
+app.post(
+    '/api/admin/usuarios/:id/verificar-perfil',
+    autenticarUsuario,
+    async (req, res) => {
+        if (!req.usuario?.gestorRS) return responderAcessoNegado(res, 'Área exclusiva do Grupo RS.');
+        try {
+            const verificado = req.body?.verificado !== false;
+            const resultado = await pool.query(`
+                UPDATE usuarios SET perfil_verificado = $1, documentos_verificados = $1,
+                    atualizado_em = CURRENT_TIMESTAMP WHERE id = $2 RETURNING id, email, perfil_verificado
+            `, [verificado, Number(req.params.id)]);
+            if (!resultado.rows.length) return res.status(404).json({sucesso:false, erro:'Usuário não encontrado.'});
+            return res.json({sucesso:true, mensagem:verificado?'Perfil verificado.':'Verificação removida.'});
+        } catch (err) {
+            console.error('❌ Verificar perfil:', err);
+            return res.status(500).json({sucesso:false, erro:'Erro ao verificar perfil.'});
+        }
+    }
+);
 
 app.get(
     '/api/admin/resumo',
@@ -19971,6 +20256,8 @@ app.get(
                 SELECT
                     (SELECT COUNT(*)::int FROM usuarios) AS usuarios,
                     (SELECT COUNT(*)::int FROM usuarios
+                     WHERE LOWER(COALESCE(cadastro_status,'aprovado'))='pendente') AS cadastros_pendentes,
+                    (SELECT COUNT(*)::int FROM usuarios
                      WHERE LOWER(COALESCE(tipo,'')) IN ('prestador','colaborador')) AS prestadores,
                     (SELECT COUNT(*)::int FROM usuarios
                      WHERE LOWER(COALESCE(tipo,'')) NOT IN ('prestador','colaborador')) AS empresas,
@@ -19984,7 +20271,8 @@ app.get(
             `);
 
             const usuariosRecentes = await pool.query(`
-                SELECT id, nome, email, tipo, criado_em
+                SELECT id, nome, email, tipo, cadastro_status, perfil_verificado,
+                       documento_perfil_nome, criado_em
                 FROM usuarios
                 ORDER BY criado_em DESC NULLS LAST, id DESC
                 LIMIT 8
