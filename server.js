@@ -2747,6 +2747,8 @@ async function criarTabelas() {
 
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS termos_versao TEXT;",
 
+            "ALTER TABLE recuperacao_senha ADD COLUMN IF NOT EXISTS tentativas INTEGER DEFAULT 0;",
+
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS cidade TEXT;",
 
             "ALTER TABLE servicos ADD COLUMN IF NOT EXISTS empresa_nome TEXT;",
@@ -5670,6 +5672,13 @@ app.post(
             // =================================================
             // SALVAR NOVO CÓDIGO
             // =================================================
+
+            // Autocorreção para instalações antigas do RS Connect.
+            // Algumas bases já possuíam a tabela, mas não a coluna tentativas.
+            await pool.query(`
+                ALTER TABLE recuperacao_senha
+                ADD COLUMN IF NOT EXISTS tentativas INTEGER DEFAULT 0
+            `);
 
             await pool.query(
                 `
