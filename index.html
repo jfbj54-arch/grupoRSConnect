@@ -3393,6 +3393,56 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
             <div class="form-group"><label>Documento profissional ou de identificação (PDF ou imagem)</label><input id="perfilDocumento" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" onchange="prepararDocumentoPerfil(this)"><div id="perfilDocumentoStatus" class="small muted" style="margin-top:6px;">Nenhum documento selecionado.</div></div>
           </div>
         </div>
+        <div id="painelVerificacaoPrestador" class="card hidden" style="margin-top:16px;">
+          <div class="rs-page-head">
+            <div>
+              <h3 class="section-title">🛡️ Documentação e verificação</h3>
+              <p class="muted small">Assine seu termo pelo GOV.BR e apresente sua certidão somente quando necessária à função.</p>
+            </div>
+            <span id="verificacaoSeloGeral" class="rs-admin-status">PENDENTE</span>
+          </div>
+
+          <div class="rs-admin-privacidade">
+            🔒 Os documentos completos ficam disponíveis somente ao Administrador Pleno. As empresas visualizam apenas os selos de verificação e a validade.
+          </div>
+
+          <div class="grid grid-2" style="margin-top:14px;">
+            <div class="card">
+              <h3 style="margin-top:0;">✍️ Assinatura GOV.BR</h3>
+              <p class="small muted">Baixe o termo, assine no serviço oficial e envie o PDF assinado.</p>
+              <div id="statusContratoGov" class="rs-admin-status">Não enviado</div>
+              <div class="service-actions" style="margin-top:12px;">
+                <button class="btn btn-dark" type="button" onclick="gerarTermoPrestadorPDF()">📄 Gerar termo</button>
+                <button class="btn btn-primary" type="button" onclick="window.open('https://assinador.iti.br/assinatura/index.xhtml','_blank','noopener')">🇧🇷 Abrir assinador GOV.BR</button>
+              </div>
+              <div class="form-group" style="margin-top:12px;">
+                <label>PDF assinado pelo GOV.BR</label>
+                <input id="contratoGovArquivo" type="file" accept="application/pdf">
+              </div>
+              <button class="btn btn-success" type="button" onclick="enviarDocumentoVerificacao('contrato',this)">Enviar contrato assinado</button>
+            </div>
+
+            <div class="card">
+              <h3 style="margin-top:0;">📜 Certidão de antecedentes</h3>
+              <p class="small muted">A certidão deve ser fornecida pelo próprio prestador, com autorização expressa.</p>
+              <label style="display:flex;gap:9px;align-items:flex-start;margin:10px 0;">
+                <input id="autorizaAntecedentes" type="checkbox" onchange="salvarAutorizacaoAntecedentes(this)">
+                <span class="small">Autorizo o Grupo RS a conferir esta certidão exclusivamente para análise profissional, quando necessária à função.</span>
+              </label>
+              <div id="statusAntecedentes" class="rs-admin-status">Não enviada</div>
+              <div class="service-actions" style="margin-top:12px;">
+                <button class="btn btn-dark" type="button" onclick="window.open('https://servicos.pf.gov.br/epol-sinic-publico/','_blank','noopener')">🔎 Emitir certidão federal</button>
+                <button class="btn btn-dark" type="button" onclick="window.open('https://validar.iti.gov.br/','_blank','noopener')">✓ Validar assinatura</button>
+              </div>
+              <div class="grid grid-2" style="margin-top:12px;">
+                <div class="form-group"><label>Data de emissão</label><input id="antecedentesEmissao" type="date"></div>
+                <div class="form-group"><label>Validade</label><input id="antecedentesValidade" type="date"></div>
+              </div>
+              <div class="form-group"><label>Certidão em PDF</label><input id="antecedentesArquivo" type="file" accept="application/pdf"></div>
+              <button class="btn btn-success" type="button" onclick="enviarDocumentoVerificacao('antecedentes',this)">Enviar certidão</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <section id="pageNotificacoes" class="page">
@@ -3472,6 +3522,16 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 
 <div id="modalPerfilPublico" class="modal hidden">
   <div class="modal-box"><div class="modal-header"><h3 style="margin:0;">👤 Perfil do colaborador</h3><button class="modal-close" onclick="$('modalPerfilPublico').classList.add('hidden')">✕</button></div><div id="perfilPublicoConteudo"></div></div>
+</div>
+
+<div id="modalVerificacaoAdmin" class="modal hidden">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div><h3 style="margin:0;">🛡️ Conferência documental</h3><div id="adminVerificacaoNome" class="small muted"></div></div>
+      <button class="modal-close" onclick="$('modalVerificacaoAdmin').classList.add('hidden')">✕</button>
+    </div>
+    <div id="adminVerificacaoConteudo"></div>
+  </div>
 </div>
 
 
@@ -8263,9 +8323,10 @@ function renderizarEmpresasAdmin(){
         </div>
         ${(empresa.prestadores||[]).length?(empresa.prestadores||[]).map(p=>`
           <div class="rs-admin-prestador">
-            <div><strong>🧑‍🔧 ${escapeHtml(p.nome||'Prestador')}</strong><small>${escapeHtml(p.funcao||'Função não informada')} · ${Number(p.servicos)||0} serviço(s)</small></div>
+            <div><strong>🧑‍🔧 ${escapeHtml(p.nome||'Prestador')}</strong><small>${escapeHtml(p.funcao||'Função não informada')} · ${Number(p.servicos)||0} serviço(s)</small><small>Contrato: ${escapeHtml(p.contrato_status||'não enviado')} · Certidão: ${escapeHtml(p.antecedentes_status||'não enviada')}</small></div>
             <span class="rs-admin-status">${escapeHtml(p.situacao||'aprovado')}</span>
             <span>${p.verificado?'✅ Verificado':'○ Não verificado'}</span>
+            ${p.id?`<button class="btn btn-dark" type="button" onclick="abrirVerificacaoAdmin(${Number(p.id)})">Conferir documentos</button>`:''}
           </div>`).join(''):'<div class="rs-vazio">Esta empresa ainda não possui prestadores vinculados.</div>'}
       </div>
     </details>`).join('');
@@ -8298,6 +8359,7 @@ async function removerAvaliacaoAdmin(id,botao){if(!confirm('Remover esta avalia�
 let fotoPerfilBase64 = '';
 let documentoPerfilBase64 = '';
 let documentoPerfilNome = '';
+let verificacaoPrestadorCache = {};
 
 async function carregarMeuPerfil() {
   try {
@@ -8319,7 +8381,104 @@ async function carregarMeuPerfil() {
     $('perfilReputacao').textContent = `${'★'.repeat(Math.round(media))}${'☆'.repeat(5-Math.round(media))} · ${total ? media.toFixed(1)+' ('+total+' avaliações)' : 'Sem avaliações'}`;
     $('perfilServicos').textContent = `${Number(p.servicos_concluidos || 0)} serviços concluídos`;
     $('perfilDocumentoStatus').textContent = p.documento_perfil_nome ? `Documento enviado: ${p.documento_perfil_nome}${p.documentos_verificados ? ' · verificado pelo Grupo RS' : ' · aguardando verificação'}` : 'Nenhum documento enviado.';
+    $('painelVerificacaoPrestador')?.classList.toggle('hidden', !ehPrestador());
+    if (ehPrestador()) await carregarVerificacaoPrestador();
   } catch (erro) { toast(erro.message, 'error'); }
+}
+
+async function carregarVerificacaoPrestador() {
+  try {
+    const data = await apiFetch('/api/verificacao/me');
+    const v = data?.verificacao || {};
+    verificacaoPrestadorCache = v;
+    if ($('autorizaAntecedentes')) $('autorizaAntecedentes').checked = Boolean(v.antecedentes_autorizado);
+    if ($('antecedentesEmissao')) $('antecedentesEmissao').value = texto(v.antecedentes_emitida_em).slice(0,10);
+    if ($('antecedentesValidade')) $('antecedentesValidade').value = texto(v.antecedentes_validade).slice(0,10);
+    if ($('statusContratoGov')) $('statusContratoGov').textContent = v.contrato_status === 'validado' ? '✅ Validado pelo Grupo RS' : (v.contrato_status === 'rejeitado' ? '❌ Rejeitado — envie novamente' : (v.contrato_nome ? '🕒 Aguardando conferência' : 'Não enviado'));
+    if ($('statusAntecedentes')) $('statusAntecedentes').textContent = v.antecedentes_status === 'validado' ? `✅ Válida${v.antecedentes_validade ? ' até '+formatarData(v.antecedentes_validade) : ''}` : (v.antecedentes_status === 'rejeitado' ? '❌ Rejeitada — envie novamente' : (v.antecedentes_nome ? '🕒 Aguardando conferência' : 'Não enviada'));
+    if ($('verificacaoSeloGeral')) $('verificacaoSeloGeral').textContent = v.contrato_status === 'validado' && v.antecedentes_status === 'validado' ? '✅ VERIFICAÇÃO COMPLETA' : 'DOCUMENTAÇÃO PENDENTE';
+  } catch (erro) { toast(erro.message, 'error'); }
+}
+
+async function salvarAutorizacaoAntecedentes(input) {
+  try {
+    await apiFetch('/api/verificacao/autorizacao', {method:'POST',body:JSON.stringify({autorizado:Boolean(input.checked)})});
+    toast(input.checked ? 'Autorização registrada.' : 'Autorização retirada.', 'success');
+  } catch (erro) { input.checked=!input.checked; toast(erro.message,'error'); }
+}
+
+function lerPdfVerificacao(arquivo) {
+  return new Promise((resolve,reject)=>{
+    if(!arquivo) return reject(new Error('Escolha um arquivo PDF.'));
+    if(arquivo.type!=='application/pdf') return reject(new Error('Envie somente arquivo PDF.'));
+    if(arquivo.size>6*1024*1024) return reject(new Error('O PDF deve ter no máximo 6 MB.'));
+    const leitor=new FileReader();
+    leitor.onload=()=>resolve(String(leitor.result||''));
+    leitor.onerror=()=>reject(new Error('Não foi possível ler o PDF.'));
+    leitor.readAsDataURL(arquivo);
+  });
+}
+
+async function enviarDocumentoVerificacao(tipo, botao) {
+  const contrato = tipo === 'contrato';
+  const input = $(contrato ? 'contratoGovArquivo' : 'antecedentesArquivo');
+  if(!contrato && !$('autorizaAntecedentes')?.checked){toast('Marque a autorização antes de enviar a certidão.','error');return;}
+  try {
+    loadingBotao(botao,true,'Enviando...');
+    const arquivo=input?.files?.[0];
+    const documento=await lerPdfVerificacao(arquivo);
+    const corpo={documento,nome:arquivo.name};
+    if(!contrato){
+      corpo.emitida_em=$('antecedentesEmissao')?.value;
+      corpo.validade=$('antecedentesValidade')?.value;
+      if(!corpo.emitida_em||!corpo.validade) throw new Error('Informe a emissão e a validade da certidão.');
+    }
+    const data=await apiFetch(`/api/verificacao/${tipo}`,{method:'POST',body:JSON.stringify(corpo)});
+    toast(data?.mensagem||'Documento enviado.','success');
+    input.value='';
+    await carregarVerificacaoPrestador();
+  } catch(erro){toast(erro.message,'error');} finally{loadingBotao(botao,false);}
+}
+
+function gerarTermoPrestadorPDF() {
+  if(!window.jspdf?.jsPDF){toast('O gerador de PDF ainda não carregou.','error');return;}
+  const {jsPDF}=window.jspdf;
+  const pdf=new jsPDF({unit:'mm',format:'a4'});
+  const nome=usuarioAtual?.nome||'Prestador';
+  const email=usuarioAtual?.email||'';
+  pdf.setFillColor(7,49,76);pdf.rect(0,0,210,30,'F');
+  pdf.setTextColor(255,255,255);pdf.setFontSize(18);pdf.setFont('helvetica','bold');pdf.text('RS CONNECT',15,14);
+  pdf.setFontSize(10);pdf.setFont('helvetica','normal');pdf.text('Termo de adesão e responsabilidade do prestador',15,22);
+  pdf.setTextColor(25,45,58);pdf.setFontSize(11);pdf.setFont('helvetica','bold');pdf.text('IDENTIFICAÇÃO',15,43);
+  pdf.setFont('helvetica','normal');pdf.text(`Nome: ${nome}`,15,51);pdf.text(`E-mail cadastrado: ${email}`,15,58);
+  const termo='Declaro que as informações profissionais fornecidas ao RS Connect são verdadeiras. Comprometo-me a utilizar a plataforma de forma responsável, registrar jornadas e comprovações com informações reais, preservar o sigilo das informações das empresas e cumprir as condições de cada serviço aceito. Autorizo o tratamento dos dados necessários à execução dos serviços, conforme os Termos de Uso e a Política de Privacidade aceitos no cadastro. A apresentação de certidão ocorrerá somente quando necessária à natureza da função.';
+  pdf.setFont('helvetica','bold');pdf.text('DECLARAÇÃO',15,72);pdf.setFont('helvetica','normal');
+  const linhas=pdf.splitTextToSize(termo,180);pdf.text(linhas,15,81);
+  const y=81+linhas.length*5+15;pdf.text(`Emitido em: ${new Date().toLocaleString('pt-BR')}`,15,y);
+  pdf.text('Assine este documento no serviço oficial GOV.BR e envie o PDF assinado ao RS Connect.',15,y+10);
+  pdf.setDrawColor(80,100,110);pdf.line(35,y+35,175,y+35);pdf.text('Assinatura eletrônica do prestador',105,y+42,{align:'center'});
+  pdf.save('TERMO_RS_CONNECT_PRESTADOR.pdf');
+  toast('Termo gerado. Agora assine pelo GOV.BR.','success');
+}
+
+async function abrirVerificacaoAdmin(id) {
+  try {
+    const data=await apiFetch(`/api/admin/verificacoes/${Number(id)}`);
+    const v=data?.verificacao||{};
+    $('adminVerificacaoNome').textContent=v.nome||'Prestador';
+    const linkDoc=(conteudo,nome)=>conteudo?`<a class="btn btn-dark" href="${conteudo}" download="${escapeHtml(nome||'documento.pdf')}" target="_blank">Abrir documento</a>`:'<span class="small muted">Documento não enviado.</span>';
+    $('adminVerificacaoConteudo').innerHTML=`
+      <div class="card"><h3>✍️ Contrato assinado</h3><p class="small muted">Situação: ${escapeHtml(v.contrato_status||'não enviado')}</p>${linkDoc(v.contrato_documento,v.contrato_nome)}
+      ${v.contrato_documento?`<div class="service-actions" style="margin-top:10px;"><button class="btn btn-success" onclick="decidirVerificacaoAdmin(${v.id},'contrato','validar',this)">✓ Validar</button><button class="btn btn-danger" onclick="decidirVerificacaoAdmin(${v.id},'contrato','rejeitar',this)">✕ Rejeitar</button></div>`:''}</div>
+      <div class="card" style="margin-top:12px;"><h3>📜 Certidão apresentada</h3><p class="small muted">Autorização: ${v.antecedentes_autorizado?'registrada':'não registrada'} · Validade: ${escapeHtml(formatarData(v.antecedentes_validade)||'não informada')} · Situação: ${escapeHtml(v.antecedentes_status||'não enviada')}</p>${linkDoc(v.antecedentes_documento,v.antecedentes_nome)}
+      ${v.antecedentes_documento?`<div class="service-actions" style="margin-top:10px;"><button class="btn btn-success" onclick="decidirVerificacaoAdmin(${v.id},'antecedentes','validar',this)">✓ Validar</button><button class="btn btn-danger" onclick="decidirVerificacaoAdmin(${v.id},'antecedentes','rejeitar',this)">✕ Rejeitar</button></div>`:''}</div>`;
+    $('modalVerificacaoAdmin').classList.remove('hidden');
+  } catch(erro){toast(erro.message,'error');}
+}
+
+async function decidirVerificacaoAdmin(id,tipo,acao,botao){
+  if(!confirm(`${acao==='validar'?'Validar':'Rejeitar'} este documento?`))return;
+  try{loadingBotao(botao,true,'Salvando...');const d=await apiFetch(`/api/admin/verificacoes/${id}/${tipo}/${acao}`,{method:'POST'});toast(d.mensagem,'success');$('modalVerificacaoAdmin').classList.add('hidden');await carregarPainelAdmin(false);}catch(e){toast(e.message,'error');}finally{loadingBotao(botao,false);}
 }
 
 function prepararFotoPerfil(input) {
@@ -8367,6 +8526,7 @@ async function abrirPerfilProfissional(email) {
         <div class="rs-perfil-foto">${p.foto_perfil?`<img src="${escapeHtml(p.foto_perfil)}" alt="Foto">`:'👤'}</div>
         <h3>${escapeHtml(p.nome||'Colaborador')}</h3>
         ${p.perfil_verificado?'<div class="rs-selo-verificado">✓ Perfil verificado pelo Grupo RS</div>':''}
+        <div class="small muted" style="margin-top:8px;">Contrato: ${p.contrato_gov_status==='validado'?'✅ validado':'○ pendente'} · Certidão apresentada: ${p.antecedentes_status==='validado'?'✅ válida':'○ pendente'}</div>
         <div class="rs-reputacao">${'★'.repeat(Math.round(media))}${'☆'.repeat(5-Math.round(media))} · ${total?media.toFixed(1)+' ('+total+' avaliações)':'Sem avaliações'}</div>
         <div class="small muted">${Number(p.servicos_concluidos||0)} serviços concluídos</div>
       </div>
