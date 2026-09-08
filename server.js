@@ -1,6 +1,6 @@
 // ============================================================
 // RS CONNECT — SERVER.JS
-// VERSÃO COM PRIVACIDADE POR EMPRESA
+// VERSÃO 2026.09.08 — PAINEL ADMINISTRATIVO + EXCLUSÃO DE EMPRESAS
 //
 // PARTE 1
 //
@@ -17,6 +17,8 @@
 
 const express =
     require('express');
+
+const VERSAO_RS_CONNECT = '2026.09.08-admin-exclusao-empresas';
 
 
 const http =
@@ -4142,6 +4144,9 @@ app.get(
                 sistema:
                     'RS Connect',
 
+                versao:
+                    VERSAO_RS_CONNECT,
+
                 banco:
                     'online',
 
@@ -4760,7 +4765,9 @@ async function loginUsuarioRS(
                     pendenteAprovacao: cadastroStatus === 'pendente',
                     erro: cadastroStatus === 'rejeitado'
                         ? 'Este cadastro não foi aprovado. Entre em contato com o Grupo RS.'
-                        : 'Seu cadastro está aguardando aprovação do Grupo RS.'
+                        : cadastroStatus === 'excluido' || cadastroStatus === 'bloqueado'
+                            ? 'Esta conta foi desativada pelo Grupo RS.'
+                            : 'Seu cadastro está aguardando aprovação do Grupo RS.'
                 });
         }
 
@@ -20459,6 +20466,55 @@ app.post('/api/admin/usuarios/:id/situacao', autenticarUsuario, async (req,res) 
 });
 
 
+// Exclusão segura de empresas: bloqueia o acesso e preserva serviços,
+// jornadas, pagamentos e auditoria. O Administrador Pleno pode restaurar.
+app.post('/api/admin/empresas/:id/:acao', autenticarUsuario, async (req,res) => {
+    if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Área exclusiva do Grupo RS.');
+    const identificador=String(req.params.id||'').trim();
+    const acao=String(req.params.acao||'').trim().toLowerCase();
+    if(!['excluir','restaurar'].includes(acao)) return res.status(400).json({sucesso:false,erro:'Ação inválida.'});
+
+    const cliente=await pool.connect();
+    try{
+        await cliente.query('BEGIN');
+        let empresa=null;
+
+        if(/^cliente-\d+$/.test(identificador)){
+            const clienteId=Number(identificador.replace('cliente-',''));
+            const resultado=await cliente.query(`
+                UPDATE clientes_rs SET ativo=$1
+                WHERE id=$2 RETURNING id,nome,responsavel_email,ativo
+            `,[acao==='restaurar',clienteId]);
+            empresa=resultado.rows[0];
+        }else if(/^\d+$/.test(identificador)){
+            const status=acao==='restaurar'?'aprovado':'excluido';
+            const resultado=await cliente.query(`
+                UPDATE usuarios SET cadastro_status=$1,atualizado_em=CURRENT_TIMESTAMP
+                WHERE id=$2 AND LOWER(COALESCE(tipo,''))='empresa'
+                RETURNING id,nome,email,cadastro_status
+            `,[status,Number(identificador)]);
+            empresa=resultado.rows[0];
+            if(empresa?.email){
+                await cliente.query(`UPDATE clientes_rs SET ativo=$1 WHERE LOWER(COALESCE(responsavel_email,''))=LOWER($2)`,[acao==='restaurar',empresa.email]);
+            }
+        }
+
+        if(!empresa){
+            await cliente.query('ROLLBACK');
+            return res.status(404).json({sucesso:false,erro:'Empresa não encontrada.'});
+        }
+
+        await cliente.query('COMMIT');
+        await registrarAuditoria(req.usuario.email,acao==='excluir'?'ADMIN_EXCLUIR_EMPRESA':'ADMIN_RESTAURAR_EMPRESA',`Empresa ${empresa.nome||identificador} ${acao==='excluir'?'desativada':'restaurada'}.`);
+        return res.json({sucesso:true,mensagem:acao==='excluir'?'Empresa excluída com segurança. O acesso foi bloqueado e os históricos foram preservados.':'Empresa restaurada e acesso liberado novamente.'});
+    }catch(err){
+        await cliente.query('ROLLBACK').catch(()=>{});
+        console.error('❌ Alterar empresa:',err);
+        return res.status(500).json({sucesso:false,erro:'Erro ao atualizar a empresa.'});
+    }finally{cliente.release();}
+});
+
+
 app.delete('/api/admin/avaliacoes/:id', autenticarUsuario, async (req,res) => {
     if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Área exclusiva do Grupo RS.');
     try{
@@ -20944,6 +21000,9 @@ app.get(
                 sistema:
                     'RS Connect',
 
+                versao:
+                    VERSAO_RS_CONNECT,
+
                 status:
                     'online',
 
@@ -21245,6 +21304,10 @@ async function iniciarRSConnect() {
 
         console.log(
             '🚀 INICIANDO RS CONNECT'
+        );
+
+        console.log(
+            `🧩 VERSÃO: ${VERSAO_RS_CONNECT}`
         );
 
 
