@@ -1598,12 +1598,31 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
 #loginScreen #btnLogin:hover{transform:translateY(-1px);box-shadow:0 16px 32px rgba(12,158,202,.33)}
 #loginScreen .btn-dark{border-color:rgba(74,147,184,.26);background:rgba(7,29,46,.72);color:#b8cfdb}
 #loginScreen .btn-dark:hover{border-color:rgba(78,204,242,.40);color:#fff}
+.rs-login-admin-link{
+  position:absolute;
+  left:50%;
+  bottom:18px;
+  z-index:3;
+  transform:translateX(-50%);
+  padding:7px 11px;
+  border:0;
+  background:transparent;
+  color:rgba(158,190,207,.58);
+  font-size:9px;
+  font-weight:700;
+  letter-spacing:.2px;
+  cursor:pointer;
+  transition:.18s;
+}
+.rs-login-admin-link:hover,.rs-login-admin-link:focus-visible{color:#8ee7fa;text-decoration:underline}
+#loginScreen.modo-admin .login-box{border-color:rgba(84,220,246,.5);box-shadow:0 32px 90px rgba(0,0,0,.48),0 0 60px rgba(25,180,220,.17)}
+#loginScreen.modo-admin .rs-login-selo{border-color:rgba(78,216,242,.48);background:rgba(30,176,216,.15);color:#a5efff}
 @keyframes rsLoginGrade{to{background-position:0 52px,52px 0}}
 @keyframes rsLoginOrbita{to{transform:rotate(360deg)}}
 @keyframes rsLoginPulso{50%{opacity:.35;transform:scale(1.04)}}
 @media(prefers-reduced-motion:reduce){#loginScreen::before,#loginScreen::after,.rs-login-emblema::before,.rs-login-emblema::after{animation:none}}
 @media(max-width:520px){
-  #loginScreen{padding:16px}
+  #loginScreen{padding:16px 16px 54px}
   #loginScreen .login-box{padding:27px 19px 22px;border-radius:20px}
   .rs-login-emblema{width:67px;height:67px;border-radius:20px}
   #loginScreen .login-logo h1{font-size:29px}
@@ -1744,6 +1763,15 @@ body{background:linear-gradient(135deg,#06131f 0%,#071b2a 55%,#082238 100%)}
     </div>
 
   </div>
+
+  <button
+    class="rs-login-admin-link"
+    type="button"
+    onclick="abrirAcessoAdministrativo()"
+    aria-label="Acesso do Administrador Pleno"
+  >
+    ⚙ Administração
+  </button>
 
 </section>
 
@@ -7486,6 +7514,28 @@ async function abrirArquivoProtegido(
 // ============================================================
 // LOGIN
 // ============================================================
+
+function abrirAcessoAdministrativo() {
+
+  const tela = $('loginScreen');
+  const selo = tela?.querySelector('.rs-login-selo');
+  const titulo = tela?.querySelector('.login-logo h1');
+  const descricao = tela?.querySelector('.login-logo p');
+
+  tela?.classList.add('modo-admin');
+
+  if (selo) selo.textContent = 'ACESSO ADMINISTRATIVO';
+  if (titulo) titulo.textContent = 'Administração RS';
+  if (descricao) descricao.textContent = 'Entre com o e-mail e a senha do Administrador Pleno.';
+
+  $('loginEmail')?.focus();
+
+  toast(
+    'Acesso restrito: use as credenciais do Administrador Pleno.',
+    'info'
+  );
+}
+
 
 async function fazerLogin(
   event
