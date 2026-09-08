@@ -1,6 +1,6 @@
 // ============================================================
 // RS CONNECT — SERVER.JS
-// VERSÃO 2026.09.08 — PAINEL ADMINISTRATIVO + EXCLUSÃO DE EMPRESAS
+// VERSÃO 2026.09.08 — GOV.BR + VERIFICAÇÃO DOCUMENTAL
 //
 // PARTE 1
 //
@@ -18,7 +18,7 @@
 const express =
     require('express');
 
-const VERSAO_RS_CONNECT = '2026.09.08-admin-exclusao-empresas';
+const VERSAO_RS_CONNECT = '2026.09.08-govbr-verificacao-documental';
 
 
 const http =
@@ -2742,6 +2742,32 @@ async function criarTabelas() {
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS documento_perfil TEXT;",
 
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS documento_perfil_nome TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS contrato_gov_documento TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS contrato_gov_nome TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS contrato_gov_status TEXT DEFAULT 'nao_enviado';",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS contrato_gov_enviado_em TIMESTAMP;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS contrato_gov_validado_em TIMESTAMP;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_autorizado BOOLEAN DEFAULT FALSE;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_autorizado_em TIMESTAMP;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_documento TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_nome TEXT;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_status TEXT DEFAULT 'nao_enviado';",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_emitida_em DATE;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_validade DATE;",
+
+            "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS antecedentes_validado_em TIMESTAMP;",
 
             "ALTER TABLE usuarios ADD COLUMN IF NOT EXISTS aceite_termos BOOLEAN DEFAULT FALSE;",
 
@@ -20188,7 +20214,8 @@ app.get('/api/perfis/:email', autenticarUsuario, async (req, res) => {
     try {
         const resultado = await pool.query(`
             SELECT u.nome, u.email, u.profissao, u.experiencia, u.descricao, u.funcoes,
-                   u.foto_perfil, u.perfil_verificado,
+                   u.foto_perfil, u.perfil_verificado,u.contrato_gov_status,
+                   u.antecedentes_status,u.antecedentes_validade,
                    COALESCE(AVG(a.nota),0)::numeric(3,2) AS avaliacao_media,
                    COUNT(a.id)::int AS total_avaliacoes,
                    (SELECT COUNT(*)::int FROM servicos s WHERE LOWER(s.prestador_email)=LOWER(u.email)
@@ -20248,6 +20275,73 @@ app.put('/api/perfil/me', autenticarUsuario, async (req, res) => {
         console.error('❌ Atualizar perfil:', err);
         return res.status(500).json({sucesso:false, erro:'Erro ao atualizar o perfil.'});
     }
+});
+
+
+// ============================================================
+// ASSINATURA GOV.BR E CERTIDÃO APRESENTADA PELO PRESTADOR
+// ============================================================
+
+app.get('/api/verificacao/me', autenticarUsuario, async (req,res) => {
+    if(!usuarioEhPrestador(req.usuario)) return responderAcessoNegado(res,'Área exclusiva do prestador.');
+    try{
+        const r=await pool.query(`
+            SELECT contrato_gov_nome,contrato_gov_status,contrato_gov_enviado_em,contrato_gov_validado_em,
+                   antecedentes_autorizado,antecedentes_autorizado_em,antecedentes_nome,
+                   antecedentes_status,antecedentes_emitida_em,antecedentes_validade,antecedentes_validado_em
+            FROM usuarios WHERE id=$1
+        `,[req.usuario.id]);
+        return res.json({sucesso:true,verificacao:r.rows[0]||{}});
+    }catch(err){console.error('❌ Verificação do prestador:',err);return res.status(500).json({sucesso:false,erro:'Erro ao carregar a verificação.'});}
+});
+
+app.post('/api/verificacao/autorizacao', autenticarUsuario, async (req,res) => {
+    if(!usuarioEhPrestador(req.usuario)) return responderAcessoNegado(res,'Área exclusiva do prestador.');
+    const autorizado=req.body?.autorizado===true;
+    try{
+        await pool.query(`UPDATE usuarios SET antecedentes_autorizado=$1,
+            antecedentes_autorizado_em=CASE WHEN $1 THEN CURRENT_TIMESTAMP ELSE NULL END,
+            atualizado_em=CURRENT_TIMESTAMP WHERE id=$2`,[autorizado,req.usuario.id]);
+        await registrarAuditoria(req.usuario.email,'AUTORIZACAO_ANTECEDENTES',autorizado?'Autorização de conferência registrada.':'Autorização de conferência retirada.');
+        return res.json({sucesso:true,mensagem:autorizado?'Autorização registrada.':'Autorização retirada.'});
+    }catch(err){return res.status(500).json({sucesso:false,erro:'Erro ao registrar a autorização.'});}
+});
+
+app.post('/api/verificacao/contrato', autenticarUsuario, async (req,res) => {
+    if(!usuarioEhPrestador(req.usuario)) return responderAcessoNegado(res,'Área exclusiva do prestador.');
+    const documento=String(req.body?.documento||'');
+    const nome=String(req.body?.nome||'contrato-assinado.pdf').slice(0,180);
+    if(!/^data:application\/pdf;base64,/i.test(documento)) return res.status(400).json({sucesso:false,erro:'Envie o contrato assinado em PDF.'});
+    if(documento.length>9*1024*1024) return res.status(413).json({sucesso:false,erro:'O PDF deve ter no máximo 6 MB.'});
+    try{
+        await pool.query(`UPDATE usuarios SET contrato_gov_documento=$1,contrato_gov_nome=$2,
+            contrato_gov_status='pendente',contrato_gov_enviado_em=CURRENT_TIMESTAMP,
+            contrato_gov_validado_em=NULL,atualizado_em=CURRENT_TIMESTAMP WHERE id=$3`,[documento,nome,req.usuario.id]);
+        await registrarAuditoria(req.usuario.email,'ENVIAR_CONTRATO_GOV','Contrato assinado enviado para conferência.');
+        return res.json({sucesso:true,mensagem:'Contrato enviado ao Administrador Pleno para conferência.'});
+    }catch(err){console.error('❌ Enviar contrato GOV.BR:',err);return res.status(500).json({sucesso:false,erro:'Erro ao enviar o contrato.'});}
+});
+
+app.post('/api/verificacao/antecedentes', autenticarUsuario, async (req,res) => {
+    if(!usuarioEhPrestador(req.usuario)) return responderAcessoNegado(res,'Área exclusiva do prestador.');
+    const documento=String(req.body?.documento||'');
+    const nome=String(req.body?.nome||'certidao.pdf').slice(0,180);
+    const emitidaEm=String(req.body?.emitida_em||'');
+    const validade=String(req.body?.validade||'');
+    if(!/^data:application\/pdf;base64,/i.test(documento)) return res.status(400).json({sucesso:false,erro:'Envie a certidão em PDF.'});
+    if(documento.length>9*1024*1024) return res.status(413).json({sucesso:false,erro:'O PDF deve ter no máximo 6 MB.'});
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(emitidaEm)||!/^\d{4}-\d{2}-\d{2}$/.test(validade)) return res.status(400).json({sucesso:false,erro:'Informe a emissão e a validade.'});
+    if(validade<emitidaEm) return res.status(400).json({sucesso:false,erro:'A validade não pode ser anterior à emissão.'});
+    try{
+        const autorizado=await pool.query('SELECT antecedentes_autorizado FROM usuarios WHERE id=$1',[req.usuario.id]);
+        if(!autorizado.rows[0]?.antecedentes_autorizado) return res.status(409).json({sucesso:false,erro:'Registre sua autorização antes de enviar a certidão.'});
+        await pool.query(`UPDATE usuarios SET antecedentes_documento=$1,antecedentes_nome=$2,
+            antecedentes_status='pendente',antecedentes_emitida_em=$3,antecedentes_validade=$4,
+            antecedentes_validado_em=NULL,atualizado_em=CURRENT_TIMESTAMP WHERE id=$5`,
+            [documento,nome,emitidaEm,validade,req.usuario.id]);
+        await registrarAuditoria(req.usuario.email,'ENVIAR_CERTIDAO','Certidão apresentada voluntariamente para conferência.');
+        return res.json({sucesso:true,mensagem:'Certidão enviada ao Administrador Pleno para conferência.'});
+    }catch(err){console.error('❌ Enviar certidão:',err);return res.status(500).json({sucesso:false,erro:'Erro ao enviar a certidão.'});}
 });
 
 
@@ -20380,12 +20474,48 @@ app.post(
 );
 
 
+app.get('/api/admin/verificacoes/:id', autenticarUsuario, async (req,res) => {
+    if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Área exclusiva do Grupo RS.');
+    try{
+        const r=await pool.query(`
+            SELECT id,nome,tipo,contrato_gov_documento AS contrato_documento,
+                   contrato_gov_nome AS contrato_nome,contrato_gov_status AS contrato_status,
+                   antecedentes_autorizado,antecedentes_documento,antecedentes_nome,
+                   antecedentes_status,antecedentes_emitida_em,antecedentes_validade
+            FROM usuarios WHERE id=$1 AND LOWER(COALESCE(tipo,'')) IN ('prestador','colaborador')
+        `,[Number(req.params.id)]);
+        if(!r.rows.length)return res.status(404).json({sucesso:false,erro:'Prestador não encontrado.'});
+        return res.json({sucesso:true,verificacao:r.rows[0]});
+    }catch(err){console.error('❌ Conferência documental:',err);return res.status(500).json({sucesso:false,erro:'Erro ao carregar os documentos.'});}
+});
+
+app.post('/api/admin/verificacoes/:id/:tipo/:acao', autenticarUsuario, async (req,res) => {
+    if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Área exclusiva do Grupo RS.');
+    const tipo=String(req.params.tipo||'').toLowerCase();
+    const acao=String(req.params.acao||'').toLowerCase();
+    if(!['contrato','antecedentes'].includes(tipo)||!['validar','rejeitar'].includes(acao)) return res.status(400).json({sucesso:false,erro:'Ação de conferência inválida.'});
+    const status=acao==='validar'?'validado':'rejeitado';
+    try{
+        const sql=tipo==='contrato'
+            ? `UPDATE usuarios SET contrato_gov_status=$1,contrato_gov_validado_em=CASE WHEN $1='validado' THEN CURRENT_TIMESTAMP ELSE NULL END,atualizado_em=CURRENT_TIMESTAMP WHERE id=$2 AND contrato_gov_documento IS NOT NULL RETURNING email`
+            : `UPDATE usuarios SET antecedentes_status=$1,antecedentes_validado_em=CASE WHEN $1='validado' THEN CURRENT_TIMESTAMP ELSE NULL END,atualizado_em=CURRENT_TIMESTAMP WHERE id=$2 AND antecedentes_documento IS NOT NULL RETURNING email`;
+        const r=await pool.query(sql,[status,Number(req.params.id)]);
+        if(!r.rows.length)return res.status(404).json({sucesso:false,erro:'Documento não encontrado.'});
+        await registrarAuditoria(req.usuario.email,'ADMIN_VERIFICAR_DOCUMENTO',`${tipo} do usuário ${r.rows[0].email} marcado como ${status}.`);
+        await registrarNotificacaoUsuario(r.rows[0].email,'verificacao_documental',{mensagem:`${tipo==='contrato'?'Seu contrato':'Sua certidão'} foi ${status==='validado'?'validado(a)':'rejeitado(a)'} pelo Grupo RS.`});
+        return res.json({sucesso:true,mensagem:`Documento ${status==='validado'?'validado':'rejeitado'} com sucesso.`});
+    }catch(err){console.error('❌ Decidir verificação:',err);return res.status(500).json({sucesso:false,erro:'Erro ao atualizar o documento.'});}
+});
+
+
 app.get('/api/admin/central', autenticarUsuario, async (req,res) => {
     if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Central exclusiva do Grupo RS.');
     try{
         const [empresasUsuarios,prestadoresUsuarios,servicosVinculos,clientes,vinculosDiretos]=await Promise.all([
             pool.query(`SELECT id,nome,email,cadastro_status,perfil_verificado,criado_em FROM usuarios WHERE LOWER(COALESCE(tipo,''))='empresa' ORDER BY nome ASC LIMIT 300`),
-            pool.query(`SELECT id,nome,email,profissao,cadastro_status,perfil_verificado FROM usuarios WHERE LOWER(COALESCE(tipo,'')) IN ('prestador','colaborador') LIMIT 1000`),
+            pool.query(`SELECT id,nome,email,profissao,cadastro_status,perfil_verificado,
+                contrato_gov_status,antecedentes_status,antecedentes_validade
+                FROM usuarios WHERE LOWER(COALESCE(tipo,'')) IN ('prestador','colaborador') LIMIT 1000`),
             pool.query(`SELECT LOWER(empresa_email) AS empresa_email,MAX(empresa_nome) AS empresa_nome,LOWER(prestador_email) AS prestador_email,MAX(prestador_nome) AS prestador_nome,COUNT(*)::int AS total_servicos FROM servicos WHERE prestador_email IS NOT NULL AND TRIM(prestador_email)<>'' GROUP BY LOWER(empresa_email),LOWER(prestador_email) LIMIT 2000`),
             pool.query(`SELECT id,nome,responsavel_email,ativo,criado_em FROM clientes_rs ORDER BY nome ASC LIMIT 300`),
             pool.query(`SELECT c.id AS cliente_id,c.nome AS empresa_nome,LOWER(c.responsavel_email) AS empresa_email,LOWER(v.colaborador_email) AS prestador_email,v.colaborador_nome,v.funcao,v.ativo FROM clientes_rs c JOIN clientes_rs_colaboradores v ON v.cliente_id=c.id LIMIT 2000`)
@@ -20422,7 +20552,8 @@ app.get('/api/admin/central', autenticarUsuario, async (req,res) => {
                 if(!atual.funcao&&funcao)atual.funcao=funcao;
                 return;
             }
-            empresa._prestadores.set(chave,{nome:nome||'Prestador',funcao:funcao||'Função não informada',situacao:situacao||'aprovado',verificado:Boolean(verificado),servicos:Number(servicos)||0});
+            const cadastro=prestadorPorEmail.get(nomeChave(email));
+            empresa._prestadores.set(chave,{id:cadastro?.id||null,nome:nome||'Prestador',funcao:funcao||'Função não informada',situacao:situacao||'aprovado',verificado:Boolean(verificado),servicos:Number(servicos)||0,contrato_status:cadastro?.contrato_gov_status||'nao_enviado',antecedentes_status:cadastro?.antecedentes_status||'nao_enviado',antecedentes_validade:cadastro?.antecedentes_validade||null});
         };
 
         for(const item of servicosVinculos.rows){
