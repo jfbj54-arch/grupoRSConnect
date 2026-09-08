@@ -20257,7 +20257,7 @@ app.get(
         if (!req.usuario?.gestorRS) return responderAcessoNegado(res, 'Área exclusiva do Grupo RS.');
         try {
             const resultado = await pool.query(`
-                SELECT id, nome, email, tipo, doc, whatsapp, profissao, criado_em
+                SELECT id, nome, tipo, criado_em
                 FROM usuarios
                 WHERE LOWER(COALESCE(cadastro_status,'aprovado')) = 'pendente'
                 ORDER BY criado_em ASC NULLS LAST, id ASC
@@ -20337,15 +20337,72 @@ app.post(
 app.get('/api/admin/central', autenticarUsuario, async (req,res) => {
     if(!req.usuario?.gestorRS) return responderAcessoNegado(res,'Central exclusiva do Grupo RS.');
     try{
-        const [usuarios,servicos,jornadas,pagamentos,avaliacoes,auditoria]=await Promise.all([
-            pool.query(`SELECT id,nome,email,tipo,doc,responsavel,whatsapp,profissao,cadastro_status,perfil_verificado,documentos_verificados,criado_em,atualizado_em FROM usuarios ORDER BY id DESC LIMIT 200`),
-            pool.query(`SELECT id,titulo,categoria,empresa_nome,empresa_email,prestador_nome,prestador_email,status,valor_liquido,data_horario,criado_em FROM servicos ORDER BY id DESC LIMIT 200`),
-            pool.query(`SELECT id,titulo,empresa_nome,prestador_nome,prestador_email,checkin_hora,intervalo_inicio,intervalo_retorno,intervalo_fim,checkout_hora,jornada_aprovacao_status,validado_empresa,data_horario FROM servicos WHERE checkin_hora IS NOT NULL OR checkout_hora IS NOT NULL ORDER BY id DESC LIMIT 200`),
-            pool.query(`SELECT id,servico_id,empresa_email,prestador_email,valor,forma_pagamento,status,autorizado_em,pago_em,criado_em FROM pagamentos ORDER BY id DESC LIMIT 200`),
-            pool.query(`SELECT id,servico_id,avaliador_email,avaliado_email,avaliador_tipo,nota,comentario,criado_em FROM avaliacoes ORDER BY id DESC LIMIT 200`),
-            pool.query(`SELECT id,usuario_email,acao,detalhes,criado_em FROM auditoria_sistema ORDER BY id DESC LIMIT 250`)
+        const [empresasUsuarios,prestadoresUsuarios,servicosVinculos,clientes,vinculosDiretos]=await Promise.all([
+            pool.query(`SELECT id,nome,email,cadastro_status,perfil_verificado,criado_em FROM usuarios WHERE LOWER(COALESCE(tipo,''))='empresa' ORDER BY nome ASC LIMIT 300`),
+            pool.query(`SELECT id,nome,email,profissao,cadastro_status,perfil_verificado FROM usuarios WHERE LOWER(COALESCE(tipo,'')) IN ('prestador','colaborador') LIMIT 1000`),
+            pool.query(`SELECT LOWER(empresa_email) AS empresa_email,MAX(empresa_nome) AS empresa_nome,LOWER(prestador_email) AS prestador_email,MAX(prestador_nome) AS prestador_nome,COUNT(*)::int AS total_servicos FROM servicos WHERE prestador_email IS NOT NULL AND TRIM(prestador_email)<>'' GROUP BY LOWER(empresa_email),LOWER(prestador_email) LIMIT 2000`),
+            pool.query(`SELECT id,nome,responsavel_email,ativo,criado_em FROM clientes_rs ORDER BY nome ASC LIMIT 300`),
+            pool.query(`SELECT c.id AS cliente_id,c.nome AS empresa_nome,LOWER(c.responsavel_email) AS empresa_email,LOWER(v.colaborador_email) AS prestador_email,v.colaborador_nome,v.funcao,v.ativo FROM clientes_rs c JOIN clientes_rs_colaboradores v ON v.cliente_id=c.id LIMIT 2000`)
         ]);
-        return res.json({sucesso:true,usuarios:usuarios.rows,servicos:servicos.rows,jornadas:jornadas.rows,pagamentos:pagamentos.rows,avaliacoes:avaliacoes.rows,auditoria:auditoria.rows});
+
+        const nomeChave = valor => String(valor||'').trim().toLowerCase();
+        const empresas = [];
+        const porEmail = new Map();
+        const porNome = new Map();
+
+        for(const item of empresasUsuarios.rows){
+            const empresa={id:item.id,nome:item.nome||'Empresa',situacao:item.cadastro_status||'aprovado',verificada:Boolean(item.perfil_verificado),cadastrada_em:item.criado_em,prestadores:[],total_servicos:0,_prestadores:new Map()};
+            empresas.push(empresa);
+            if(item.email)porEmail.set(nomeChave(item.email),empresa);
+            porNome.set(nomeChave(item.nome),empresa);
+        }
+        for(const item of clientes.rows){
+            let empresa=porEmail.get(nomeChave(item.responsavel_email))||porNome.get(nomeChave(item.nome));
+            if(!empresa){
+                empresa={id:`cliente-${item.id}`,nome:item.nome||'Empresa',situacao:item.ativo===false?'inativa':'aprovado',verificada:false,cadastrada_em:item.criado_em,prestadores:[],total_servicos:0,_prestadores:new Map()};
+                empresas.push(empresa);
+                porNome.set(nomeChave(item.nome),empresa);
+            }
+            if(item.responsavel_email)porEmail.set(nomeChave(item.responsavel_email),empresa);
+        }
+
+        const prestadorPorEmail=new Map(prestadoresUsuarios.rows.map(item=>[nomeChave(item.email),item]));
+        const adicionarPrestador=(empresa,email,nome,funcao,situacao,verificado,servicos=0)=>{
+            if(!empresa)return;
+            const chave=nomeChave(email)||`nome:${nomeChave(nome)}`;
+            const atual=empresa._prestadores.get(chave);
+            if(atual){
+                atual.servicos+=Number(servicos)||0;
+                if(!atual.funcao&&funcao)atual.funcao=funcao;
+                return;
+            }
+            empresa._prestadores.set(chave,{nome:nome||'Prestador',funcao:funcao||'Função não informada',situacao:situacao||'aprovado',verificado:Boolean(verificado),servicos:Number(servicos)||0});
+        };
+
+        for(const item of servicosVinculos.rows){
+            const empresa=porEmail.get(nomeChave(item.empresa_email))||porNome.get(nomeChave(item.empresa_nome));
+            const cadastro=prestadorPorEmail.get(nomeChave(item.prestador_email));
+            adicionarPrestador(empresa,item.prestador_email,cadastro?.nome||item.prestador_nome,cadastro?.profissao,cadastro?.cadastro_status,cadastro?.perfil_verificado,item.total_servicos);
+            if(empresa)empresa.total_servicos+=Number(item.total_servicos)||0;
+        }
+        for(const item of vinculosDiretos.rows){
+            const empresa=porEmail.get(nomeChave(item.empresa_email))||porNome.get(nomeChave(item.empresa_nome));
+            const cadastro=prestadorPorEmail.get(nomeChave(item.prestador_email));
+            adicionarPrestador(empresa,item.prestador_email,cadastro?.nome||item.colaborador_nome,item.funcao||cadastro?.profissao,item.ativo===false?'inativo':cadastro?.cadastro_status,cadastro?.perfil_verificado,0);
+        }
+
+        const resposta=empresas.map(empresa=>({
+            id:empresa.id,
+            nome:empresa.nome,
+            situacao:empresa.situacao,
+            verificada:empresa.verificada,
+            cadastrada_em:empresa.cadastrada_em,
+            prestadores:Array.from(empresa._prestadores.values()).sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR')),
+            total_prestadores:empresa._prestadores.size,
+            total_servicos:empresa.total_servicos
+        })).sort((a,b)=>String(a.nome).localeCompare(String(b.nome),'pt-BR'));
+
+        return res.json({sucesso:true,empresas:resposta});
     }catch(err){console.error('❌ Central administrativa:',err);return res.status(500).json({sucesso:false,erro:'Erro ao carregar a Central Administrativa.'});}
 });
 
@@ -20401,26 +20458,9 @@ app.get(
                      AND COALESCE(pagamento_realizado,FALSE) = FALSE) AS pagamentos_pendentes
             `);
 
-            const usuariosRecentes = await pool.query(`
-                SELECT id, nome, email, tipo, cadastro_status, perfil_verificado,
-                       documento_perfil_nome, criado_em
-                FROM usuarios
-                ORDER BY criado_em DESC NULLS LAST, id DESC
-                LIMIT 8
-            `);
-
-            const servicosRecentes = await pool.query(`
-                SELECT id, titulo, empresa_nome, prestador_nome, status, criado_em
-                FROM servicos
-                ORDER BY criado_em DESC NULLS LAST, id DESC
-                LIMIT 8
-            `);
-
             return res.json({
                 sucesso: true,
-                resumo: resultado.rows[0] || {},
-                usuariosRecentes: usuariosRecentes.rows,
-                servicosRecentes: servicosRecentes.rows
+                resumo: resultado.rows[0] || {}
             });
         } catch (err) {
             console.error('❌ Painel administrativo:', err);
