@@ -8256,6 +8256,11 @@ function renderizarEmpresasAdmin(){
         <div class="rs-admin-empresa-meta"><span class="rs-admin-status">${escapeHtml(empresa.situacao||'aprovado')}</span><span class="btn btn-dark">Ver prestadores ▾</span></div>
       </summary>
       <div class="rs-admin-prestadores">
+        <div class="service-actions" style="justify-content:flex-end;margin-bottom:12px;">
+          ${['excluido','inativa','inativo','bloqueado'].includes(texto(empresa.situacao).toLowerCase())
+            ? `<button class="btn btn-success" type="button" onclick="alterarEmpresaAdmin('${escapeHtml(String(empresa.id))}', 'restaurar', this)">↩ Restaurar empresa</button>`
+            : `<button class="btn btn-danger" type="button" onclick="alterarEmpresaAdmin('${escapeHtml(String(empresa.id))}', 'excluir', this)">🗑 Excluir empresa</button>`}
+        </div>
         ${(empresa.prestadores||[]).length?(empresa.prestadores||[]).map(p=>`
           <div class="rs-admin-prestador">
             <div><strong>🧑‍🔧 ${escapeHtml(p.nome||'Prestador')}</strong><small>${escapeHtml(p.funcao||'Função não informada')} · ${Number(p.servicos)||0} serviço(s)</small></div>
@@ -8264,6 +8269,23 @@ function renderizarEmpresasAdmin(){
           </div>`).join(''):'<div class="rs-vazio">Esta empresa ainda não possui prestadores vinculados.</div>'}
       </div>
     </details>`).join('');
+}
+async function alterarEmpresaAdmin(id, acao, botao) {
+  const excluindo = acao === 'excluir';
+  const pergunta = excluindo
+    ? 'Deseja excluir esta empresa? O acesso será bloqueado, mas os históricos, jornadas e pagamentos serão preservados.'
+    : 'Deseja restaurar esta empresa e liberar novamente o acesso?';
+  if (!confirm(pergunta)) return;
+  try {
+    loadingBotao(botao, true, excluindo ? 'Excluindo...' : 'Restaurando...');
+    const data = await apiFetch(`/api/admin/empresas/${encodeURIComponent(id)}/${acao}`, {method:'POST'});
+    toast(data?.mensagem || 'Empresa atualizada.', 'success');
+    await carregarPainelAdmin(false);
+  } catch (erro) {
+    toast(erro.message, 'error');
+  } finally {
+    loadingBotao(botao, false);
+  }
 }
 async function alterarSituacaoUsuario(id,situacao,botao){if(!confirm(`Confirma alterar esta conta para ${situacao}?`))return;try{loadingBotao(botao,true,'...');const d=await apiFetch(`/api/admin/usuarios/${id}/situacao`,{method:'POST',body:JSON.stringify({situacao})});toast(d.mensagem,'success');await carregarPainelAdmin(false);}catch(e){toast(e.message,'error');}finally{loadingBotao(botao,false);}}
 async function removerAvaliacaoAdmin(id,botao){if(!confirm('Remover esta avaliação? A ação ficará registrada na auditoria.'))return;try{loadingBotao(botao,true,'...');const d=await apiFetch(`/api/admin/avaliacoes/${id}`,{method:'DELETE'});toast(d.mensagem,'success');await carregarPainelAdmin(false);}catch(e){toast(e.message,'error');}finally{loadingBotao(botao,false);}}
