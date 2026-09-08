@@ -938,6 +938,8 @@ function usuarioEhGestorRS(
 
     return [
         'admin',
+        'admin_pleno',
+        'administrador_pleno',
         'administrador',
         'gestor',
         'grupo_rs',
@@ -4532,7 +4534,7 @@ async function cadastrarUsuarioRS(
 
         const gestores = await pool.query(`
             SELECT email FROM usuarios
-            WHERE LOWER(COALESCE(tipo,'')) IN ('admin','administrador','gestor','grupo_rs','grupo rs')
+            WHERE LOWER(COALESCE(tipo,'')) IN ('admin','admin_pleno','administrador_pleno','administrador','gestor','grupo_rs','grupo rs')
                OR LOWER(email)=LOWER($1)
         `, [normalizarEmail(process.env.ADMIN_EMAIL)]);
 
@@ -4938,6 +4940,34 @@ app.post(
     '/api/login',
     loginUsuarioRS
 );
+
+// Cadastro inicial do Administrador Pleno. Funciona uma única vez.
+app.get('/api/admin/configuracao-inicial', async (_req,res)=>{
+    try{
+        const r=await pool.query(`SELECT EXISTS(SELECT 1 FROM usuarios WHERE LOWER(COALESCE(tipo,'')) IN ('admin_pleno','administrador_pleno')) AS configurado`);
+        return res.json({sucesso:true,configurado:Boolean(r.rows[0]?.configurado)});
+    }catch(err){return res.status(500).json({sucesso:false,erro:'Não foi possível verificar a configuração administrativa.'});}
+});
+
+app.post('/api/admin/criar-pleno', async (req,res)=>{
+    const email=normalizarEmail(req.body?.email);
+    const senha=String(req.body?.senha||'');
+    if(!email||!senha)return res.status(400).json({sucesso:false,erro:'Informe o e-mail e a senha da conta.'});
+    const cliente=await pool.connect();
+    try{
+        await cliente.query('BEGIN');
+        await cliente.query('SELECT pg_advisory_xact_lock(8462371)');
+        const existe=await cliente.query(`SELECT EXISTS(SELECT 1 FROM usuarios WHERE LOWER(COALESCE(tipo,'')) IN ('admin_pleno','administrador_pleno')) AS configurado`);
+        if(existe.rows[0]?.configurado){await cliente.query('ROLLBACK');return res.status(409).json({sucesso:false,erro:'O Administrador Pleno já foi cadastrado.'});}
+        const usuario=await cliente.query('SELECT id,nome,email,senha FROM usuarios WHERE LOWER(email)=LOWER($1) LIMIT 1',[email]);
+        if(!usuario.rows.length||!verificarSenha(senha,usuario.rows[0].senha)){await cliente.query('ROLLBACK');return res.status(401).json({sucesso:false,erro:'E-mail ou senha incorretos.'});}
+        await cliente.query(`UPDATE usuarios SET tipo='admin_pleno',cadastro_status='aprovado',aprovado_em=CURRENT_TIMESTAMP,atualizado_em=CURRENT_TIMESTAMP WHERE id=$1`,[usuario.rows[0].id]);
+        await cliente.query('COMMIT');
+        await registrarAuditoria(email,'CRIAR_ADMIN_PLENO','Administrador Pleno cadastrado pela configuração inicial.');
+        return res.json({sucesso:true,mensagem:'Administrador Pleno criado. Entre novamente para abrir o painel.'});
+    }catch(err){await cliente.query('ROLLBACK').catch(()=>{});console.error('❌ Criar Administrador Pleno:',err);return res.status(500).json({sucesso:false,erro:'Erro ao criar o Administrador Pleno.'});}
+    finally{cliente.release();}
+});
 
 
 app.post(
