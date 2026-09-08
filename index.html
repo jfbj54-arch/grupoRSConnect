@@ -7917,6 +7917,32 @@ function configurarMenuPorTipo() {
 
   $('navAdmin')?.classList.toggle('hidden', !ehGrupoRS());
 
+  // O Administrador Pleno possui uma navegação própria. Ele não deve
+  // herdar as telas operacionais da empresa nem as telas do prestador.
+  if (ehGrupoRS()) {
+    const ocultarAdmin = [
+      'navRadar',
+      'navServicos',
+      'navPublicar',
+      'navJornada',
+      'navPerfil',
+      'navMensagens',
+      'navFinanceiro',
+      'navHistorico',
+      'navArquivo',
+      'navMaisMobile'
+    ];
+
+    ocultarAdmin.forEach(id => $(id)?.classList.add('hidden'));
+    $('navInicio')?.classList.remove('hidden');
+    $('navNotificacoes')?.classList.remove('hidden');
+    $('navNotificacoes')?.classList.remove('nav-secundario');
+    $('navAdmin')?.classList.remove('hidden', 'nav-secundario');
+    $('navSairMobile')?.classList.remove('hidden');
+    $('btnSuporteSenha')?.classList.remove('hidden');
+    return;
+  }
+
   if (
     ehEmpresa()
   ) {
@@ -8031,21 +8057,28 @@ function configurarExperienciaPorPerfil() {
     ['👤', 'Perfil profissional', 'Foto, experiência e avaliações', 'perfil']
   ];
 
+  const itensAdministrador = [
+    ['🛡️', 'Painel administrativo', 'Controle geral e aprovação de cadastros', 'admin'],
+    ['🏢', 'Empresas cadastradas', 'Consulte empresas e seus prestadores vinculados', 'admin'],
+    ['🕒', 'Cadastros pendentes', 'Aprove ou rejeite novos acessos', 'admin'],
+    ['🔔', 'Avisos administrativos', 'Acompanhe movimentações importantes', 'notificacoes']
+  ];
+
   const empresa = ehEmpresa();
   $('boxRelatorioMensal')?.classList.toggle('hidden', !empresa);
   if ($('relatorioMes') && !$('relatorioMes').value) {
     const agora=new Date();
     $('relatorioMes').value=`${agora.getFullYear()}-${String(agora.getMonth()+1).padStart(2,'0')}`;
   }
-  if (ehGrupoRS()) {
-    itensEmpresa.unshift(['🛡️', 'Painel administrativo', 'Controle geral do RS CONNECT', 'admin']);
-  }
-  if (perfil) perfil.textContent = empresa ? (ehGrupoRS() ? 'PAINEL DO GRUPO RS' : 'PAINEL DA EMPRESA') : 'PAINEL DO PRESTADOR';
-  if (orientacao) orientacao.textContent = empresa ? 'Acompanhe serviços, equipes e pagamentos em um só lugar.' : 'Encontre vagas e acompanhe sua Jornada com facilidade.';
+  if (perfil) perfil.textContent = ehGrupoRS() ? 'ADMINISTRADOR PLENO · GRUPO RS' : (empresa ? 'PAINEL DA EMPRESA' : 'PAINEL DO PRESTADOR');
+  if (orientacao) orientacao.textContent = ehGrupoRS()
+    ? 'Gerencie cadastros, empresas e prestadores em um ambiente administrativo exclusivo.'
+    : (empresa ? 'Acompanhe serviços, equipes e pagamentos em um só lugar.' : 'Encontre vagas e acompanhe sua Jornada com facilidade.');
 
   if (atalhos) {
     atalhos.classList.add('modulos-rs');
-    atalhos.innerHTML = (empresa ? itensEmpresa : itensPrestador).map(item => `
+    const itensInicio = ehGrupoRS() ? itensAdministrador : (empresa ? itensEmpresa : itensPrestador);
+    atalhos.innerHTML = itensInicio.map(item => `
       <button class="inicio-atalho" type="button" onclick="abrirPagina('${item[3]}')">
         <span class="inicio-atalho-icone">${item[0]}</span>
         <span><strong>${item[1]}</strong><small>${item[2]}</small></span>
@@ -8520,6 +8553,12 @@ function sairSistema() {
 async function abrirPagina(
   pagina
 ) {
+
+  // Proteção de navegação: o Administrador Pleno nunca entra nas telas
+  // operacionais que pertencem a empresas ou prestadores.
+  if (ehGrupoRS() && !['inicio', 'admin', 'notificacoes'].includes(pagina)) {
+    pagina = 'admin';
+  }
 
   document.querySelector('.nav')?.classList.remove('expandido');
 
